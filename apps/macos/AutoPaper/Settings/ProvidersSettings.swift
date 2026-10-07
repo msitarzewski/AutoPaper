@@ -107,7 +107,7 @@ private struct ProviderSection: View {
     var body: some View {
         Section {
             LabeledContent("Provider") {
-                Picker("\(jobName) provider", selection: Binding(get: { selection.kind }, set: choose)) {
+                Picker("\(jobName) provider", selection: Binding(get: { selection.kind }, set: { choose($0) })) {
                     ForEach(kinds, id: \.self) { kind in
                         Text(pickerTitle(kind)).tag(kind)
                     }
@@ -290,7 +290,7 @@ private struct ProviderSection: View {
         } else {
             // A stock picker row, so the menu stays on the label's line with the estimate under the label (Refresh is
             // in the Connection row).
-            Picker(selection: Binding(get: { selection.model }, set: setModel)) {
+            Picker(selection: Binding(get: { selection.model }, set: { setModel($0) })) {
                 ForEach(ModelMenu.items(kind: selection.kind, job: job, models: models, saved: selection.model, listed: listed), id: \.tag) { item in
                     // With how long it takes here, once AutoPaper has timed it: "Qwen-Image 2.1 (about 9 minutes)".
                     Text(Formatting.withEstimate(item.title, seconds: estimates.seconds[item.tag])).tag(item.tag)
@@ -438,7 +438,7 @@ private struct ProviderSection: View {
     @ViewBuilder
     private var workflowRow: some View {
         LabeledContent {
-            Picker("\(jobName) workflow", selection: Binding(get: { usesOwnWorkflow ? WorkflowChoice.own : .autoPaper }, set: chooseWorkflow)) {
+            Picker("\(jobName) workflow", selection: Binding(get: { usesOwnWorkflow ? WorkflowChoice.own : .autoPaper }, set: { chooseWorkflow($0) })) {
                 Text(WorkflowChoice.autoPaperTitle).tag(WorkflowChoice.autoPaper)
                 if hasOwnFile {
                     Text(WorkflowChoice.ownTitle(fileName: ownName)).tag(WorkflowChoice.own)

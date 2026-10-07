@@ -16,7 +16,7 @@ struct BudgetSettings: View {
     var body: some View {
         SettingsPane { settings in
             Section {
-                Picker(selection: Binding(get: { tag(settings) }, set: choose)) {
+                Picker(selection: Binding(get: { tag(settings) }, set: { choose($0) })) {
                     ForEach(Choices.budgets, id: \.self) { cents in
                         Text(cents.map { Formatting.dollars(cents: $0) } ?? "No limit").tag(cents.map(Int.init) ?? Self.noLimit)
                     }

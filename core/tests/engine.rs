@@ -167,7 +167,7 @@ async fn keywords_to_a_stored_wallpaper_that_becomes_current() {
 
     let display = DisplayTarget { id: "main".into(), width: 160, height: 100 };
     let render = h.engine.render_for_display(generation.id.clone(), display.clone()).unwrap();
-    assert!(render.ends_with(&format!("renders/{}-160x100.jpg", generation.id)), "{render}");
+    assert!(render.replace('\\', "/").ends_with(&format!("renders/{}-160x100.jpg", generation.id)), "{render}");
     let (width, height) = image::image_dimensions(&render).unwrap();
     assert_eq!((width, height), (160, 100));
     assert_eq!(h.engine.render_for_display(generation.id.clone(), display).unwrap(), render, "cached");

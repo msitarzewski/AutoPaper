@@ -51,3 +51,17 @@ GitHub Releases, winget, App Installer update feed on Pages); Linux as a Flatpak
 review); GitHub-only Flatpak (no automatic updates).
 **Consequences**: Windows/Linux parity and packaging come before the release; Windows signing waits on the user's
 Artifact Signing identity check; one Artifact Signing profile can sign any of the user's Windows apps.
+
+### 2026-10-06: Self-hosted updates instead of Flathub
+**Status**: Approved (user: "fuck Flathub. We do something else."; hosting on pipx via msitarzewski.com/app-updates)
+**Context**: Flathub's requirements forbid AI-generated or AI-assisted manifests (disclosure doesn't exempt them) and
+AI-opened PRs; GitHub Pages can't hold the ~130 MB embedding model as a single file, and App Installer's handling of
+GitHub's release redirects is undocumented.
+**Decision**: Linux ships from our own GPG-signed Flatpak repository at https://msitarzewski.com/app-updates/autopaper/flatpak
+(one-click `AutoPaper.flatpakref`; the GNOME runtime still comes from Flathub's runtime repo), plus a `.flatpak` on
+GitHub Releases that points at the same repository. Windows' App Installer file and MSIX bundles are hosted there too
+(winget keeps GitHub Release URLs). CI builds the Flatpak bundles (x86_64 + aarch64); publishing (signing, rsync to
+pipx) runs on the Mac. Server setup: `scripts/pipx-app-updates.sh`, following ~/Clean/pipx/DEPLOYING.md (Michael runs
+it; only msitarzewski.com's slice).
+**Consequences**: no discovery through Flathub's catalogue; updates still come through Flatpak/GNOME Software/Discover;
+one more host (msitarzewski.com, no access logs) in NETWORK.md/PRIVACY.md; the repo signing key must be backed up.

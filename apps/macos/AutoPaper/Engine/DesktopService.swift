@@ -69,8 +69,10 @@ final class DesktopService {
 
     /// The largest display's pixel size, for `set_display_hint` (the engine picks the image size from it).
     static func largestDisplay() -> (width: UInt32, height: UInt32)? {
-        targets().map(\.target).max { UInt64($0.width) * UInt64($0.height) < UInt64($1.width) * UInt64($1.height) }
-            .map { ($0.width, $0.height) }
+        // Spelled out with explicit types: Xcode 26.6's compiler gave up type-checking the one-expression version.
+        let area: (DisplayTarget) -> UInt64 = { UInt64($0.width) * UInt64($0.height) }
+        let largest: DisplayTarget? = targets().map(\.target).max { area($0) < area($1) }
+        return largest.map { (width: $0.width, height: $0.height) }
     }
 
     /// Renders `generation` for every display (off the main thread) and shows it the current way. As my wallpaper

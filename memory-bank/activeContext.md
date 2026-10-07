@@ -106,6 +106,22 @@ publishes the feed via Pages, so push only after the GitHub release v0.1.0 has t
 (sha256 dmg bf91bf27…, zip 9f985642…). Rebuild with release.sh at tag time if any code changes. Still to do for the
 real-key update test: serve the zip + a local copy of the feed in the macOS VM and update from a fake 0.0.9 build.
 
+## v0.1.0 RELEASED (2026-10-07) — macOS, Windows, Linux
+https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.0 (tag v0.1.0; commit 3283091 has the final site/feed).
+- **Mac:** notarized DMG + Sparkle zip on the release; feed https://msitarzewski.github.io/AutoPaper/appcast.xml (1 item).
+- **Windows:** Artifact Signing certificate (profile `autopaper`, account msitarzewski-signing, East US; identity
+  validation completed in hours). Signed bundle on msitarzewski.com/app-updates/autopaper/windows/ + AutoPaper.appinstaller
+  (also attached to the release). winget manifests in packaging/winget/ — NOT yet submitted to winget-pkgs (user to
+  submit or ask). Certificates are short-lived (3 days), signatures are timestamped. Package family AutoPaper_0a7ap1vxmmc6t.
+- **Linux:** own signed Flatpak repo (msitarzewski.com/app-updates/autopaper/flatpak, key 6D6197DA…, BACK UP
+  ~/.config/autopaper/flatpak-gnupg/); .flatpak files on the release. No Flathub (decision 2026-10-06).
+- **Release recipes:** Mac `scripts/release.sh` (needs ~/.config/brew-browser/signing.env sourced; Always Allow on the
+  Sparkle key done) then `gh release create`, then commit appcast LAST; Windows VM `windows-release.ps1 -Version X
+  -CopyTo \\Mac\Home\Clean\autopaper` (needs az login in the VM, x64 .NET 8) then `scripts/publish-windows.sh X`;
+  Linux push tag vX (CI Flatpak workflow) then `scripts/publish-flatpak.sh --tag vX`, upload `build/flatpak/release/*`.
+- Open: winget submission; Linux own-wallpaper restore inside Flatpak (picker design offered); extra empty Azure
+  subscription "Michael - App Signing"; VM leftovers (Downloads\test.appinstaller); real-key Sparkle update test.
+
 ## Next (in order)
 1. The four release agents; review; the user's Artifact Signing account.
 2. Publish: create the repo, first commit, push, Pages; build + sign artifacts; GitHub release v0.1.0; feeds last.

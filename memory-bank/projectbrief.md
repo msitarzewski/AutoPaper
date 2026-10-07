@@ -1,9 +1,14 @@
 # Project Brief — AutoPaper
 
+**Status (2026-10-07): v0.1.0 released** for macOS, Windows and Linux (https://github.com/msitarzewski/AutoPaper, MIT, taking PRs).
+Distribution: macOS notarized DMG + Sparkle; Windows signed MSIX via App Installer (Azure Artifact Signing; winget pending); Linux own
+signed Flatpak repository (no Flathub). Updates are served from the author's server msitarzewski.com and GitHub Pages/Releases.
+
 A native desktop app for macOS, Windows and Linux that keeps making new wallpapers you're unlikely to
 ever see twice. You give it a few keywords ("rain • ruins • peaceful • night • blue") instead of an
 image prompt; it composes a coherent scene, generates it with the AI provider you choose (your own API
-key), sets it as your wallpaper and lock screen, and remembers everything it has made.
+key), sets it as your wallpaper and lock screen, and remembers everything it has made. **Moods** (named keyword sets with their own
+Surprise) let you keep several scenes and switch between them.
 
 Origin: a Reddit post ("Desktop Wallpaper Agent"), handed to the user on 2026-10-05. The post's author
 isn't building it.

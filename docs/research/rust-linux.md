@@ -1,3 +1,5 @@
+**Superseded 2026-10-07 for packaging:** the Flatpak manifest, finish-args and publishing are as built in `packaging/flatpak/` and `memory-bank/techContext.md` (own repository, GNOME 51, id `io.github.msitarzewski.AutoPaper`); the manifest sketch below is historical.
+
 # AutoPaper: Rust core, bindings & Linux toolchain research
 
 Research date: 2026-10-05. Versions come from the crates.io API (`https://crates.io/api/v1/crates/<name>`), GitHub releases/tags (via `gh api`), the Hugging Face API, Flathub (`flatpak remote-ls/remote-info` run in the Scratch VM), Fedora mdapi and gnome-build-meta. Items marked **VERIFIED** were built or run during this research. Everything else comes from the docs or source files cited.

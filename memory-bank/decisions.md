@@ -43,7 +43,7 @@ disabled until fixed; the view refreshes itself when it is. (app-spec rule 6a)
 Nothing launches on the user's desktop; only `scripts/macvm` is shared into the macOS VM (never `.env`).
 
 ### 2026-10-06: How v0.1.0 ships
-**Status**: Approved (user)
+**Status**: Approved (user); the Linux/Windows hosting parts were superseded the same day by "Self-hosted updates instead of Flathub" below
 **Decision**: All three platforms in one release from a public GitHub repo (msitarzewski/AutoPaper). macOS as AudioPaper
 (notarized DMG + Sparkle, appcast on GitHub Pages); Windows signed with Azure Artifact Signing (MSIX/msixbundle on
 GitHub Releases, winget, App Installer update feed on Pages); Linux as a Flatpak on Flathub plus a bundle on GitHub.
@@ -65,3 +65,41 @@ pipx) runs on the Mac. Server setup: `scripts/pipx-app-updates.sh`, following ~/
 it; only msitarzewski.com's slice).
 **Consequences**: no discovery through Flathub's catalogue; updates still come through Flatpak/GNOME Software/Discover;
 one more host (msitarzewski.com, no access logs) in NETWORK.md/PRIVACY.md; the repo signing key must be backed up.
+
+### 2026-10-06: Writer retries say what was wrong; a typed "keywords not followed" error
+**Status**: Approved (user report: "something isn't right with memory or the google models… failed every recent session")
+**Context**: The logs showed two separate failures: Gemini painting 404s (`/v1` vs `/v1beta`, fixed) and "none of the text model's
+ideas followed the keywords", where retries never told the model what it missed.
+**Decision**: `ComposeContext.corrections` feeds the most common problems back on retries; when a Must is left out or an Avoid used
+every time, the core returns `AutoPaperError::KeywordNotFollowed { keyword, weight, mood_id }`; every app says it in one line naming
+the keyword, as a link that opens that mood (rule 6a). Painting for Google uses `/v1beta`, like its model list. `net::redact` no
+longer hides model names that mix letters and digits.
+
+### 2026-10-06: Windows lock screen restore needs two capabilities
+**Status**: Approved (user: "Yes"); implemented by the Windows agent
+**Decision**: Windows records the person's lock screen picture before the first change and restores it on Quit/Restore (never
+overwriting a picture they chose since; Spotlight/slideshow can't be re-enabled by an app, so it says so). The manifest adds
+`picturesLibrary` (Windows only hands an app the lock screen picture with it) and `RegistryWriteVirtualization disabled` with the
+restricted capability `unvirtualizedResources` (otherwise Windows' own lock-screen code writes to AutoPaper's private registry copy
+and Settings keeps showing Spotlight). Both are explained in PRIVACY.md and shown in App Installer's dialog.
+
+### 2026-10-07: Windows signing with Azure Artifact Signing; Mac and Linux are signed with the user's own keys
+**Status**: Approved (user), done
+**Decision**: Individual identity validation (US) → PublicTrust profile `autopaper` on account `msitarzewski-signing` (East US,
+Basic $9.99/mo); SignTool + the Artifact Signing dlib, timestamped. Certificates last 3 days and renew; signatures stay valid.
+Microsoft's documented validation time is 1–20 business days (it took hours here). The same account can sign the user's other
+Windows apps. Mac: Developer ID + notarization + Sparkle EdDSA key ("AutoPaper", login Keychain). Linux: a dedicated GPG key for the
+Flatpak repository (`~/.config/autopaper/flatpak-gnupg`, no passphrase, public key committed).
+
+### 2026-10-07: Release order and "all three together" relaxed, then restored
+**Status**: Approved (user)
+**Context**: The identity check was thought to take days, so the user chose to ship Mac and Linux first; it finished in hours, so the
+user asked to go live once all three were ready. **Decision / order**: build and verify each platform, publish Windows and Linux files
+to the server, create the GitHub release, then commit the site's Download buttons and the Sparkle appcast LAST so nothing points at a
+file that isn't there yet.
+
+### 2026-10-07: Qwen-Image 2.1 examples stay on the site
+**Status**: Approved (user: "This is NOT true. Please verify. Leave them as is.")
+**Context**: The repo scan noted the Qwen Research License (non-commercial = "research or evaluation purposes only"; outputs'
+ownership isn't addressed). The user says the Qwen team clarified it. Defaults stay permissive (Z-Image Turbo, Apache-2.0). Link the
+clarification in the Credits page if the user provides it.

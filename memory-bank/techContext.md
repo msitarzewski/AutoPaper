@@ -92,7 +92,9 @@ Versions verified 2026-10-05 (sources in `docs/research/rust-linux.md`, `docs/re
   previews by default); GNOME ignores set-on and sets light + dark backgrounds; unsandboxed apps must call
   `ashpd::register_host_app` for autostart; KDE's Secret portal is in flux — test oo7 on Plasma.
 - Flatpak: `org.gnome.Platform//51` + `org.freedesktop.Sdk.Extension.rust-stable//26.08`; finish-args
-  network, ipc, wayland, fallback-x11, dri (portals need no extra permissions).
+  network, ipc, wayland, fallback-x11, dri, plus `--talk-name=org.kde.StatusNotifierWatcher` (KDE tray); everything else through portals.
+  Own repository, not Flathub (see Release infrastructure). Unlock detection: Inhibit portal `CreateMonitor`; resume: a wall-clock
+  jump vs the monotonic clock (unit-tested only; a Parallels suspend is invisible to the guest).
 
 ## VMs (Parallels; user-approved for dev tooling)
 - **Scratch** (Linux): Ubuntu 26.04.1 LTS aarch64, GNOME Shell 50.1 Wayland, 8 CPU / 16 GB, user `michael`.
@@ -104,7 +106,7 @@ Versions verified 2026-10-05 (sources in `docs/research/rust-linux.md`, `docs/re
   - Installed 2026-10-05: libgtk-4-dev, libadwaita-1-dev, flatpak 1.16.6, flatpak-builder 1.4.8 (+ Flathub);
     rustup stable 1.99.0 for `michael`. Already present: build-essential, git, orca, portals, gnome-keyring.
     No Flatpak runtimes installed yet (~400 MB each).
-  - Clock ~34 h behind (NTP inactive); `sudo timedatectl set-ntp true` would fix it (not yet changed).
+  - Clock: NTP is now synced.
 - Docker `ubuntu:26.04` (linux/aarch64) has the same GTK/libadwaita/flatpak-builder versions — for CI-like builds.
 - **Windows 11**: see Windows section (research in progress).
 - "Ubuntu Linux 26": NOT used (user switched to Scratch). An apt install was interrupted there by suspend;
@@ -290,3 +292,24 @@ the VM; nothing appears on the Mac's screen.
 `site/` (layout + page fragments + static), built by `scripts/build_site.py` into `_site/` (AudioPaper's
 pipeline). Example wallpapers in `site/static/examples/` are painted locally with ComfyUI from
 `examples.json` (not made by the app; captioned as such).
+
+## Release infrastructure (2026-10-06/07)
+- **GitHub**: public repo `msitarzewski/AutoPaper`; workflows `ci.yml` (secret scan with gitleaks pinned to 8.30.1 because the action's
+  default can't read `[[allowlists]]`; core on ubuntu/macos-26/windows-2025; macOS app, Windows app, Linux app builds), `pages.yml`
+  (site from `site/` + PRIVACY.md/NETWORK.md; watches `appcast.xml`), `flatpak.yml` (tags `v*`: x86_64 on ubuntu-24.04, aarch64 on
+  ubuntu-24.04-arm, GNOME 51 container). Secret scanning + push protection, Dependabot alerts, private vulnerability reporting on.
+- **pipx hosting** (`ssh pipx`, Caddy behind the beacon proxy; no access logs for msitarzewski.com): `/srv/www/msitarzewski.com/app-updates/autopaper/`
+  (`michael:www-static`, dirs 2750, files 0640 via `umask 027` in the remote rsync because macOS's openrsync ignores `--chmod`):
+  `flatpak/` (OSTree repo), `AutoPaper.flatpakref`, `autopaper.flatpakrepo`, `windows/*.msixbundle`, `AutoPaper.appinstaller`.
+  Caddy lines (marker `AutoPaper app-updates`, backups `msitarzewski.com.caddy.bak.*`) set no-cache for feeds/indexes and the MIME types.
+  Set up once by `scripts/pipx-app-updates.sh` following `~/Clean/pipx/DEPLOYING.md` (only this site's slice; `caddy-apply`).
+- **Signing**: macOS Developer ID team 7JQGQ7CRH8 + notarytool credentials in `~/.config/brew-browser/signing.env` + Sparkle EdDSA key
+  (login Keychain, account "AutoPaper"; public key in `apps/macos/project.yml`). Windows: Azure Artifact Signing (see activeContext) via SignTool +
+  dlib (x64 .NET 8 runtime needed; the ARM64 VM runs it under emulation); VM has Azure CLI 2.91. Linux: GPG key in
+  `~/.config/autopaper/flatpak-gnupg` (RSA 4096, no passphrase) — public key `packaging/flatpak/autopaper-repo.gpg`.
+- **Scripts**: `release.sh`/`appcast.py` (Mac), `windows-release.ps1`/`publish-windows.sh`, `linux-release.sh` (bundles, AppStream screenshot check),
+  `publish-flatpak.sh`/`flatpak-repo-key.sh`/`packaging/flatpak/publish.Dockerfile`, `pipx-app-updates.sh`, `third_party_notices.py`.
+- **Gotchas**: `$([[ … ]] && echo …)` exits under `set -e`; `CARGO_TERM_COLOR=always` adds an escape code after rustc's native-static-libs
+  note (strip it); Xcode 26.6 crashes on method-reference `Binding(set:)` and times out on one-expression closures (use closures/typed steps);
+  App Installer needs a Microsoft-chain signature (Artifact Signing) and Windows reports `SignatureKind=Developer` for any non-Store signature;
+  Azure's portal blades are cross-origin iframes (the page snapshot can't click inside them; use `az`); identity validations are not in the ARM API.

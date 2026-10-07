@@ -149,6 +149,9 @@ https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nn-shobjidl_co
   - The MDM Personalization CSP (`LockScreenImageUrl`) forces an image and prevents user changes. It is supported on Enterprise/Education, and on Pro only in SharedPC/BootToCloud modes (https://learn.microsoft.com/en-us/windows/client-management/mdm/personalization-csp).
   - Treat a `false` return as "managed or unsupported" and surface it in the UI.
   - If lock-screen Spotlight is on, a successful set switches the lock screen to Picture mode.
+    **Correction (verified 2026-10-07 in the VM):** only true with `RegistryWriteVirtualization` disabled in the manifest (restricted capability
+    `unvirtualizedResources`); otherwise Windows' in-process lock screen code records "Picture mode" in the app's private registry copy and Settings keeps
+    showing Spotlight. Reading the current lock screen picture also needs the `picturesLibrary` capability.
 - **[verified in VM, read-only]** `IsSupported()` is True. No `NoChangingLockScreen` policy and no CSP image are set. `RotatingLockScreenEnabled=1` (Spotlight). Calling the setter was not tested because it would change the VM's lock screen. Test it from the real packaged app.
 - **Recommendation:** in the packaged app, write a uniquely named file to `LocalFolder`, try `TrySetLockScreenImageAsync`, fall back to `LockScreen.SetImageFileAsync`, and report "managed by your organization" when both fail or policy keys exist.
 

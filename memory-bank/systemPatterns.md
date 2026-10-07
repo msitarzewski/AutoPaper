@@ -530,8 +530,25 @@ will perform though over time. Will we keep that info?"
 - Hosts: macOS menu bar menu **Mood ▸** submenu (checkmarked, plus "Edit Moods…"); the main window's **Moods** section
   replaces Keywords: sidebar › mood list (+ in the list header, right-click Use/Duplicate/Rename/Delete) › detail (keywords,
   Surprise, recent wallpapers, Delete Mood…) — user's layout 2026-10-06, see app-spec; App Intent "Switch Mood" (AppEnum of moods; Siri "Switch AutoPaper to
-  Rainy beach"). Windows: tray menu Mood submenu + selector on Keywords. GNOME: mood selector in the window header
-  (and KDE tray submenu). History filter by mood. All with spoken names/states ("Rainy beach, current mood").
+  Rainy beach"). Windows: Moods group in the NavigationView (each mood under it) + tray menu Mood submenu. GNOME: the sidebar is the mood
+  list (AdwNavigationSplitView; Moods summary, then each mood; no separate list column, no per-row Use button: Use is in the mood's header,
+  its context menu and the summary cards) and a KDE tray submenu. History filter by mood. All with spoken names/states ("Rainy beach, current mood").
+
+## Retries that say what was wrong; `KeywordNotFollowed` (2026-10-06)
+`compose` records every candidate's `Problem`s for the job (`Job.problems`); each retry's `ComposeContext.corrections` lists the most common
+ones in the writer's own terms (`composer::correction`: "left out the Must keyword “x”: write its own words in the prompt", etc.). When every
+idea fails and the most common problem is a Must left out or an Avoid used, `no_usable` returns `AutoPaperError::KeywordNotFollowed
+{ keyword, weight, mood_id }` (FFI-exported); otherwise `InvalidResponse` with the problem in its English `detail`. Hosts show one line that names the keyword
+and link to that mood (macOS `KeyProblem`, Windows `Problem.MoodId`, Linux `Fix::Mood`). Google painting uses `/v1beta/models/{model}:generateContent`
+(the list's API version; preview models and Nano Banana 2.1 are not on `/v1`).
+
+## Updates architecture (2026-10-07)
+No AutoPaper server. macOS: Sparkle checks `https://msitarzewski.github.io/AutoPaper/appcast.xml` (EdDSA-signed zip on GitHub Releases, no system profile).
+Windows: App Installer checks `https://msitarzewski.com/app-updates/autopaper/AutoPaper.appinstaller` on launch and about every 8 hours and installs silently
+by the next launch (needs the Microsoft-chain signature); winget (when listed) uses the GitHub Release bundle. Linux: Flatpak/GNOME Software/Discover
+use the signed repository `https://msitarzewski.com/app-updates/autopaper/flatpak` (sends `Flatpak-Ref`/`Flatpak-Upgrade-From`, not identifiers); the GNOME
+runtime still comes from Flathub's runtime repository. Windows capabilities: `runFullTrust`, `picturesLibrary` (read the lock screen picture only),
+`unvirtualizedResources` (registry write virtualization off so the lock screen change takes). See `techContext.md` for hosting and signing.
 
 ## Accessibility (all platforms)
 WCAG 2.2 AA via WCAG2ICT. Every control/image named; each keyword speaks its state ("rain, Must");

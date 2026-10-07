@@ -5,5 +5,14 @@
     <link>https://msitarzewski.github.io/AutoPaper/appcast.xml</link>
     <description>AutoPaper updates</description>
     <language>en</language>
+    <item>
+      <title>AutoPaper 0.1.0</title>
+      <pubDate>Wed, 07 Oct 2026 13:02:00 GMT</pubDate>
+      <sparkle:version>1</sparkle:version>
+      <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <sparkle:fullReleaseNotesLink>https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.0</sparkle:fullReleaseNotesLink>
+      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.0/AutoPaper-0.1.0.zip" length="95496470" type="application/octet-stream" sparkle:edSignature="eESZcMh7rH9y9KToh1GE8DCCIKKjLObLU+jrhDpRvQuFCyGpQTqKizm3DwzZSbXJfVFHOVoAZDG+asZIpyEpAw=="/>
+    </item>
   </channel>
 </rss>

@@ -154,7 +154,9 @@ fi
 mkdir -p "$MIRROR"
 
 step "Import, sign, update the repository, make the downloads (Docker)"
-RELEASE="$ROOT/build/flatpak/release$([[ "$TEST" == 1 ]] && echo -test)"
+# (The suffix is set apart: `$([[ … ]] && echo -test)` exits 1 when TEST isn't 1, and set -e stops the script there.)
+RELEASE_SUFFIX=""; if [[ "$TEST" == 1 ]]; then RELEASE_SUFFIX=-test; fi
+RELEASE="$ROOT/build/flatpak/release$RELEASE_SUFFIX"
 rm -rf "$RELEASE"
 mkdir -p "$RELEASE"
 docker build -q -t "$IMAGE" -f "$ROOT/packaging/flatpak/publish.Dockerfile" "$ROOT/packaging/flatpak" >/dev/null

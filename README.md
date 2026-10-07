@@ -32,7 +32,7 @@ AutoPaper is a desktop app for **macOS, Windows and Linux** that keeps making ne
 It's native on every platform, MIT-licensed and open source, with **no accounts, no telemetry and no AutoPaper server.**
 
 > [!NOTE]
-> **v0.1.0 is out for macOS and Linux.** The Windows app is built and tested; it's waiting only for its code-signing certificate, which Microsoft is still verifying. Watch this repository (**Watch → Custom → Releases**) to hear when it lands. Until then you can [build it for Windows from source](#windows-1).
+> **v0.1.0 is out for macOS, Windows and Linux.** [Download it](https://github.com/msitarzewski/AutoPaper/releases/latest) or see [Install](#install). It's the first release, so bug reports and ideas are very welcome as [issues](https://github.com/msitarzewski/AutoPaper/issues/new/choose).
 
 <p align="center">
   <img src="site/static/examples/rain-ruins-960.jpg" width="820" alt="Soft rain falls on a ruined stone colonnade standing in still water at night, lit in deep blues by a moon behind thin cloud.">
@@ -120,7 +120,7 @@ No web views and no cross-platform UI kit. Each app follows its own platform's g
 
 ## Install
 
-AutoPaper v0.1.0 is available for macOS and Linux now. Windows is next (see the note at the top).
+AutoPaper v0.1.0 is available for macOS, Windows and Linux.
 
 ### macOS
 
@@ -131,7 +131,9 @@ It updates itself with [Sparkle](https://sparkle-project.org): on its second lau
 
 ### Windows
 
-**Coming soon.** The app is finished and tested; the installer is waiting for its signing certificate, so that Windows trusts it and can update it. When it's ready it'll install with `winget install msitarzewski.AutoPaper`, or from an App Installer file on this page that keeps it up to date. To try it now, [build it from source](#windows-1).
+Open [`AutoPaper.appinstaller`](https://msitarzewski.com/app-updates/autopaper/AutoPaper.appinstaller): Windows' App Installer shows who signed AutoPaper (Michael Sitarzewski, verified by Microsoft), installs it from msitarzewski.com, the author's own server, and keeps it up to date from there. The signed MSIX bundle (x64 and Arm) is also attached to the [release](https://github.com/msitarzewski/AutoPaper/releases/latest).
+
+`winget install msitarzewski.AutoPaper` will work once Microsoft has reviewed AutoPaper's winget listing, which can take a few days.
 
 ### Linux
 

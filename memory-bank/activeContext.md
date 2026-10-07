@@ -92,6 +92,20 @@ server on a test path, cleaned up. Release flow: VM `windows-release.ps1 -Versio
 → Mac `scripts/publish-windows.sh <v>` → attach the bundle to the GitHub release (winget URL). Waiting on the Linux
 agent (own Flatpak repo + CI workflow + publish-flatpak.sh), then one commit.
 
+**Azure Artifact Signing (2026-10-07):** account `msitarzewski-signing` (resource group app-signing, East US, Basic
+$9.99/mo) in **Azure subscription 1** (fc33e2dc-8746-4f5d-8733-5551655f8313; an extra empty "Michael - App Signing"
+subscription also exists). Endpoint `https://eus.codesigning.azure.net/`. Roles Identity Verifier + Certificate Profile
+Signer assigned to the user via `az` (signed in). Individual identity validation submitted (id c411fcd7-3f30-4935-aecb-9830a9425d86,
+status In Progress; Microsoft reviews it, days). Next when Completed: create a PublicTrust certificate profile
+(`az artifact-signing …`), set `AUTOPAPER_SIGN_ENDPOINT/ACCOUNT/PROFILE`, run `windows-release.ps1`. Certificate
+subject will be CN/O=Michael Sitarzewski, L=Dallas, S=tx (lowercase, from billing), C=US.
+
+**Mac release built (2026-10-07):** `scripts/release.sh` ran: app + DMG notarized/stapled, Sparkle zip signed with the
+"AutoPaper" key (Always Allow given), `site/static/appcast.xml` has the 0.1.0 entry (UNCOMMITTED on purpose: pushing it
+publishes the feed via Pages, so push only after the GitHub release v0.1.0 has the zip). Files: `build/release/AutoPaper-0.1.0.{dmg,zip,sha256}`
+(sha256 dmg bf91bf27…, zip 9f985642…). Rebuild with release.sh at tag time if any code changes. Still to do for the
+real-key update test: serve the zip + a local copy of the feed in the macOS VM and update from a fake 0.0.9 build.
+
 ## Next (in order)
 1. The four release agents; review; the user's Artifact Signing account.
 2. Publish: create the repo, first commit, push, Pages; build + sign artifacts; GitHub release v0.1.0; feeds last.

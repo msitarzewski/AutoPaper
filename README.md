@@ -32,7 +32,7 @@ AutoPaper is a desktop app for **macOS, Windows and Linux** that keeps making ne
 It's native on every platform, MIT-licensed and open source, with **no accounts, no telemetry and no AutoPaper server.**
 
 > [!NOTE]
-> **The first release, v0.1.0, is on its way, for all three platforms at once.** Watch this repository (**Watch → Custom → Releases**) to hear the moment it lands. Until then, you can [build it from source](#build-from-source).
+> **v0.1.0 is out for macOS and Linux.** The Windows app is built and tested; it's waiting only for its code-signing certificate, which Microsoft is still verifying. Watch this repository (**Watch → Custom → Releases**) to hear when it lands. Until then you can [build it for Windows from source](#windows-1).
 
 <p align="center">
   <img src="site/static/examples/rain-ruins-960.jpg" width="820" alt="Soft rain falls on a ruined stone colonnade standing in still water at night, lit in deep blues by a moon behind thin cloud.">
@@ -120,7 +120,7 @@ No web views and no cross-platform UI kit. Each app follows its own platform's g
 
 ## Install
 
-Available from v0.1.0 (see the note at the top).
+AutoPaper v0.1.0 is available for macOS and Linux now. Windows is next (see the note at the top).
 
 ### macOS
 
@@ -131,13 +131,7 @@ It updates itself with [Sparkle](https://sparkle-project.org): on its second lau
 
 ### Windows
 
-```powershell
-winget install msitarzewski.AutoPaper
-```
-
-winget installs the signed MSIX bundle (x64 and Arm) attached to each [release](https://github.com/msitarzewski/AutoPaper/releases/latest), and `winget upgrade msitarzewski.AutoPaper` updates it. New versions reach winget after Microsoft's review, so they can trail a release by a few days.
-
-Or download [`AutoPaper.appinstaller`](https://msitarzewski.com/app-updates/autopaper/AutoPaper.appinstaller) and open it: Windows' App Installer installs AutoPaper from msitarzewski.com, the author's own server, and keeps it up to date from there.
+**Coming soon.** The app is finished and tested; the installer is waiting for its signing certificate, so that Windows trusts it and can update it. When it's ready it'll install with `winget install msitarzewski.AutoPaper`, or from an App Installer file on this page that keeps it up to date. To try it now, [build it from source](#windows-1).
 
 ### Linux
 

@@ -1,0 +1,32 @@
+{
+  "id": "resp_0a1b2c3d4e5f",
+  "object": "response",
+  "created_at": 1791216000,
+  "status": "completed",
+  "error": null,
+  "incomplete_details": null,
+  "model": "gpt-6-luna-2026-09-22",
+  "output": [
+    {
+      "type": "message",
+      "id": "msg_0a1b2c3d4e5f",
+      "role": "assistant",
+      "status": "completed",
+      "content": [
+        {
+          "type": "output_text",
+          "annotations": [],
+          "text": "{\"candidates\":[{\"title\":\"Rain over quiet ruins\",\"summary\":\"Moss-covered stone arches stand in soft night rain under a deep blue sky.\",\"prompt\":\"Ancient stone ruins at night in gentle rain, deep blue palette, wide landscape desktop wallpaper\"}]}"
+        }
+      ]
+    }
+  ],
+  "store": false,
+  "usage": {
+    "input_tokens": 1812,
+    "input_tokens_details": { "cached_tokens": 0 },
+    "output_tokens": 1547,
+    "output_tokens_details": { "reasoning_tokens": 0 },
+    "total_tokens": 3359
+  }
+}

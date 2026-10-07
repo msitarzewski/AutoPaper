@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Stand: a neck and a foot, where GlassPowerTools has its database stack. -->
+  <g transform="translate(0 55)">
+    <path fill="#fff" d="M484 586H540V650H484ZM414 650H610A14 14 0 0 1 624 664V668A14 14 0 0 1 610 682H414A14 14 0 0 1 400 668V664A14 14 0 0 1 414 650Z"/>
+  </g>
+</svg>

@@ -1,0 +1,7 @@
+{
+  "error": {
+    "type": "image_generation_user_error",
+    "code": "moderation_blocked",
+    "moderation_details": { "moderation_stage": "input", "categories": ["harassment"] }
+  }
+}

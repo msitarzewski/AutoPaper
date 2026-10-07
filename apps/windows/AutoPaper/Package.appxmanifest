@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap5 uap10 com desktop desktop6 rescap">
+
+  <!-- Publisher must match the signing certificate's subject (winapp cert generate reads it from here). -->
+  <Identity
+    Name="AutoPaper"
+    Publisher="CN=Michael Sitarzewski"
+    Version="0.1.0.0" />
+
+  <Properties>
+    <DisplayName>AutoPaper</DisplayName>
+    <PublisherDisplayName>Michael Sitarzewski</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <uap10:PackageIntegrity>
+      <uap10:Content Enforcement="on"/>
+    </uap10:PackageIntegrity>
+    <!-- Windows' own lock screen code runs in AutoPaper's process when it sets the lock screen picture, and records the
+         lock screen's mode (picture, not Windows Spotlight) in the person's registry. With the registry virtualized,
+         that record went to AutoPaper's private copy, so Windows kept showing Spotlight (seen in the VM, 2026-10-06).
+         AutoPaper itself writes nothing to the registry. -->
+    <desktop6:RegistryWriteVirtualization>disabled</desktop6:RegistryWriteVirtualization>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.22000.0" MaxVersionTested="10.0.26226.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-US"/>
+  </Resources>
+
+  <Applications>
+    <Application Id="App"
+      Executable="$targetnametoken$.exe"
+      EntryPoint="$targetentrypoint$">
+      <uap:VisualElements
+        DisplayName="AutoPaper"
+        Description="Tell your computer what you'd like to see. New wallpapers from a few keywords, made by the AI you choose."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <!-- Open at sign-in: toggled from Settings > General (StartupTask, off until the person turns it on). -->
+        <uap5:Extension Category="windows.startupTask">
+          <uap5:StartupTask TaskId="AutoPaperStartup" Enabled="false" DisplayName="AutoPaper" />
+        </uap5:Extension>
+        <!-- App notifications with buttons (Like, Dislike, Show), activated through this COM server. -->
+        <desktop:Extension Category="windows.toastNotificationActivation">
+          <desktop:ToastNotificationActivation ToastActivatorCLSID="67997EC6-AFA8-4E93-A13C-0B9DE41E0C44" />
+        </desktop:Extension>
+        <com:Extension Category="windows.comServer">
+          <com:ComServer>
+            <com:ExeServer Executable="AutoPaper.exe" Arguments="----AppNotificationActivated:" DisplayName="AutoPaper notifications">
+              <com:Class Id="67997EC6-AFA8-4E93-A13C-0B9DE41E0C44" />
+            </com:ExeServer>
+          </com:ComServer>
+        </com:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <!-- Windows hands an app the lock screen's current picture (LockScreen.GetImageStream) only with Pictures access:
+         AutoPaper reads the person's own lock screen picture to put it back on quit and Restore my wallpaper. -->
+    <uap:Capability Name="picturesLibrary" />
+    <!-- Needed for RegistryWriteVirtualization disabled (above). -->
+    <rescap:Capability Name="unvirtualizedResources" />
+  </Capabilities>
+</Package>

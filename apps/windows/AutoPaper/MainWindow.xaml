@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="AutoPaper.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="AutoPaper">
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <!-- The window's accelerators (handled here only, so where focus happens to be never changes what a key does; their
+         tooltips are shown on the buttons, not the whole window): Ctrl+R and F5 New wallpaper now, Esc Stop (Now and
+         Moods, where the reload/stop button is; Esc goes to a text field first), Ctrl+N New mood (Moods), Ctrl+,
+         Settings, F1 Help, Alt+Left Back. -->
+    <Grid x:Name="Root" KeyboardAcceleratorPlacementMode="Hidden">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="R" Modifiers="Control" Invoked="OnMakeAccelerator" />
+            <KeyboardAccelerator Key="F5" Invoked="OnMakeAccelerator" />
+            <KeyboardAccelerator Key="Escape" Invoked="OnStopAccelerator" />
+            <KeyboardAccelerator Key="N" Modifiers="Control" Invoked="OnNewMoodAccelerator" />
+            <KeyboardAccelerator Key="F1" Invoked="OnHelpAccelerator" />
+            <!-- Back, as in Windows Settings: Alt+Left (the title bar's Back button; Moods' mood → its list first). -->
+            <KeyboardAccelerator Key="Left" Modifiers="Menu" Invoked="OnBackAccelerator" />
+        </Grid.KeyboardAccelerators>
+
+        <TitleBar
+            x:Name="AppTitleBar"
+            IsTabStop="False"
+            Title="AutoPaper"
+            BackRequested="OnBackRequested"
+            IsBackButtonVisible="True"
+            IsPaneToggleButtonVisible="True"
+            PaneToggleRequested="OnPaneToggleRequested">
+            <TitleBar.IconSource>
+                <ImageIconSource ImageSource="ms-appx:///Assets/Square44x44Logo.targetsize-24_altform-unplated.png" />
+            </TitleBar.IconSource>
+        </TitleBar>
+
+        <NavigationView
+            x:Name="Nav"
+            Grid.Row="1"
+            IsBackButtonVisible="Collapsed"
+            IsPaneToggleButtonVisible="False"
+            IsSettingsVisible="True"
+            ItemInvoked="OnNavItemInvoked"
+            PaneDisplayMode="Auto"
+            IsTitleBarAutoPaddingEnabled="False">
+            <NavigationView.MenuItems>
+                <NavigationViewItem x:Name="NowItem" x:Uid="NavNow" Tag="Now">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE91B;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <!-- Moods: a group with each mood under it, expanded once they're there (MainWindow.SyncMoodItems: an item
+                     expanded while it has no children shows none added later); the group itself
+                     shows the summary of every mood, a mood its detail. -->
+                <NavigationViewItem
+                    x:Name="MoodsItem"
+                    x:Uid="NavMoods"
+                    Tag="Moods">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE81E;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="HistoryItem" x:Uid="NavHistory" Tag="History">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE81C;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+            <Frame x:Name="ContentFrame" Navigated="OnNavigated" />
+        </NavigationView>
+
+        <!-- First run: a page of its own, in place of the navigation (spec "First run": Windows, a first-run page). -->
+        <Frame x:Name="FirstRunFrame" Grid.Row="1" Visibility="Collapsed" />
+    </Grid>
+</Window>

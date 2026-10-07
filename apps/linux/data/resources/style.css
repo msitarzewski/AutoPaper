@@ -1,0 +1,194 @@
+/* AutoPaper's few custom styles. Colours come from libadwaita's variables, so dark mode, accent colours and
+   high contrast follow the system. One thing fades, once: the veil over a wallpaper being remade, only while the
+   system welcomes motion (now.rs adds .animated only then, and the media query below stills it as well). */
+
+.wallpaper-frame {
+  border-radius: 12px;
+}
+
+/* Secondary text (an echo note, History dates, the Surprise band's explanation) and the drag handle: quieter than
+   body text but still at least 4.5:1. libadwaita's .dimmed (55%) measures about 3:1 in the light style (Yaru's
+   #3d3d3d on white: #949494). At 80% it's about 5.9:1 on white and 8.9:1 in the dark style. High contrast uses
+   the platform's own stronger dimming (90%). */
+.secondary-text {
+  opacity: 80%;
+}
+
+@media (prefers-contrast: more) {
+  .secondary-text {
+    opacity: var(--dim-opacity);
+  }
+}
+
+.history-thumb {
+  border-radius: 8px;
+}
+
+.badge {
+  font-size: smaller;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background-color: alpha(currentColor, 0.1);
+}
+
+/* A very narrow window (a phone's 360 px): each keyword's Must / Maybe / Avoid keeps its words with a little less
+   padding (libadwaita's is 8px a side) instead of being cut to "Ma…" and "Av…". */
+toggle-group.compact-weights > toggle.text-button {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+/* A keyword someone tried to add again: the existing row is highlighted (with a toast saying why). */
+row.keyword-highlight {
+  background-color: color-mix(in srgb, var(--accent-bg-color) 22%, transparent);
+}
+
+.history-item {
+  padding: 6px;
+}
+
+/* The actions button over a History thumbnail: dark and round so it reads on any picture. Not the "osd" style
+   class, which would also turn its menu dark. */
+menubutton.thumb-actions > button {
+  color: white;
+  background-color: rgb(0 0 0 / 0.6);
+}
+
+menubutton.thumb-actions > button:hover {
+  background-color: rgb(0 0 0 / 0.75);
+}
+
+menubutton.thumb-actions > button:active,
+menubutton.thumb-actions > button:checked {
+  background-color: rgb(0 0 0 / 0.85);
+}
+
+/* The progress pill over the picture while a wallpaper is made: libadwaita's .osd colours (white on a dark
+   translucent ground, at least 8:1 over any picture), shaped as a pill. */
+.progress-pill {
+  border-radius: 999px;
+  padding: 6px 6px 6px 16px;
+}
+
+.progress-pill progressbar > trough,
+.progress-pill progressbar > trough > progress {
+  min-height: 4px;
+}
+
+/* "Being remade": the old picture under a soft veil of the window's own colour. With motion welcome it fades in
+   once (a cross-fade, opacity only) and then stays still for the rest of the job, however long it takes; the pill's
+   spinner or bar shows that work goes on. Without motion it's simply there. */
+.remaking-veil {
+  border-radius: 12px;
+  background-color: color-mix(in srgb, var(--window-bg-color) 55%, transparent);
+  opacity: 0.6;
+}
+
+.remaking-veil.animated {
+  animation: remaking 0.6s ease-out 1 both;
+}
+
+@keyframes remaking {
+  from { opacity: 0; }
+  to { opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .remaking-veil.animated {
+    animation: none;
+  }
+}
+
+/* A mood's name in the Moods list, in bold above its keywords. */
+row.mood-row label.title {
+  font-weight: bold;
+}
+
+/* A mood's keywords under its name tell moods apart, so they're secondary text at the app's own level (as
+   .secondary-text above: at least 4.5:1, also on the selected row), not libadwaita's 55% row subtitle. */
+row.mood-row label.subtitle {
+  opacity: 80%;
+}
+
+@media (prefers-contrast: more) {
+  row.mood-row label.subtitle {
+    opacity: var(--dim-opacity);
+  }
+}
+
+/* The field a problem's link opened in Preferences, marked for a moment so it's seen as well as focused. */
+row.fix-target {
+  background-color: color-mix(in srgb, var(--accent-bg-color) 22%, transparent);
+}
+
+/* ── Round 5: the sidebar layout, the moods summary, History's gallery ───────────────────────────────────────── */
+
+/* A number on a card (the moods' totals, a mood's header): room around it, like libadwaita's own cards. */
+.stat-tile {
+  padding: 10px 14px;
+}
+
+.stat-tile.compact {
+  padding: 8px 12px;
+}
+
+/* One mood in the summary of every mood. */
+.mood-card {
+  padding: 14px 16px;
+}
+
+.mood-card-name {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+/* A mood's name in its header bar, renamable in place: bold like a window title. */
+editablelabel.mood-title {
+  font-weight: bold;
+}
+
+/* A thumbnail that shows its wallpaper on the desktop when clicked: just the picture, with a focus ring around it. */
+button.thumb-button {
+  padding: 0;
+  border-radius: 8px;
+}
+
+.gallery-picture {
+  border-radius: 10px;
+}
+
+/* The chart's colours, for the legend's and the cards' dots: the dataviz palette's light and dark steps (the same as
+   summary.rs draws with). "Other moods" is a neutral grey. Text never takes these colours. */
+.chart-dot {
+  border-radius: 999px;
+  min-width: 10px;
+  min-height: 10px;
+}
+
+.chart-dot.slot-0 { background-color: #2a78d6; }
+.chart-dot.slot-1 { background-color: #eb6834; }
+.chart-dot.slot-2 { background-color: #1baf7a; }
+.chart-dot.slot-3 { background-color: #eda100; }
+.chart-dot.slot-4 { background-color: #e87ba4; }
+.chart-dot.slot-5 { background-color: #008300; }
+.chart-dot.slot-6 { background-color: #4a3aa7; }
+.chart-dot.slot-7 { background-color: #e34948; }
+.chart-dot.other { background-color: #8a8984; }
+
+@media (prefers-color-scheme: dark) {
+  .chart-dot.slot-0 { background-color: #3987e5; }
+  .chart-dot.slot-1 { background-color: #d95926; }
+  .chart-dot.slot-2 { background-color: #199e70; }
+  .chart-dot.slot-3 { background-color: #c98500; }
+  .chart-dot.slot-4 { background-color: #d55181; }
+  .chart-dot.slot-5 { background-color: #008300; }
+  .chart-dot.slot-6 { background-color: #9085e9; }
+  .chart-dot.slot-7 { background-color: #e66767; }
+}
+
+/* The provenance line's painter, a link in a line of small secondary text. */
+.provenance-link {
+  padding: 0 2px;
+  min-height: 0;
+}

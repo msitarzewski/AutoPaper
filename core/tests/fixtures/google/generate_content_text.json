@@ -1,0 +1,24 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "{\"candidates\":[{\"title\":\"Rain over quiet ruins\",\"summary\":\"Moss-covered stone arches stand in soft night rain under a deep blue sky.\",\"prompt\":\"Ancient stone ruins at night in gentle rain, deep blue palette, wide landscape desktop wallpaper\"}]}"
+          }
+        ]
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1804,
+    "candidatesTokenCount": 1490,
+    "thoughtsTokenCount": 64,
+    "totalTokenCount": 3358
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "kD3iaO2XLqGz1dkP8YqC2Ac"
+}

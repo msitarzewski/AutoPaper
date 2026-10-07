@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="AutoPaper.Views.Panes.ProvidersPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:AutoPaper.Controls"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel
+            MaxWidth="{StaticResource PageMaxWidth}"
+            Padding="{StaticResource PagePadding}"
+            Spacing="{StaticResource SettingsCardSpacing}">
+            <BreadcrumbBar x:Name="Crumbs" Margin="0,0,0,12" AutomationProperties.HeadingLevel="Level1" />
+            <TextBlock x:Uid="ProvidersIntro" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{StaticResource BodyTextBlockStyle}" />
+            <InfoBar x:Name="GeminiNote" x:Uid="GeminiNote" IsClosable="False" Severity="Informational" Margin="0,8,0,0" />
+
+            <TextBlock x:Uid="ProvidersWritingSection" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" AutomationProperties.HeadingLevel="Level2" />
+            <toolkit:SettingsCard x:Name="TextKindCard" x:Uid="ProvidersWritingKind">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8F2;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <ComboBox x:Name="TextKind" MinWidth="240" AutomationProperties.AutomationId="TextProvider" SelectionChanged="OnKindChanged" />
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="TextAddressCard" x:Uid="ProviderAddress">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE774;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <TextBox x:Name="TextAddress" MinWidth="280" AutomationProperties.AutomationId="TextAddress" InputScope="Url" KeyDown="OnAddressKeyDown" LostFocus="OnAddressLostFocus" />
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="TextModelCard" x:Uid="ProviderModel">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE7F4;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <ComboBox x:Name="TextModel" x:Uid="TextModelBox" MinWidth="240" AutomationProperties.AutomationId="TextModel" IsEditable="True" SelectionChanged="OnModelChanged" TextSubmitted="OnModelTextSubmitted" />
+                    <Button x:Name="TextRefresh" x:Uid="TextRefresh" AutomationProperties.AutomationId="TextRefresh" Click="OnRefresh">
+                        <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="16" Glyph="&#xE72C;" />
+                    </Button>
+                </StackPanel>
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="TextTestCard" x:Uid="ProviderTest">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE9D9;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <Button x:Name="TextTest" x:Uid="TextTestButton" AutomationProperties.AutomationId="TextTest" Click="OnTest" />
+            </toolkit:SettingsCard>
+            <!-- The writer's one problem (from listing models or from Test, the newer one), or the link to its key:
+                 docs/app-spec.md 6a, a problem said once, as a link to the fix. -->
+            <InfoBar x:Name="TextUnavailable" IsClosable="False" Severity="Warning">
+                <InfoBar.ActionButton>
+                    <HyperlinkButton x:Name="TextKeyLink" AutomationProperties.AutomationId="TextKeyLink" Click="OnKeyLink" Visibility="Collapsed" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+            <controls:ActionCard x:Name="TextInstallCard" Invoked="OnInstall">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE896;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <toolkit:SettingsCard.ActionIcon>
+                    <FontIcon Glyph="&#xE8A7;" />
+                </toolkit:SettingsCard.ActionIcon>
+            </controls:ActionCard>
+
+            <TextBlock x:Uid="ProvidersPaintingSection" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" AutomationProperties.HeadingLevel="Level2" />
+            <toolkit:SettingsCard x:Name="ImageKindCard" x:Uid="ProvidersPaintingKind">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE790;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <ComboBox x:Name="ImageKind" MinWidth="240" AutomationProperties.AutomationId="ImageProvider" SelectionChanged="OnKindChanged" />
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="ImageAddressCard" x:Uid="ProviderAddress">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE774;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <TextBox x:Name="ImageAddress" MinWidth="280" AutomationProperties.AutomationId="ImageAddress" InputScope="Url" KeyDown="OnAddressKeyDown" LostFocus="OnAddressLostFocus" />
+            </toolkit:SettingsCard>
+            <!-- ComfyUI: AutoPaper's workflows (the Model menu lists the installed models it has a workflow for), or
+                 the person's own API-format file (its loader decides the model, said on a read-only line). -->
+            <toolkit:SettingsCard x:Name="ImageWorkflowCard" x:Uid="ProviderWorkflow">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE9F5;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <ComboBox x:Name="WorkflowBox" MinWidth="240" AutomationProperties.AutomationId="Workflow" SelectionChanged="OnWorkflowChanged">
+                    <ComboBoxItem x:Uid="WorkflowAutoPaper" />
+                    <ComboBoxItem x:Uid="WorkflowOwn" />
+                </ComboBox>
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="WorkflowFileCard" x:Uid="ProviderWorkflowFile">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8A5;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <Button x:Uid="ProviderWorkflowChoose" AutomationProperties.AutomationId="ChooseWorkflow" Click="OnWorkflowChoose" />
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="ImageModelCard" x:Uid="ProviderModel">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE7F4;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <Grid>
+                    <StackPanel x:Name="ImageModelPicker" Orientation="Horizontal" Spacing="8">
+                        <ComboBox x:Name="ImageModel" x:Uid="ImageModelBox" MinWidth="240" AutomationProperties.AutomationId="ImageModel" IsEditable="True" SelectionChanged="OnModelChanged" TextSubmitted="OnModelTextSubmitted" />
+                        <Button x:Name="ImageRefresh" x:Uid="ImageRefresh" AutomationProperties.AutomationId="ImageRefresh" Click="OnRefresh">
+                            <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="16" Glyph="&#xE72C;" />
+                        </Button>
+                    </StackPanel>
+                    <!-- Your own workflow: the model its file loads, read only. -->
+                    <TextBlock
+                        x:Name="ImageModelLine"
+                        MaxWidth="320"
+                        VerticalAlignment="Center"
+                        AutomationProperties.AutomationId="ImageModelLine"
+                        IsTextSelectionEnabled="True"
+                        TextAlignment="Right"
+                        TextWrapping="Wrap"
+                        Visibility="Collapsed" />
+                </Grid>
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="ImageQualityCard" x:Uid="ProviderQuality">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE706;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <ComboBox x:Name="ImageQuality" MinWidth="200" AutomationProperties.AutomationId="ImageQuality" SelectionChanged="OnQualityChanged">
+                    <ComboBoxItem x:Uid="QualityStandard" />
+                    <ComboBoxItem x:Uid="QualityHigh" />
+                </ComboBox>
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="ImageTestCard" x:Uid="ProviderTest">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE9D9;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <Button x:Name="ImageTest" x:Uid="ImageTestButton" AutomationProperties.AutomationId="ImageTest" Click="OnTest" />
+            </toolkit:SettingsCard>
+            <InfoBar x:Name="ImageUnavailable" IsClosable="False" Severity="Warning">
+                <InfoBar.ActionButton>
+                    <HyperlinkButton x:Name="ImageKeyLink" AutomationProperties.AutomationId="ImageKeyLink" Click="OnKeyLink" Visibility="Collapsed" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+            <controls:ActionCard x:Name="ImageInstallCard" Invoked="OnInstall">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE896;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <toolkit:SettingsCard.ActionIcon>
+                    <FontIcon Glyph="&#xE8A7;" />
+                </toolkit:SettingsCard.ActionIcon>
+            </controls:ActionCard>
+
+            <TextBlock x:Uid="ProvidersKeysSection" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" AutomationProperties.HeadingLevel="Level2" />
+            <controls:ActionCard x:Uid="ProvidersKeysLink" Invoked="OnOpenKeys">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8D7;" />
+                </toolkit:SettingsCard.HeaderIcon>
+            </controls:ActionCard>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

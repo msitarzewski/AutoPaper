@@ -1,0 +1,8 @@
+{
+  "error": {
+    "message": "An LM Studio API token is required to make requests to this server, but none was provided using the Authorization header using the 'Bearer' scheme (i.e., 'Authorization: Bearer $LM_API_TOKEN'). Learn more at: https://lmstudio.ai/docs/developer/core/authentication.",
+    "type": "invalid_request_error",
+    "param": null,
+    "code": "invalid_api_key"
+  }
+}

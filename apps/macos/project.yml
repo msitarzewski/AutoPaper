@@ -1,0 +1,133 @@
+name: AutoPaper
+# XcodeGen project (`xcodegen generate` here). The .xcodeproj is generated and git-ignored.
+# Before building: scripts/build-xcframework.sh (the Rust core as the local package Generated/AutopaperCore)
+# and, for full memory, scripts/fetch-model.sh (the embedding model, copied into the app by a build phase).
+# Releases (Developer ID, notarized DMG, Sparkle update + feed): scripts/release.sh.
+options:
+  bundleIdPrefix: com.autopaper
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEAD_CODE_STRIPPING: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+packages:
+  # The Rust core (autopaper-core) and its UniFFI Swift bindings, built by scripts/build-xcframework.sh.
+  AutopaperCore:
+    path: Generated/AutopaperCore
+  # Sparkle auto-update (github.com/sparkle-project/Sparkle), as in AudioPaper: macOS has no updater for apps
+  # distributed outside the Mac App Store. 2.10.0 (2026-09-13) is the newest; AudioPaper is on 2.9.4.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: "2.10.0"
+targets:
+  AutoPaper:
+    type: application
+    platform: macOS
+    sources:
+      - path: AutoPaper
+        excludes:
+          - Info.plist
+          - AutoPaper.entitlements
+      # Icon Composer document; Xcode compiles it into the asset catalog (as AudioPaper's project.yml does).
+      - path: AppIcon.icon
+        type: file
+        buildPhase: resources
+    dependencies:
+      - package: AutopaperCore
+        product: AutopaperCore
+      - package: Sparkle
+        product: Sparkle
+    postCompileScripts:
+      # Dev builds bundle the embedding model from the repository (scripts/fetch-model.sh puts it in
+      # models/). Without it the app still builds and runs; the engine falls back to reduced memory and
+      # Settings → Memory says so.
+      - name: Bundle the embedding model
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          "$SRCROOT/../../scripts/macos-bundle-model.sh" \
+            "$SRCROOT/../../models/bge-small-en-v1.5" \
+            "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/Models/bge-small-en-v1.5"
+    info:
+      path: AutoPaper/Info.plist
+      properties:
+        CFBundleDisplayName: AutoPaper
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.lifestyle
+        # A menu bar utility: no Dock icon until a window opens (AppDelegate.updateDockPresence).
+        LSUIElement: true
+        NSHumanReadableCopyright: "MIT · © 2026 Michael Sitarzewski"
+        # ── Sparkle auto-update (as AudioPaper) ─────────────────────────
+        # The feed is published with the website (site/static/appcast.xml) by scripts/release.sh.
+        SUFeedURL: $(SPARKLE_FEED_URL)
+        # Updates must be signed with the matching private key, kept in the maintainer's login Keychain
+        # (generate_keys --account AutoPaper). This public half is safe to publish.
+        SUPublicEDKey: W857ROkwv0RR+nhvbThbcF47xx1iFIm1peBvSeWox5Y=
+        # A sandboxed app hands installation to Sparkle's installer launcher (see the entitlements below).
+        SUEnableInstallerLauncherService: true
+        # No SUEnableAutomaticChecks: Sparkle asks on the second launch whether to check automatically, so
+        # people choose (Settings → About can change it). No system profile is ever sent.
+    entitlements:
+      path: AutoPaper/AutoPaper.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        # Providers (OpenAI, Gemini, and the person's own Ollama, ComfyUI or OpenAI-compatible server), and
+        # Sparkle's feed and update downloads (so Sparkle's downloader service isn't needed).
+        com.apple.security.network.client: true
+        # "Use my own workflow…" (ComfyUI): reads the JSON file the person picks in the open panel.
+        com.apple.security.files.user-selected.read-only: true
+        # Sparkle's installer launcher and its status channel, reachable from the sandbox (Sparkle's
+        # sandboxing guide). Nothing else is opened up.
+        com.apple.security.temporary-exception.mach-lookup.global-name:
+          - $(PRODUCT_BUNDLE_IDENTIFIER)-spks
+          - $(PRODUCT_BUNDLE_IDENTIFIER)-spki
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.autopaper
+        PRODUCT_NAME: AutoPaper
+        CODE_SIGN_STYLE: Automatic
+        # Contributors: override with your own team, or build with CODE_SIGNING_ALLOWED=NO (the Keychain
+        # then can't be used, so keys don't save).
+        DEVELOPMENT_TEAM: 7JQGQ7CRH8
+        ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+        # The model-bundling script reads the repository (the model folder may be absent, which Xcode's script
+        # sandbox treats as a build error), so this target's scripts run unsandboxed.
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        # Overridden only to test updates against a local feed.
+        SPARKLE_FEED_URL: https://msitarzewski.github.io/AutoPaper/appcast.xml
+      configs:
+        # Debug signs for development (get-task-allow, so the debugger can attach). Release never carries
+        # get-task-allow, whichever identity signs it: notarisation refuses it, and scripts/macos-install.sh's
+        # Developer ID build should match what ships. Distribution: scripts/release.sh (archive → Developer ID
+        # export → notarise).
+        Release:
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+    scheme:
+      testTargets:
+        - AutoPaperTests
+
+  # Unit tests of the app's own logic (wording, formatting, mapping), compiled with those source files directly
+  # rather than hosted in the app: running them never opens the engine or touches the wallpaper.
+  AutoPaperTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: AutoPaperTests
+      - path: AutoPaper/Support
+    dependencies:
+      - package: AutopaperCore
+        product: AutopaperCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.autopaper.tests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 7JQGQ7CRH8

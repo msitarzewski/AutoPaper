@@ -1,0 +1,38 @@
+# gitleaks configuration for AutoPaper.
+# Uses the default ruleset. API keys belong in the platform's secure store (apps) or a git-ignored
+# .env (the developer CLI) — never in source, fixtures, or screenshots.
+[extend]
+useDefault = true
+
+# Test fixtures: made-up keys shaped like real ones, so the redaction and error-mapping tests have something to
+# catch. None of them was ever a working key. Allowlisted by exact shape, in the core's sources and tests only.
+[[allowlists]]
+description = "Fake API keys in the core's tests"
+paths = ['''^core/(src|tests)/''']
+regexTarget = "match"
+regexes = ['''sk-(test|live)-0123456789abcdefghij[a-z]*''']
+
+# A recorded Gemini models.list page token (base64 of "gemini-3.8-flash" with a length prefix), and the test
+# that pages with it. It's a cursor, not a credential.
+[[allowlists]]
+description = "Gemini models.list page token in a recorded fixture"
+paths = ['''^core/(src/providers/google\.rs|tests/fixtures/google/models_list_page1\.json)$''']
+regexTarget = "match"
+regexes = ['''Cg5nZW1pbmktMy44LWZsYXNo''']
+
+# Sparkle's EdDSA *public* key: published on purpose, so the Mac app can verify updates. It can't sign anything;
+# the private half lives only in the maintainer's Keychain (generate_keys --account AutoPaper). Allowlisted by exact
+# value, as in AudioPaper.
+[[allowlists]]
+description = "Sparkle public update-verification key"
+paths = ['''^apps/macos/project\.yml$''']
+regexTarget = "match"
+regexes = ['''SUPublicEDKey: W857ROkwv0RR\+nhvbThbcF47xx1iFIm1peBvSeWox5Y=''']
+
+# AGENTS.md (the AGENT-ZERO workflow) is prose: "Token limit approaching, slow/truncated responses" in its
+# troubleshooting table reads to the generic rule like a token assignment. Allowlisted by exact phrase.
+[[allowlists]]
+description = "Prose in AGENTS.md's troubleshooting table"
+paths = ['''^AGENTS\.md$''']
+regexTarget = "match"
+regexes = ['''Token limit approaching, slow/truncated''']

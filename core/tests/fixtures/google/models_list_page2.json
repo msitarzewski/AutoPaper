@@ -1,0 +1,60 @@
+{
+  "models": [
+    {
+      "name": "models/gemini-3.8-flash",
+      "baseModelId": "gemini-3.8-flash",
+      "version": "3.8",
+      "displayName": "Gemini 3.8 Flash",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 65536,
+      "supportedGenerationMethods": ["generateContent", "countTokens"],
+      "thinking": true
+    },
+    {
+      "name": "models/gemini-3-pro-image",
+      "baseModelId": "gemini-3-pro-image",
+      "version": "3",
+      "displayName": "Nano Banana Pro",
+      "inputTokenLimit": 65536,
+      "outputTokenLimit": 32768,
+      "supportedGenerationMethods": ["generateContent", "countTokens"],
+      "thinking": true
+    },
+    {
+      "name": "models/gemini-3.1-flash-lite-image",
+      "baseModelId": "gemini-3.1-flash-lite-image",
+      "version": "3.1",
+      "displayName": "Nano Banana 2 Lite",
+      "inputTokenLimit": 65536,
+      "outputTokenLimit": 32768,
+      "supportedGenerationMethods": ["generateContent", "countTokens"]
+    },
+    {
+      "name": "models/gemini-3.1-flash-lite",
+      "baseModelId": "gemini-3.1-flash-lite",
+      "version": "3.1",
+      "displayName": "Gemini 3.1 Flash-Lite",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 65536,
+      "supportedGenerationMethods": ["generateContent", "countTokens"]
+    },
+    {
+      "name": "models/gemini-3.5-flash-tts",
+      "baseModelId": "gemini-3.5-flash-tts",
+      "version": "3.5",
+      "displayName": "Gemini 3.5 Flash TTS",
+      "inputTokenLimit": 8192,
+      "outputTokenLimit": 16384,
+      "supportedGenerationMethods": ["generateContent", "countTokens"]
+    },
+    {
+      "name": "models/gemini-3.5-flash-live",
+      "baseModelId": "gemini-3.5-flash-live",
+      "version": "3.5",
+      "displayName": "Gemini 3.5 Flash Live",
+      "inputTokenLimit": 131072,
+      "outputTokenLimit": 8192,
+      "supportedGenerationMethods": ["bidiGenerateContent"]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "candidates": [
+    { "finishReason": "IMAGE_SAFETY", "index": 0 }
+  ],
+  "usageMetadata": { "promptTokenCount": 40, "totalTokenCount": 40 },
+  "modelVersion": "gemini-3.1-flash-image"
+}

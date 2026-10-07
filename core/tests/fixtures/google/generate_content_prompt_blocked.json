@@ -1,0 +1,5 @@
+{
+  "promptFeedback": { "blockReason": "PROHIBITED_CONTENT" },
+  "usageMetadata": { "promptTokenCount": 38, "totalTokenCount": 38 },
+  "modelVersion": "gemini-3.1-flash-image"
+}

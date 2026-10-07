@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="AutoPaper.Views.Panes.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:AutoPaper.Controls"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls">
+
+    <!-- Settings, Windows 11 Settings style: a card per section; each opens its page (breadcrumb back). -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel
+            x:Name="Column"
+            MaxWidth="{StaticResource PageMaxWidth}"
+            Padding="{StaticResource PagePadding}"
+            Spacing="{StaticResource SettingsCardSpacing}">
+            <TextBlock
+                x:Uid="SettingsTitle"
+                Margin="0,0,0,20"
+                AutomationProperties.HeadingLevel="Level1"
+                Style="{StaticResource TitleTextBlockStyle}" />
+            <controls:ActionCard x:Uid="PaneGeneralCard" AutomationProperties.AutomationId="SettingsGeneral" Invoked="OnOpen" Tag="General">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE713;" />
+                </toolkit:SettingsCard.HeaderIcon>
+            </controls:ActionCard>
+            <controls:ActionCard x:Uid="PaneProvidersCard" AutomationProperties.AutomationId="SettingsProviders" Invoked="OnOpen" Tag="Providers">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE99A;" />
+                </toolkit:SettingsCard.HeaderIcon>
+            </controls:ActionCard>
+            <controls:ActionCard x:Uid="PaneKeysCard" AutomationProperties.AutomationId="SettingsKeys" Invoked="OnOpen" Tag="Keys">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8D7;" />
+                </toolkit:SettingsCard.HeaderIcon>
+            </controls:ActionCard>
+            <controls:ActionCard x:Uid="PaneMemoryCard" AutomationProperties.AutomationId="SettingsMemory" Invoked="OnOpen" Tag="Memory">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE81C;" />
+                </toolkit:SettingsCard.HeaderIcon>
+            </controls:ActionCard>
+            <controls:ActionCard x:Uid="PaneBudgetCard" AutomationProperties.AutomationId="SettingsBudget" Invoked="OnOpen" Tag="Budget">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8EF;" />
+                </toolkit:SettingsCard.HeaderIcon>
+            </controls:ActionCard>
+            <controls:ActionCard x:Uid="PaneAboutCard" AutomationProperties.AutomationId="SettingsAbout" Invoked="OnOpen" Tag="About">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE946;" />
+                </toolkit:SettingsCard.HeaderIcon>
+            </controls:ActionCard>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Compiled into the binary by build.rs. AdwApplication loads style.css from the application's resource base
+     path, and GtkApplication adds its icons/ folder to the icon theme. -->
+<gresources>
+  <gresource prefix="/io/github/msitarzewski/AutoPaper">
+    <file>style.css</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/autopaper-like-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/autopaper-dislike-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/apps/io.github.msitarzewski.AutoPaper.svg">../icons/hicolor/scalable/apps/io.github.msitarzewski.AutoPaper.svg</file>
+  </gresource>
+</gresources>

@@ -1,0 +1,117 @@
+{
+  "model": "qwen2.5vl:7b",
+  "stream": false,
+  "messages": [
+    {
+      "role": "system",
+      "content": "You write concepts for desktop wallpapers. Landscape, no text, letters, logos or UI. Answer with JSON only."
+    },
+    {
+      "role": "user",
+      "content": "Write 2 candidate concepts. Must include: rain, ruins. Maybe: blue hour. Never mention anything to avoid. Surprise 0.2: no wildcards."
+    }
+  ],
+  "response_format": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "wallpaper_concepts",
+      "strict": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "setting": {
+                  "type": "string"
+                },
+                "subject": {
+                  "type": "string"
+                },
+                "elements": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "time_of_day": {
+                  "type": "string"
+                },
+                "weather": {
+                  "type": "string"
+                },
+                "season": {
+                  "type": "string"
+                },
+                "mood": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "palette": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "style": {
+                  "type": "string"
+                },
+                "composition": {
+                  "type": "string"
+                },
+                "keywords_used": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "wildcards": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "prompt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "title",
+                "summary",
+                "setting",
+                "subject",
+                "elements",
+                "time_of_day",
+                "weather",
+                "season",
+                "mood",
+                "palette",
+                "style",
+                "composition",
+                "keywords_used",
+                "wildcards",
+                "prompt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "candidates"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "temperature": 0.56
+}

@@ -1,0 +1,111 @@
+{
+  "template": "z-image-turbo-t2i.json",
+  "name": "Z-Image Turbo",
+  "format": "ComfyUI API-format prompt graph: {node_id: {class_type, inputs}}. POST it as the `prompt` field of POST /prompt.",
+  "model": "Z-Image Turbo (Tongyi-MAI), ComfyUI repack Comfy-Org/z_image_turbo",
+  "licence": {
+    "name": "Apache-2.0",
+    "url": "https://huggingface.co/Tongyi-MAI/Z-Image-Turbo"
+  },
+  "source": "Comfy-Org's template image_z_image_turbo as an API graph; the graph that painted the website example desert-glass on the user's Mac (.scratch/examples/graphs/desert-glass.request.json), with placeholders. The default: AutoPaper uses it when no model is chosen.",
+  "requires": {
+    "diffusion_models": [
+      "z_image_turbo_bf16.safetensors"
+    ],
+    "text_encoders": [
+      "qwen_3_4b.safetensors"
+    ],
+    "vae": [
+      "ae.safetensors"
+    ],
+    "custom_nodes": []
+  },
+  "tested_with": {
+    "comfyui": "0.36.0",
+    "device": "mps (Apple Silicon)",
+    "date": "2026-10-06"
+  },
+  "placeholders": {
+    "prompt": {
+      "node": "5",
+      "input": "text",
+      "class_type": "CLIPTextEncode",
+      "token": "{{prompt}}",
+      "type": "string"
+    },
+    "width": {
+      "node": "7",
+      "input": "width",
+      "class_type": "EmptySD3LatentImage",
+      "token": "{{width}}",
+      "type": "int"
+    },
+    "height": {
+      "node": "7",
+      "input": "height",
+      "class_type": "EmptySD3LatentImage",
+      "token": "{{height}}",
+      "type": "int"
+    },
+    "seed": {
+      "node": "8",
+      "input": "seed",
+      "class_type": "KSampler",
+      "token": "{{seed}}",
+      "type": "int"
+    }
+  },
+  "output": {
+    "node": "10",
+    "class_type": "SaveImage",
+    "history_path": "outputs.10.images[0] -> {filename, subfolder, type}; fetch with GET /view?filename=&subfolder=&type="
+  },
+  "negative_prompt": null,
+  "notes": [
+    "Placeholders are JSON strings (\"{{width}}\") so the file stays valid JSON. Replace the whole string value: width, height and seed with JSON numbers, prompt with a JSON-escaped string.",
+    "There is no negative prompt: the negative conditioning is ConditioningZeroOut of the positive, as in the official template (cfg 1.0). Do not put negated phrases in the positive prompt.",
+    "Fixed sampling (official template image_z_image_turbo): steps 8, cfg 1.0, sampler res_multistep, scheduler simple, ModelSamplingAuraFlow shift 3.0.",
+    "Width and height must be multiples of 16. AutoPaper asks for at most 2048 a side and 2,965,760 pixels (core/src/providers/comfyui.rs MODEL_LIMITS): on Apple silicon VAEDecode fails with 'MPSGraph does not support tensor dims larger than INT_MAX' once (W/8)*(H/8) passes 46,340 (2048x1456 failed, 2048x1440 worked; 2544x1632 failed once and passed once, depending on ComfyUI's free-memory slicing).",
+    "filename_prefix 'autopaper/wallpaper' makes ComfyUI write into output/autopaper/ (the history entry reports subfolder 'autopaper')."
+  ],
+  "size": {
+    "step": 16,
+    "tested": [
+      [
+        1920,
+        1088
+      ],
+      [
+        2048,
+        1152
+      ],
+      [
+        2032,
+        1312
+      ],
+      [
+        2048,
+        1328
+      ],
+      [
+        2048,
+        1440
+      ]
+    ],
+    "fails_on_apple_silicon": [
+      [
+        2048,
+        1456
+      ],
+      [
+        2048,
+        2048
+      ]
+    ]
+  },
+  "measured_seconds": {
+    "1920x1088_warm": "42-65 on M5 Max (first run with model load: 74)",
+    "2048x1152_warm": "60.5 (whole run through the engine, M5 Max, 2026-10-06)",
+    "2032x1312_warm": "69.2 (ComfyUI time; 72.0 s through the engine, M5 Max, 2026-10-06)"
+  }
+}

@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="AutoPaper.Views.NowPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:apcontrols="using:AutoPaper.Controls"
+    xmlns:views="using:AutoPaper.Views">
+
+    <Page.Resources>
+        <!-- The veil over the picture while a new one is being made: in-app acrylic, which frosts the picture behind it
+             (and is a plain tint when Windows' transparency effects are off). High contrast: the window colour. -->
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Default">
+                    <AcrylicBrush
+                        x:Key="RemakingVeilBrush"
+                        FallbackColor="{ThemeResource SolidBackgroundFillColorBase}"
+                        TintColor="{ThemeResource SolidBackgroundFillColorBase}"
+                        TintLuminosityOpacity="0.4"
+                        TintOpacity="0.3" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <AcrylicBrush
+                        x:Key="RemakingVeilBrush"
+                        FallbackColor="{ThemeResource SolidBackgroundFillColorBase}"
+                        TintColor="{ThemeResource SolidBackgroundFillColorBase}"
+                        TintLuminosityOpacity="0.5"
+                        TintOpacity="0.3" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <SolidColorBrush x:Key="RemakingVeilBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <!-- "Being remade": the veil breathes slowly while the new one is painted. Opacity only (the compositor
+                 runs it, so it's smooth and cheap); not started when Windows' animation effects are off. -->
+            <Storyboard x:Key="Breathing" RepeatBehavior="Forever">
+                <DoubleAnimation
+                    AutoReverse="True"
+                    Storyboard.TargetName="Veil"
+                    Storyboard.TargetProperty="Opacity"
+                    From="0.45"
+                    To="0.8"
+                    Duration="0:0:1.8">
+                    <DoubleAnimation.EasingFunction>
+                        <SineEase EasingMode="EaseInOut" />
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+            </Storyboard>
+            <Storyboard x:Key="VeilOut">
+                <DoubleAnimation
+                    Storyboard.TargetName="Veil"
+                    Storyboard.TargetProperty="Opacity"
+                    To="0"
+                    Duration="0:0:0.4">
+                    <DoubleAnimation.EasingFunction>
+                        <SineEase EasingMode="EaseOut" />
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+            </Storyboard>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <!-- Picture and details side by side from 1000 px, so the default window (1100 px) shows the status
+                     lines without scrolling. -->
+                <VisualState x:Name="Wide">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="1000" />
+                    </VisualState.StateTriggers>
+                </VisualState>
+                <VisualState x:Name="Narrow">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="DetailsColumn.Width" Value="0" />
+                        <Setter Target="Details.(Grid.Column)" Value="0" />
+                        <Setter Target="Details.(Grid.Row)" Value="3" />
+                        <Setter Target="Details.Margin" Value="0,24,0,0" />
+                        <Setter Target="Layout.ColumnSpacing" Value="0" />
+                        <Setter Target="Layout.Padding" Value="{StaticResource PageNarrowPadding}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+        <Grid
+            x:Name="Layout"
+            MaxWidth="{StaticResource PageMaxWidth}"
+            Padding="{StaticResource PagePadding}"
+            ColumnSpacing="28">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="PictureColumn" Width="*" />
+                <ColumnDefinition x:Name="DetailsColumn" Width="320" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- The page's title and its command bar: New wallpaper now, which becomes Stop while one is being made (a
+                 browser's reload/stop; Ctrl+R or F5, and Esc, from anywhere in the window). -->
+            <Grid Grid.ColumnSpan="2" Margin="0,0,0,16" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    x:Uid="NowTitle"
+                    VerticalAlignment="Center"
+                    AutomationProperties.HeadingLevel="Level1"
+                    Style="{StaticResource TitleTextBlockStyle}" />
+                <CommandBar
+                    x:Name="NowCommands"
+                    x:Uid="NowCommands"
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Background="Transparent"
+                    DefaultLabelPosition="Right"
+                    IsDynamicOverflowEnabled="False"
+                    OverflowButtonVisibility="Collapsed">
+                    <apcontrols:MakeOrStopButton x:Name="NowMakeOrStop" />
+                </CommandBar>
+            </Grid>
+
+            <!-- Problems and notices at the top of the page (Fluent: an InfoBar sits above the content it's about), in
+                 both layouts. Each is shown before it opens and hidden after it closes, so closed ones leave no gap and
+                 an opening one is in the UI Automation tree when it announces itself. -->
+            <StackPanel
+                x:Name="Bars"
+                Grid.Row="1"
+                Grid.ColumnSpan="2"
+                Margin="0,0,0,20"
+                Spacing="8"
+                Visibility="Collapsed">
+                <InfoBar
+                    x:Name="StartupBar"
+                    x:Uid="NowOpenProblem"
+                    IsClosable="False"
+                    Message="{x:Bind Model.StartupProblem, Mode=OneWay}"
+                    Severity="Error"
+                    Visibility="Collapsed" />
+                <InfoBar
+                    x:Name="ProblemBar"
+                    AutomationProperties.AutomationId="Problem"
+                    Closed="OnBarClosed"
+                    IsClosable="True"
+                    Message="{x:Bind Model.ProblemText, Mode=OneWay}"
+                    Severity="Warning"
+                    Visibility="Collapsed">
+                    <!-- The fix, as a link (docs/app-spec.md 6a): "Add your OpenAI key" opens Settings › Keys with
+                         that key's field focused; "Check ComfyUI settings" opens Providers. -->
+                    <InfoBar.ActionButton>
+                        <HyperlinkButton
+                            x:Name="FixLink"
+                            AutomationProperties.AutomationId="FixProblem"
+                            Click="OnFixProblem"
+                            Content="{x:Bind Model.ProblemLinkText, Mode=OneWay}"
+                            Visibility="{x:Bind views:Bind.Visible(Model.HasProblemLink), Mode=OneWay}" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+                <InfoBar
+                    x:Name="NoticeBar"
+                    AutomationProperties.AutomationId="Notice"
+                    Closed="OnBarClosed"
+                    IsClosable="True"
+                    Message="{x:Bind Model.NoticeText, Mode=OneWay}"
+                    Severity="Informational"
+                    Visibility="Collapsed" />
+            </StackPanel>
+
+            <!-- The wallpaper, aspect-fit, named by describe(id) and its rating. -->
+            <Border
+                x:Name="PictureFrame"
+                Grid.Row="2"
+                VerticalAlignment="Top"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource OverlayCornerRadius}"
+                Visibility="{x:Bind views:Bind.Visible(Model.HasCurrent), Mode=OneWay}">
+                <Grid>
+                    <Image
+                        x:Name="Picture"
+                        AutomationProperties.AutomationId="CurrentWallpaper"
+                        AutomationProperties.Name="{x:Bind Model.CurrentDescription, Mode=OneWay}"
+                        Stretch="Uniform" />
+                    <!-- Over the picture while the next one is made (decorative; the stage and ring say it). -->
+                    <Border
+                        x:Name="Veil"
+                        AutomationProperties.AccessibilityView="Raw"
+                        Background="{ThemeResource RemakingVeilBrush}"
+                        IsHitTestVisible="False"
+                        Opacity="0"
+                        Visibility="Collapsed" />
+                </Grid>
+            </Border>
+
+            <!-- Nothing made yet. -->
+            <StackPanel
+                x:Name="EmptyState"
+                Grid.Row="2"
+                Padding="24,48"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="12"
+                Visibility="{x:Bind views:Bind.Collapsed(Model.HasCurrent), Mode=OneWay}">
+                <Image
+                    Width="96"
+                    Height="96"
+                    AutomationProperties.AccessibilityView="Raw"
+                    Source="ms-appx:///Assets/Square44x44Logo.targetsize-96_altform-unplated.png" />
+                <TextBlock
+                    x:Name="EmptyTitle"
+                    x:Uid="NowEmptyTitle"
+                    HorizontalAlignment="Center"
+                    AutomationProperties.HeadingLevel="Level1"
+                    Style="{StaticResource SubtitleTextBlockStyle}" />
+                <TextBlock
+                    x:Name="EmptyBody"
+                    x:Uid="NowEmptyBody"
+                    MaxWidth="420"
+                    HorizontalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource BodyTextBlockStyle}"
+                    TextAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel x:Name="Details" Grid.Row="2" Grid.Column="1" Spacing="16">
+                <StackPanel Spacing="8" Visibility="{x:Bind views:Bind.Visible(Model.HasCurrent), Mode=OneWay}">
+                    <TextBlock
+                        AutomationProperties.HeadingLevel="Level2"
+                        IsTextSelectionEnabled="True"
+                        Style="{StaticResource SubtitleTextBlockStyle}"
+                        Text="{x:Bind TitleOf(Model.Current), Mode=OneWay}"
+                        TextWrapping="WrapWholeWords" />
+                    <TextBlock
+                        IsTextSelectionEnabled="True"
+                        Style="{StaticResource BodyTextBlockStyle}"
+                        Text="{x:Bind SummaryOf(Model.Current), Mode=OneWay}" />
+                    <Grid ColumnSpacing="8" Visibility="{x:Bind EchoNoteVisibility(Model.Current), Mode=OneWay}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon
+                            Margin="0,3,0,0"
+                            VerticalAlignment="Top"
+                            AutomationProperties.AccessibilityView="Raw"
+                            FontSize="14"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Glyph="&#xE8EE;" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            IsTextSelectionEnabled="True"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            Text="{x:Bind EchoNoteOf(Model.Current), Mode=OneWay}" />
+                    </Grid>
+                    <!-- Which models made it: "Written by … · Painted by … · 3840×2160 · about $0.04"; Painted by is a
+                         link to Settings › Providers (NowPage.ShowProvenance). -->
+                    <TextBlock
+                        x:Name="ProvenanceLine"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <!-- Rating: toggle buttons expose their state (Toggle pattern); choosing again clears it. -->
+                <StackPanel
+                    Orientation="Horizontal"
+                    Spacing="8"
+                    Visibility="{x:Bind views:Bind.Visible(Model.HasCurrent), Mode=OneWay}">
+                    <ToggleButton
+                        x:Name="LikeButton"
+                        x:Uid="NowLike"
+                        AutomationProperties.AutomationId="Like"
+                        Click="OnLike"
+                        IsChecked="{x:Bind Model.IsLiked, Mode=OneWay}"
+                        IsEnabled="{x:Bind Model.IsReady, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="16" Glyph="&#xE8E1;" />
+                            <TextBlock x:Uid="NowLikeText" />
+                        </StackPanel>
+                    </ToggleButton>
+                    <ToggleButton
+                        x:Name="DislikeButton"
+                        x:Uid="NowDislike"
+                        AutomationProperties.AutomationId="Dislike"
+                        Click="OnDislike"
+                        IsChecked="{x:Bind Model.IsDisliked, Mode=OneWay}"
+                        IsEnabled="{x:Bind Model.IsReady, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="16" Glyph="&#xE8E0;" />
+                            <TextBlock x:Uid="NowDislikeText" />
+                        </StackPanel>
+                    </ToggleButton>
+                </StackPanel>
+
+                <!-- While making one: a ring (determinate while painting when there's a number behind it: ComfyUI's
+                     steps, or how long it took here before), the stage and the time left (Stop is the command bar's
+                     button). The stage is
+                     announced by the window (AppModel.OnStage); the stage and time left are the ring's help text
+                     (NowPage.DescribeRing), read with it, not announced every second. -->
+                <Grid x:Name="MakingPanel" ColumnSpacing="12" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <ProgressRing
+                        x:Name="Ring"
+                        x:Uid="NowProgress"
+                        Width="36"
+                        Height="36"
+                        VerticalAlignment="Center"
+                        AutomationProperties.AutomationId="Progress"
+                        IsIndeterminate="True"
+                        Maximum="100"
+                        Minimum="0" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                        <TextBlock
+                            x:Name="StageLine"
+                            Style="{StaticResource BodyStrongTextBlockStyle}"
+                            Text="{x:Bind Model.StageText, Mode=OneWay}"
+                            TextWrapping="WrapWholeWords" />
+                        <TextBlock
+                            x:Name="TimeLeftLine"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind Model.TimeLeftText, Mode=OneWay}"
+                            Visibility="{x:Bind views:Bind.HasText(Model.TimeLeftText), Mode=OneWay}" />
+                    </StackPanel>
+                </Grid>
+
+                <InfoBar
+                    x:Uid="NarrowKeywords"
+                    IsClosable="False"
+                    IsOpen="True"
+                    Severity="Informational"
+                    Visibility="{x:Bind views:Bind.Visible(Model.KeywordsNarrow), Mode=OneWay}">
+                    <InfoBar.ActionButton>
+                        <HyperlinkButton x:Uid="NowOpenMoods" Click="OnOpenMoods" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+
+                <!-- Status lines. -->
+                <StackPanel Spacing="4">
+                    <TextBlock
+                        x:Name="NextLine"
+                        AutomationProperties.LiveSetting="Polite"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource BodyTextBlockStyle}"
+                        Text="{x:Bind Model.NextText, Mode=OneWay}" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource BodyTextBlockStyle}"
+                        Text="{x:Bind Model.BudgetText, Mode=OneWay}" />
+                    <!-- The person's own wallpaper is showing (Restore my wallpaper): AutoPaper's next one replaces it. -->
+                    <TextBlock
+                        x:Uid="NowOwnWallpaper"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource BodyTextBlockStyle}"
+                        TextWrapping="WrapWholeWords"
+                        Visibility="{x:Bind views:Bind.Visible(Model.DesktopShowsOwn), Mode=OneWay}" />
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Page>

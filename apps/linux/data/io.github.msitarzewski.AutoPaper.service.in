@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=io.github.msitarzewski.AutoPaper
+Exec=@bindir@/autopaper-gtk --gapplication-service

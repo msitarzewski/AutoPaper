@@ -1,0 +1,38 @@
+{
+  "error": {
+    "type": "prompt_outputs_failed_validation",
+    "message": "Prompt outputs failed validation",
+    "details": "",
+    "extra_info": {}
+  },
+  "node_errors": {
+    "1": {
+      "errors": [
+        {
+          "type": "value_not_in_list",
+          "message": "Value not in list",
+          "details": "unet_name: 'not-installed.safetensors' not in ['krea2_turbo_fp8_scaled.safetensors', 'ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors', 'minimax_h3_fl2va_int8_convrot.safetensors', 'minimax_h3_ref2va_int8_convrot.safetensors', 'qwen_image_2.1_int8_convrot.safetensors', 'z_image_turbo_bf16.safetensors']",
+          "extra_info": {
+            "input_name": "unet_name",
+            "input_config": [
+              [
+                "krea2_turbo_fp8_scaled.safetensors",
+                "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+                "minimax_h3_fl2va_int8_convrot.safetensors",
+                "minimax_h3_ref2va_int8_convrot.safetensors",
+                "qwen_image_2.1_int8_convrot.safetensors",
+                "z_image_turbo_bf16.safetensors"
+              ],
+              {}
+            ],
+            "received_value": "not-installed.safetensors"
+          }
+        }
+      ],
+      "dependent_outputs": [
+        "10"
+      ],
+      "class_type": "UNETLoader"
+    }
+  }
+}

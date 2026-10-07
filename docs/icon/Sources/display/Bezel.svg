@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Display bezel, from GlassPowerTools' geometry: outer frame with the screen aperture knocked out
+       (evenodd), so the screen beneath shows through a true frame. Shifted down 55 to centre the display
+       and stand as a unit. -->
+  <g transform="translate(0 55)">
+    <path fill="#fff" fill-rule="evenodd" d="M280.6 239.3H744.2A34 34 0 0 1 778.2 273.3V552.3A34 34 0 0 1 744.2 586.3H280.6A34 34 0 0 1 246.6 552.3V273.3A34 34 0 0 1 280.6 239.3ZM303.4 274.4A20 20 0 0 0 283.4 294.4V527.1A20 20 0 0 0 303.4 547.1H719A20 20 0 0 0 739 527.1V294.4A20 20 0 0 0 719 274.4Z"/>
+  </g>
+</svg>

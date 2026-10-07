@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Integration tests for the Windows-only pieces: the Credential Manager secret store, the core reading keys
+       through it over the C# bindings, the core values and typed errors the app relies on instead of copying
+       them (CoreContractTests), moods and progress detail through the bindings (MoodsContractTests), the app's
+       wording against its .resw (WordingTests), mood names (MoodTextTests), reading a person's ComfyUI workflow
+       (OwnWorkflowTests), History's in-place refresh (ListSync, no WinUI types), the person's own wallpaper and lock
+       screen (OwnWallpaperTests, OwnLockScreenTests), and the macOS-parity logic (ParityTests). They use their own credential
+       prefix ("AutoPaperTest:"), never the app's.
+       Run inside Windows after scripts\build-core-windows.ps1: scripts\windows-app.ps1 -Test. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.22000.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.22000.0</SupportedOSPlatformVersion>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CS8981</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="MSTest" Version="4.0.2" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.346">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+  <!-- AutoPaper's own ComfyUI workflows: the files the core is built with (core/resources/comfyui), embedded so
+       Settings can name their models in words while ComfyUI can't be asked (BundledWorkflows). -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\core\resources\comfyui\*.json" LogicalName="ComfyUI.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+    <Compile Include="..\AutoPaper\Services\CredentialStore.cs" Link="Linked\CredentialStore.cs" />
+    <Compile Include="..\AutoPaper\Models\ListSync.cs" Link="Linked\ListSync.cs" />
+    <!-- The app's wording and the logic behind Moods, progress and ComfyUI workflows (no WinUI types), checked against
+         the app's own English strings (Resources.resw, read by ReswStrings instead of MRT). -->
+    <Compile Include="..\AutoPaper\Services\Loc.cs" Link="Linked\Loc.cs" />
+    <Compile Include="..\AutoPaper\Services\Text.cs" Link="Linked\Text.cs" />
+    <Compile Include="..\AutoPaper\Models\MoodText.cs" Link="Linked\MoodText.cs" />
+    <Compile Include="..\AutoPaper\Models\OwnWorkflow.cs" Link="Linked\OwnWorkflow.cs" />
+    <Compile Include="..\AutoPaper\Services\OwnWallpaper.cs" Link="Linked\OwnWallpaper.cs" />
+    <!-- Parity with the macOS app (2026-10-06): the provenance line, reload/stop, the summary's chart, the lock screen. -->
+    <Compile Include="..\AutoPaper\Services\Provenance.cs" Link="Linked\Provenance.cs" />
+    <Compile Include="..\AutoPaper\Services\OwnLockScreen.cs" Link="Linked\OwnLockScreen.cs" />
+    <Compile Include="..\AutoPaper\Models\MakeOrStop.cs" Link="Linked\MakeOrStop.cs" />
+    <Compile Include="..\AutoPaper\Models\MoodActivity.cs" Link="Linked\MoodActivity.cs" />
+    <None Include="..\AutoPaper\Strings\en-US\Resources.resw" Link="Resources.resw" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="..\Generated\autopaper_core.cs" Link="Generated\autopaper_core.cs" />
+    <None Include="..\Generated\$(RuntimeIdentifier)\autopaper_core.dll" Link="autopaper_core.dll" CopyToOutputDirectory="PreserveNewest" />
+    <AdditionalFiles Include="NativeMethods.txt" />
+  </ItemGroup>
+</Project>

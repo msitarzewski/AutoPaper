@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "AutoPaper (Package)": {
+      "commandName": "MsixPackage"
+    }
+  }
+}

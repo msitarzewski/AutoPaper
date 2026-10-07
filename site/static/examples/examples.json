@@ -1,0 +1,289 @@
+{
+  "note": "Example wallpapers for the website, composed the way AutoPaper's composer does (keywords → concept → prompt) and painted locally with ComfyUI. AutoPaper itself is in development; these were not made by the app. The ComfyUI agent fills in `made_with` for each.",
+  "examples": [
+    {
+      "file": "rain-ruins",
+      "role": "hero; Surprise: faithful",
+      "keywords": [
+        [
+          "rain",
+          "must"
+        ],
+        [
+          "ruins",
+          "must"
+        ],
+        [
+          "peaceful",
+          "must"
+        ],
+        [
+          "night",
+          "must"
+        ],
+        [
+          "blue",
+          "must"
+        ]
+      ],
+      "surprise": 0.2,
+      "title": "Rain over the drowned colonnade",
+      "summary": "Soft rain falls on a ruined stone colonnade standing in still water at night, lit in deep blues by a moon behind thin cloud.",
+      "prompt": "Desktop wallpaper, wide cinematic landscape at night. An ancient stone colonnade, half-submerged in still water, gentle rain falling, fine ripples spreading across the water, soft moonlight diffused through low clouds, deep blue and slate palette with faint silver highlights on wet stone, distant hills fading into mist, low horizon with a calm open sky across the upper half, peaceful and quiet, painterly realism, highly detailed",
+      "made_with": {
+        "tool": "ComfyUI 0.36.0",
+        "model": "Qwen-Image 2.1 (qwen_image_2.1_int8_convrot)",
+        "licence": "Qwen Research License (outputs belong to the user, per Qwen, 2026-09-21) https://huggingface.co/Qwen/Qwen-Image-2.1",
+        "seed": 1001,
+        "steps": 25,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "width": 1920,
+        "height": 1088,
+        "seconds": 198.5
+      }
+    },
+    {
+      "file": "rain-ruins-wild",
+      "role": "Surprise: wild (same keywords as rain-ruins)",
+      "keywords": [
+        [
+          "rain",
+          "must"
+        ],
+        [
+          "ruins",
+          "must"
+        ],
+        [
+          "peaceful",
+          "must"
+        ],
+        [
+          "night",
+          "must"
+        ],
+        [
+          "blue",
+          "must"
+        ]
+      ],
+      "surprise": 0.9,
+      "title": "The observatory that grew moss",
+      "summary": "Rain falls on the ruins of a great domed observatory, overgrown and glowing with blue moss and flowers under drifting night clouds, with a few luminous moths.",
+      "wildcards": [
+        "observatory",
+        "glowing moss",
+        "moths"
+      ],
+      "prompt": "Desktop wallpaper, wide fantastical landscape at night. The ruins of a vast domed observatory overgrown with softly glowing blue moss, warm rain falling through the broken dome, puddles on the stone floor reflecting the ruins and a sky of drifting deep-blue clouds, a few small luminous moths, peaceful and dreamlike, deep blue and teal palette with a soft cyan glow, digital painting, highly detailed",
+      "made_with": {
+        "tool": "ComfyUI 0.36.0",
+        "model": "Qwen-Image 2.1 (qwen_image_2.1_int8_convrot)",
+        "licence": "Qwen Research License (outputs belong to the user, per Qwen, 2026-09-21) https://huggingface.co/Qwen/Qwen-Image-2.1",
+        "seed": 1001,
+        "steps": 25,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "width": 1920,
+        "height": 1088,
+        "seconds": 206.4
+      }
+    },
+    {
+      "file": "echo-then",
+      "role": "Echo: the original (the Reddit post's example)",
+      "keywords": [
+        [
+          "ocean",
+          "must"
+        ],
+        [
+          "night",
+          "must"
+        ],
+        [
+          "fog",
+          "maybe"
+        ],
+        [
+          "silver",
+          "maybe"
+        ],
+        [
+          "quiet",
+          "must"
+        ]
+      ],
+      "surprise": 0.35,
+      "title": "Black ocean, silver structures",
+      "summary": "A quiet black ocean at night, with distant silver structures standing far out at sea in thin fog.",
+      "prompt": "Desktop wallpaper, wide minimalist seascape at night. A calm black ocean stretching to the horizon, thin sea fog drifting low over the water, distant tall silver structures standing far out at sea like quiet towers, faint reflections of their lights on the dark water, overcast night sky, palette of black, charcoal and cool silver, serene and still, vast empty space above the horizon, photographic, long exposure",
+      "made_with": {
+        "tool": "ComfyUI 0.36.0",
+        "model": "Qwen-Image 2.1 (qwen_image_2.1_int8_convrot)",
+        "licence": "Qwen Research License (outputs belong to the user, per Qwen, 2026-09-21) https://huggingface.co/Qwen/Qwen-Image-2.1",
+        "seed": 2002,
+        "steps": 25,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "width": 1920,
+        "height": 1088,
+        "seconds": 175.3
+      }
+    },
+    {
+      "file": "echo-now",
+      "role": "Echo: the new interpretation, years later",
+      "echo_of": "echo-then",
+      "echo_note": "Echo of “Black ocean, silver structures”: after a storm, at sunrise, the structures weathered.",
+      "title": "After the storm, the towers at sunrise",
+      "summary": "The same ocean after a storm: lingering swells, broken clouds, and the distant structures, now weathered, catching an early sunrise.",
+      "prompt": "Desktop wallpaper, wide seascape at early sunrise after a storm. A vast ocean, still restless with lingering swells and scattered whitecaps, broken storm clouds parting, the first warm light on the horizon, distant tall silver structures far out at sea, weathered and rust-streaked, catching the sunrise, wet sea air, palette of storm grey, pale gold and weathered silver, quiet and hopeful, vast open sky, photographic, long exposure",
+      "made_with": {
+        "tool": "ComfyUI 0.36.0",
+        "model": "Qwen-Image 2.1 (qwen_image_2.1_int8_convrot)",
+        "licence": "Qwen Research License (outputs belong to the user, per Qwen, 2026-09-21) https://huggingface.co/Qwen/Qwen-Image-2.1",
+        "seed": 1001,
+        "steps": 25,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "width": 1920,
+        "height": 1088,
+        "seconds": 191.2
+      }
+    },
+    {
+      "file": "desert-glass",
+      "role": "gallery",
+      "keywords": [
+        [
+          "desert",
+          "must"
+        ],
+        [
+          "dawn",
+          "must"
+        ],
+        [
+          "glass",
+          "maybe"
+        ],
+        [
+          "calm",
+          "must"
+        ],
+        [
+          "people",
+          "avoid"
+        ]
+      ],
+      "surprise": 0.4,
+      "title": "A glass pavilion at first light",
+      "summary": "A small glass pavilion rests on pale dunes at dawn, scattering faint rainbows across the sand.",
+      "prompt": "Desktop wallpaper, wide landscape at dawn. A minimal glass pavilion resting on soft pale sand dunes, the first sunlight refracting through its panes into faint rainbows on the sand, long gentle shadows, a clear pastel sky fading from peach to soft blue, calm and spacious, low horizon, fine sand texture, architectural photography, serene",
+      "made_with": {
+        "tool": "ComfyUI 0.36.0",
+        "model": "Z-Image Turbo (z_image_turbo_bf16)",
+        "licence": "Apache-2.0 https://huggingface.co/Tongyi-MAI/Z-Image-Turbo",
+        "seed": 1001,
+        "steps": 8,
+        "cfg": 1.0,
+        "sampler": "res_multistep",
+        "scheduler": "simple",
+        "width": 1920,
+        "height": 1088,
+        "seconds": 44.8
+      }
+    },
+    {
+      "file": "snow-lanterns",
+      "role": "gallery",
+      "keywords": [
+        [
+          "forest",
+          "must"
+        ],
+        [
+          "snow",
+          "must"
+        ],
+        [
+          "lanterns",
+          "maybe"
+        ],
+        [
+          "warm",
+          "maybe"
+        ],
+        [
+          "neon",
+          "avoid"
+        ]
+      ],
+      "surprise": 0.3,
+      "title": "Lanterns through the snowy pines",
+      "summary": "A path of small paper lanterns winds through a snowy pine forest at blue hour, warm light on fresh snow.",
+      "prompt": "Desktop wallpaper, wide landscape at blue hour. A quiet snowy pine forest, a narrow path lined with small glowing paper lanterns winding between the trees, warm amber light on fresh snow, gently falling snowflakes, deep blue shadows, cozy and calm, soft depth of field into the distance, painterly illustration, highly detailed",
+      "made_with": {
+        "tool": "ComfyUI 0.36.0",
+        "model": "Qwen-Image 2.1 (qwen_image_2.1_int8_convrot)",
+        "licence": "Qwen Research License (outputs belong to the user, per Qwen, 2026-09-21) https://huggingface.co/Qwen/Qwen-Image-2.1",
+        "seed": 1001,
+        "steps": 25,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "width": 1920,
+        "height": 1088,
+        "seconds": 194.2
+      }
+    },
+    {
+      "file": "rooftops-spring",
+      "role": "gallery",
+      "keywords": [
+        [
+          "rooftops",
+          "must"
+        ],
+        [
+          "spring",
+          "must"
+        ],
+        [
+          "mist",
+          "maybe"
+        ],
+        [
+          "city",
+          "maybe"
+        ]
+      ],
+      "surprise": 0.6,
+      "wildcards": [
+        "kites"
+      ],
+      "title": "Kites over the spring rooftops",
+      "summary": "A watercolour of old hillside rooftops in spring, cherry blossom between the houses and kites drifting in a pale sky.",
+      "prompt": "Desktop wallpaper, wide cityscape in the morning. Old terracotta rooftops of a hillside town under soft spring mist, blossoming cherry and almond trees between the houses, pale pink and soft green palette, sunlight breaking through the haze, a few kites drifting high in the pale sky, peaceful, airy, watercolor style, delicate detail",
+      "made_with": {
+        "tool": "ComfyUI 0.36.0",
+        "model": "Krea 2 Turbo (krea2_turbo_fp8_scaled)",
+        "licence": "Krea 2 Community License https://huggingface.co/krea/Krea-2-Turbo",
+        "seed": 1001,
+        "steps": 8,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "width": 1920,
+        "height": 1088,
+        "seconds": 103.0
+      }
+    }
+  ]
+}

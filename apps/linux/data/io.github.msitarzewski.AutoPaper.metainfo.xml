@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2026 Michael Sitarzewski -->
+<component type="desktop-application">
+  <id>io.github.msitarzewski.AutoPaper</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>AutoPaper</name>
+  <!-- Flathub's quality guidelines: at most 35 characters, no leading article, no full stop. -->
+  <summary>New wallpapers from a few keywords</summary>
+  <developer id="io.github.msitarzewski">
+    <name>Michael Sitarzewski</name>
+  </developer>
+  <description>
+    <p>
+      Give AutoPaper a few keywords instead of an image prompt, and it keeps making new wallpapers from them:
+      it composes a scene, has it painted by the provider you choose, and sets it as your wallpaper.
+      It remembers everything it has made, so you're unlikely to see the same idea twice.
+    </p>
+    <ul>
+      <li>Keywords marked Must, Maybe or Avoid, and a Surprise setting from faithful to wild</li>
+      <li>Moods: named sets of keywords, each with its own Surprise, to switch between</li>
+      <li>Like and Dislike: AutoPaper learns what you enjoy</li>
+      <li>Memory with a quiet period you choose, and echoes: old ideas coming back in a new form</li>
+      <li>History of everything it made, with each echo linked to its original</li>
+      <li>Your own keys for OpenAI or Google Gemini, or local models (Ollama, ComfyUI, OpenAI-compatible servers)</li>
+      <li>A monthly budget, with estimated costs</li>
+      <li>No accounts, no telemetry, no AutoPaper server</li>
+    </ul>
+    <p>A Demo mode makes colour gradients without any AI, for trying the app.</p>
+  </description>
+  <launchable type="desktop-id">io.github.msitarzewski.AutoPaper.desktop</launchable>
+  <provides>
+    <binary>autopaper-gtk</binary>
+  </provides>
+  <url type="homepage">https://msitarzewski.github.io/AutoPaper/</url>
+  <url type="help">https://msitarzewski.github.io/AutoPaper/help.html</url>
+  <url type="bugtracker">https://github.com/msitarzewski/AutoPaper/issues</url>
+  <url type="vcs-browser">https://github.com/msitarzewski/AutoPaper</url>
+  <!-- Window screenshots of the Flatpak (GNOME 51 runtime) on GNOME's default settings, 2x: 2000x1400 windows plus their
+       shadow (GNOME's Alt+Print). The wallpapers in them were painted locally with ComfyUI (Z-Image Turbo). Pinned to the
+       release tag: Flathub's builders download each image when they build. -->
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/msitarzewski/AutoPaper/v0.1.0/packaging/flatpak/screenshots/1-now.png</image>
+      <caption>The wallpaper on your desktop, with the models that made it</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/msitarzewski/AutoPaper/v0.1.0/packaging/flatpak/screenshots/2-moods.png</image>
+      <caption>Your moods, with what each has made over the last 30 days</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/msitarzewski/AutoPaper/v0.1.0/packaging/flatpak/screenshots/3-mood.png</image>
+      <caption>A mood's keywords, each marked Must, Maybe or Avoid</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/msitarzewski/AutoPaper/v0.1.0/packaging/flatpak/screenshots/4-history.png</image>
+      <caption>History, with every wallpaper AutoPaper has made</caption>
+    </screenshot>
+  </screenshots>
+  <branding>
+    <color type="primary" scheme_preference="light">#f6b6b9</color>
+    <color type="primary" scheme_preference="dark">#7a1520</color>
+  </branding>
+  <!-- OARS 1.1, every attribute "none": AutoPaper ships no content of its own (Demo paints colour gradients) and only
+       paints what the person's own keywords ask for; it has no chat, contacts, location sharing, ads or purchases, and
+       sends nothing about the person to anyone but the AI service they choose themselves. -->
+  <content_rating type="oars-1.1"/>
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+    <control>touch</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <categories>
+    <category>Graphics</category>
+  </categories>
+  <keywords>
+    <keyword>wallpaper</keyword>
+    <keyword>background</keyword>
+    <keyword>desktop</keyword>
+    <keyword>lock screen</keyword>
+  </keywords>
+  <releases>
+    <release version="0.1.0" date="2026-10-06">
+      <description>
+        <p>The first release of AutoPaper for Linux.</p>
+        <p>
+          It makes a new wallpaper from your keywords on the schedule you choose, or when you ask, with OpenAI,
+          Google Gemini, or a model on your own computer through Ollama, ComfyUI or an OpenAI-compatible server.
+          Moods, Like and Dislike, memory with echoes, a history of everything it has made, and a monthly budget are
+          all in this first version. On GNOME it runs in the background and tells you about new wallpapers with
+          notifications; on KDE Plasma and other desktops it also has a tray icon.
+        </p>
+      </description>
+    </release>
+  </releases>
+</component>

@@ -1,0 +1,380 @@
+<!--
+title: AutoPaper
+description: A free desktop app for macOS, Windows and Linux. Give it a few keywords and it keeps making new wallpapers from them, with the AI service you choose and your own key, or a model on your own computer. It remembers what it has made, so you're unlikely to see the same idea twice.
+-->
+<header class="hero">
+  <img class="hero-icon" src="icon-256.png" alt="The AutoPaper icon: a red display with three white sparkles on it." width="144" height="144">
+  <h1>AutoPaper</h1>
+  <p class="tagline">Tell your computer what you’d like to see.</p>
+  <p class="sub">Give it a few keywords, such as <em>rain, ruins, peaceful, night, blue</em>, and it keeps making new wallpapers from them. It writes a scene, has it painted by the AI service you choose with your own key, or by a model on your own computer, and puts it on your desktop. It remembers everything it has made, so you’re unlikely to see the same idea twice.</p>
+  <p class="status"><strong>Coming soon:</strong> version 0.1.0, the first release, for macOS, Windows and Linux at once.</p>
+  <!-- RELEASE: when v0.1.0 is published, put back the Download for Mac / Download for Windows / Get it on Flathub
+       buttons and the winget line (see git history), and the "Version 0.1.0" status. -->
+  <div class="actions">
+    <a class="button primary" href="https://github.com/msitarzewski/AutoPaper">Watch for it on GitHub</a>
+  </div>
+  <p class="install-alt">On GitHub, choose <strong>Watch › Custom › Releases</strong> to hear the moment it’s out. Until then you can <a href="https://github.com/msitarzewski/AutoPaper#build-from-source">build it from source</a>.</p>
+  <div class="actions">
+    <a class="button" href="help.html">How to use it</a>
+    <a class="button" href="privacy.html">What it sends</a>
+    <a class="button" href="https://github.com/msitarzewski/AutoPaper">Source code</a>
+  </div>
+  <p class="facts">Free · MIT licence · macOS 26, Windows 11, Linux · your own OpenAI or Google Gemini key, or a local model · no account, no telemetry</p>
+</header>
+
+<figure class="demo">
+  <img src="examples/rain-ruins.jpg" srcset="examples/rain-ruins-960.jpg 960w, examples/rain-ruins.jpg 1920w" sizes="(max-width: 900px) 100vw, 820px" width="1920" height="1080" fetchpriority="high" decoding="async" alt="Soft rain falls on a ruined stone colonnade standing in still water at night, lit in deep blues by a moon behind thin cloud.">
+  <figcaption><strong>“Rain over the drowned colonnade”</strong>, from the keywords rain, ruins, peaceful, night and blue. An example made before the apps could make their own: composed the way AutoPaper composes, and painted locally with ComfyUI by Qwen-Image 2.1. <a href="#about-the-examples">About the examples</a>.</figcaption>
+</figure>
+
+<section class="section" id="how-it-works">
+  <h2>How it works</h2>
+  <p class="intro-text">This page describes AutoPaper 0.1.0 on all three systems; where they differ, it says so.</p>
+  <ol class="steps">
+    <li>
+      <h3>You give it keywords</h3>
+      <p>A handful of words, each marked <strong>Must</strong>, <strong>Maybe</strong> or <strong>Avoid</strong>, and how much <strong>Surprise</strong> you’d like. There’s no prompt to write.</p>
+    </li>
+    <li>
+      <h3>It writes a scene</h3>
+      <p>A language model turns them into a concept: a place, weather, light, a palette, a title. It writes four and keeps the one least like anything you’ve had and most like what you enjoy.</p>
+    </li>
+    <li>
+      <h3>It’s painted by the service you choose</h3>
+      <p>OpenAI, Google Gemini, or a model running on your own computer, with your own key. You see how far along it is, and how long is left.</p>
+    </li>
+    <li>
+      <h3>It goes on your desktop</h3>
+      <p>Sized for each display. Then it goes into your history, and into memory.</p>
+    </li>
+  </ol>
+  <p class="after-steps">A new wallpaper comes every hour, every 3, 6 or 12 hours, every day (unless you choose otherwise) or every week, or only when you ask. <strong>New Wallpaper Now</strong> makes one straight away, and the schedule counts from there.</p>
+</section>
+
+<section class="section" id="keywords">
+  <h2>Keywords, not prompts</h2>
+  <p class="intro-text">Each keyword is marked with one of three weights.</p>
+  <dl class="weights">
+    <div>
+      <dt><span class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">night</span></span></dt>
+      <dd>In every wallpaper.</dd>
+    </div>
+    <div>
+      <dt><span class="chip maybe"><span class="w">Maybe</span><span class="sr-only">:</span> <span class="k">fog</span></span></dt>
+      <dd>In some, not all. AutoPaper varies which Maybes it uses.</dd>
+    </div>
+    <div>
+      <dt><span class="chip avoid"><span class="w">Avoid</span><span class="sr-only">:</span> <span class="k">people</span></span></dt>
+      <dd>Never. It isn’t even mentioned to the painter, because image models often take “no people” as a hint to add some.</dd>
+    </div>
+  </dl>
+  <p><strong>Surprise</strong> sets how much freedom AutoPaper has, from faithful to wild. Near faithful, it follows your keywords closely and adds nothing of its own. Towards wild, it takes them more loosely and adds up to three ideas you didn’t ask for. Every wallpaper is asked for without text, letters, logos or watermarks, and with calm space where your desktop icons sit.</p>
+
+  <h3>The same five keywords, faithful and wild</h3>
+  <ul class="chips" aria-label="Keywords for both wallpapers">
+    <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">rain</span></li>
+    <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">ruins</span></li>
+    <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">peaceful</span></li>
+    <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">night</span></li>
+    <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">blue</span></li>
+  </ul>
+  <div class="gallery">
+    <figure class="example">
+      <img src="examples/rain-ruins-960.jpg" srcset="examples/rain-ruins-960.jpg 960w, examples/rain-ruins.jpg 1920w" sizes="(max-width: 700px) 100vw, 460px" width="960" height="540" loading="lazy" decoding="async" alt="Soft rain falls on a ruined stone colonnade standing in still water at night, lit in deep blues by a moon behind thin cloud.">
+      <figcaption>
+        <span class="label">Surprise: faithful</span>
+        <span class="title">Rain over the drowned colonnade</span>
+        <span class="note">Every keyword, followed closely; nothing added.</span>
+      </figcaption>
+    </figure>
+    <figure class="example">
+      <img src="examples/rain-ruins-wild-960.jpg" srcset="examples/rain-ruins-wild-960.jpg 960w, examples/rain-ruins-wild.jpg 1920w" sizes="(max-width: 700px) 100vw, 460px" width="960" height="540" loading="lazy" decoding="async" alt="Rain falls on the ruins of a great domed observatory, overgrown and glowing with blue moss and flowers under drifting night clouds, with a few luminous moths.">
+      <figcaption>
+        <span class="label">Surprise: wild</span>
+        <span class="title">The observatory that grew moss</span>
+        <span class="note">The same keywords, plus three ideas of its own: an observatory, glowing moss and moths.</span>
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="moods">
+  <div class="split">
+    <div>
+      <h2>Moods</h2>
+      <p>A <strong>mood</strong> is a set of keywords with its own Surprise: <em>Rainy beach</em>, <em>Night city</em>, <em>Winter forest</em>, whatever you like. One mood is current, and new wallpapers come from it. Switch from the <strong>Mood</strong> submenu in the menu bar or notification-area menu (or the tray on KDE), or in the window. Switching never makes a wallpaper by itself, so it never costs anything.</p>
+      <p>Everything else is shared between moods: the schedule, the providers, the budget, memory, and what AutoPaper has learned about your taste. So a new mood doesn’t start from nothing, and an idea you’ve had in one mood won’t come back in another as if it were new. Echoes favour wallpapers from the current mood.</p>
+    </div>
+    <div>
+      <h3>Each mood’s own history</h3>
+      <p>Each mood shows the wallpapers made in it, and History can show one mood at a time. Delete a mood and its wallpapers stay in History.</p>
+      <p>On a Mac, <strong>Your Moods</strong> sums them up when no mood is selected: how many wallpapers each has made, how many you liked, when it last made one, its latest few, and a chart of the last 30 days, kept on your Mac only. Windows and Linux don’t have the summary yet.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="your-wallpaper">
+  <h2>Your own wallpaper, kept safe</h2>
+  <div class="split">
+    <div>
+      <h3>On a Mac: over your wallpaper</h3>
+      <p>AutoPaper shows its wallpapers <strong>over</strong> your own, in a click-through layer above the desktop picture and below your icons, on every display and Space. Your own wallpaper is never touched, even if it’s one of macOS’s moving Aerials. Quit AutoPaper, or choose <strong>Restore My Wallpaper</strong>, and yours is there exactly as it was.</p>
+      <p>If you’d like AutoPaper’s wallpapers in Mission Control and on the lock screen too, choose <strong>As my wallpaper</strong> in Settings → General. It then replaces your desktop picture, after noting each display’s own; macOS’s moving wallpapers may not come back exactly.</p>
+    </div>
+    <div>
+      <h3>On Windows and Linux: as your wallpaper</h3>
+      <p>Neither has a supported way to draw beneath the desktop icons, so AutoPaper sets the real wallpaper. First it keeps a copy of your own, for each monitor, and it puts it back when AutoPaper quits or you choose <strong>Restore my wallpaper</strong>. On Windows that includes a slideshow or Windows Spotlight, and AutoPaper sets the lock screen too, unless you turn that off. On Linux, putting yours back works on GNOME for now, not yet on KDE or in a Flatpak.</p>
+      <h3>Pause</h3>
+      <p><strong>Pause New Wallpapers</strong> stops new ones and leaves the one you have; New Wallpaper Now still works. That’s how it works on a Mac. On Windows and Linux, pausing still puts your own wallpaper back for now.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="painting">
+  <div class="split">
+    <div>
+      <h2>While it paints</h2>
+      <p>A painting can take a few seconds or several minutes, so AutoPaper says what it’s doing (<em>Composing an idea…</em>, <em>Checking memory…</em>, <em>Painting…</em>, <em>Preparing for your displays…</em>) with a progress ring and the time left: <em>About 6 minutes left</em>. Meanwhile the wallpaper in AutoPaper’s window looks as if it’s being remade: on a Mac it ripples gently under a slow drift of its own colours, and on Windows and Linux a soft veil covers it. With reduced motion turned on, it holds still. <strong>Stop</strong> cancels.</p>
+    </div>
+    <div>
+      <h3>Learned from your own computer</h3>
+      <p>AutoPaper notes how long each provider and model took, at what size: the last 50 times for each, kept on your computer and never sent. The time left is estimated from those, the recent ones counting most. Until something has been recorded there’s no estimate: it never makes a number up. A local model reports each step as it paints, so its progress is exact.</p>
+      <p>The same estimates start scheduled wallpapers early, so each is ready when it’s due, and show next to each model in Settings (<em>About 9 minutes per wallpaper on this Mac</em>). They also let a slow local model take as long as it needs: AutoPaper gives up only when it stops making progress.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="memory">
+  <h2>Memory and echoes</h2>
+  <div class="split">
+    <div>
+      <p>AutoPaper keeps a memory of every wallpaper it makes: its title, a one-line description, and what went into it. Before a new idea reaches your desktop, it’s compared with everything from your <strong>quiet period</strong>: one month, three months, six months, a year or two years, as you choose. If it’s too close to something you’ve had, AutoPaper asks again, naming what it was too close to. Wallpapers from before the quiet period count for less the further back they are.</p>
+      <p>The comparison runs on your computer with a small local model, so remembering costs nothing and sends nothing anywhere. Memory is kept even when old image files are cleared to save space (wallpapers you liked are never cleared), so years later it still knows what you’ve seen.</p>
+    </div>
+    <div>
+      <h3>Echoes</h3>
+      <p>Once an idea’s quiet period has passed, it can come back as an <strong>echo</strong>: the same kind of place, seen differently. Other weather, another hour or season, years of decay or renewal, a different distance, another era or medium. Never the old image itself. Each echo is linked to its original in your history, with a note saying what changed.</p>
+      <p>Echoes favour wallpapers you liked and never come from ones you disliked. You choose how often they come (never, rarely, sometimes or often), and you can ask for an echo of any wallpaper in your history.</p>
+    </div>
+  </div>
+
+  <div class="gallery">
+    <figure class="example">
+      <img src="examples/echo-then-960.jpg" srcset="examples/echo-then-960.jpg 960w, examples/echo-then.jpg 1920w" sizes="(max-width: 700px) 100vw, 460px" width="960" height="540" loading="lazy" decoding="async" alt="A quiet black ocean at night, with distant silver structures standing far out at sea in thin fog.">
+      <figcaption>
+        <span class="label">First</span>
+        <span class="title">Black ocean, silver structures</span>
+        <ul class="chips" aria-label="Keywords">
+          <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">ocean</span></li>
+          <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">night</span></li>
+          <li class="chip maybe"><span class="w">Maybe</span><span class="sr-only">:</span> <span class="k">fog</span></li>
+          <li class="chip maybe"><span class="w">Maybe</span><span class="sr-only">:</span> <span class="k">silver</span></li>
+          <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">quiet</span></li>
+        </ul>
+      </figcaption>
+    </figure>
+    <figure class="example">
+      <img src="examples/echo-now-960.jpg" srcset="examples/echo-now-960.jpg 960w, examples/echo-now.jpg 1920w" sizes="(max-width: 700px) 100vw, 460px" width="960" height="540" loading="lazy" decoding="async" alt="The same ocean after a storm: lingering swells, broken clouds, and the distant structures, now weathered, catching an early sunrise.">
+      <figcaption>
+        <span class="label">Years later, its echo</span>
+        <span class="title">After the storm, the towers at sunrise</span>
+        <span class="note">Echo of “Black ocean, silver structures”: after a storm, at sunrise, the structures weathered.</span>
+      </figcaption>
+    </figure>
+  </div>
+  <p class="examples-note">“Black ocean, silver structures” is the example from the post that started AutoPaper; see <a href="#idea">where the idea came from</a>.</p>
+</section>
+
+<section class="section" id="history">
+  <div class="split">
+    <div>
+      <h2>History</h2>
+      <p>Every wallpaper stays in <strong>History</strong>, newest first, with its title and date, and whether you liked it or it’s an echo. Show only the ones you liked, disliked or echoed, or one mood’s. Any of them can go back on your desktop, be liked or disliked, have an echo made, lead to its original and its echoes, or be found as a file.</p>
+    </div>
+    <div>
+      <h3>What made each one</h3>
+      <p>On a Mac, History is a grid or a gallery: the wallpaper large, a filmstrip, and everything about it. Its description, the mood and keywords it came from, and what wrote and painted it, at what size and estimated cost: <em>Written by Gemini 3.5 Flash-Lite (Google Gemini) · Painted by Nano Banana 2 (Google Gemini) · 3840×2160 · about $0.04</em>. Space opens Quick Look. Windows and Linux have the grid, without the gallery for now.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="taste">
+  <div class="split">
+    <div>
+      <h2>Learns what you like</h2>
+      <p><strong>Like</strong> or <strong>Dislike</strong> any wallpaper, from the app’s window, its menu or a notification, depending on your system. AutoPaper notes what each one was made of (the place and what’s in it, the palette, mood, style, light, weather and season) and keeps a tally. It leans towards what you’ve liked and away from what you haven’t. Older opinions count for less: each halves in weight after a year.</p>
+      <p>Taste is a hint, never a rule. Something you disliked can still turn up if your keywords call for it, and the more Surprise you allow, the less taste counts. <strong>Avoid</strong> is the rule: a keyword marked Avoid never appears.</p>
+      <p>Dislike can also replace the wallpaper straight away, within your budget. That’s on unless you turn it off.</p>
+    </div>
+    <div>
+      <h2>What it costs</h2>
+      <p>With OpenAI or Google, each wallpaper costs an estimated 3 to 15 cents with their default models, depending on the quality you choose and the size of your display, by their published prices in October 2026. Costlier models cost more. They bill you directly, on your own key; none of it goes to AutoPaper. With a local model it costs nothing beyond your own electricity.</p>
+      <p>You set a <strong>monthly budget</strong> ($5 unless you change it). AutoPaper estimates the cost of each wallpaper as it goes, shows the month’s spend in Settings (labelled as an estimate), and stops making new ones when the budget is used up.</p>
+      <p>When it can’t make a new one, because the budget is spent, you’re offline or the provider is down, it brings back a wallpaper you liked, which costs nothing. Or, if you prefer, it keeps the one you have.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="providers">
+  <h2>Your keys, your choice</h2>
+  <p class="intro-text">AutoPaper uses AI for two jobs: writing the scene, and painting it. Each job can use a different provider, and you can change either whenever you like.</p>
+  <div class="split">
+    <div class="card">
+      <h3>Hosted, with your own key</h3>
+      <ul class="plain">
+        <li><strong>OpenAI</strong> writes and paints.</li>
+        <li><strong>Google Gemini</strong> writes and paints. Painting needs a key from a project with billing turned on, as Google’s image models have no free tier. Its images carry SynthID, Google’s invisible watermark.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Local, on your own computer or network</h3>
+      <ul class="plain">
+        <li><strong>Ollama</strong>, or <strong>LM Studio</strong> and other servers that work like OpenAI’s API, write.</li>
+        <li><strong>ComfyUI</strong>, or a server that works like OpenAI’s image API (LocalAI, stable-diffusion.cpp), paints.</li>
+        <li>Nothing leaves your network. AutoPaper uses plain http only on your own computer or local network; anything further away needs https.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Local painting, ready to go</h3>
+  <p>AutoPaper comes with a tested ComfyUI workflow for each of three open models: <strong>Z-Image Turbo</strong> (the default), <strong>Krea 2 Turbo</strong> and <strong>Qwen-Image 2.1</strong>. Each paints at the largest size its model supports (2048 pixels a side for the first two, up to 2752 for Qwen-Image 2.1, never more than your display), and AutoPaper scales it to fit each display. Only the models your ComfyUI has installed are offered. You can also use a workflow of your own, exported from ComfyUI.</p>
+  <p class="card-note">New to local models? On a Mac, Settings opens <a href="https://brew-browser.zerologic.com">Brew Browser</a> at the bundle that installs them: <strong>Local LLMs</strong> sets up Ollama, and <strong>Image Generation</strong> sets up ComfyUI. On Linux it does the same for Ollama, and links ComfyUI’s own install guide; on Windows, it links Ollama’s and ComfyUI Desktop’s own installers. The models themselves are separate downloads.</p>
+  <p class="after-steps">Keys are kept in your system’s own secure store: the <strong>Keychain</strong> on macOS, <strong>Credential Manager</strong> on Windows, and the <strong>Secret Service</strong> (your desktop’s keyring) on Linux. AutoPaper never writes them anywhere else, never logs them, and never shows them in an error message.</p>
+</section>
+
+<section class="section" id="errors">
+  <div class="split">
+    <div>
+      <h2>Problems point to the fix</h2>
+      <p>When something needs you, AutoPaper says so once, in plain words, as a link to where it’s fixed. A missing key is <strong>Add your OpenAI key</strong>, which opens Settings with that key’s field ready to type in; a painting ComfyUI couldn’t finish is <strong>Check ComfyUI in Settings</strong>. Buttons that can’t work until it’s fixed wait, and the window updates itself once it is.</p>
+    </div>
+    <div>
+      <h2>Keyboard shortcuts</h2>
+      <p>New Wallpaper Now is <kbd>⌘</kbd> <kbd>R</kbd> in the Mac’s Now view and <kbd>Ctrl</kbd> <kbd>R</kbd> on Linux; a new mood is <kbd>⌘</kbd> <kbd>N</kbd> or <kbd>Ctrl</kbd> <kbd>N</kbd>. Moods and keywords reorder from the keyboard, and History moves with the arrow keys. Every shortcut, per system, is on the <a href="shortcuts.html">Keyboard shortcuts</a> page.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="native">
+  <h2>Native on every desktop</h2>
+  <p class="intro-text">Three apps, not one app squeezed onto three systems. Each follows its own platform’s design guidelines (Apple’s Human Interface Guidelines, Microsoft’s Fluent Design for Windows 11, and the GNOME Human Interface Guidelines) and uses the system’s own controls. The thinking (composing, memory, echoes, taste, moods, the budget) lives in one shared core, written in Rust, so it behaves the same everywhere.</p>
+  <div class="table-wrap stack platforms">
+    <table role="table">
+      <caption id="platforms-caption" class="sr-only">Where AutoPaper lives on each system</caption>
+      <thead role="rowgroup">
+        <tr role="row"><th scope="col" role="columnheader"><span class="sr-only">Part of the app</span></th><th scope="col" role="columnheader">macOS</th><th scope="col" role="columnheader">Windows 11</th><th scope="col" role="columnheader">Linux (GNOME; KDE works too)</th></tr>
+      </thead>
+      <tbody role="rowgroup">
+        <tr role="row"><th scope="row" role="rowheader">Always there</th><td role="cell" data-label="macOS">A menu in the menu bar</td><td role="cell" data-label="Windows 11">An icon in the notification area, with a menu</td><td role="cell" data-label="Linux">Runs in the background, with notifications; a tray icon on KDE and other desktops</td></tr>
+        <tr role="row"><th scope="row" role="rowheader">Main window</th><td role="cell" data-label="macOS">Now, Moods and History, in a sidebar</td><td role="cell" data-label="Windows 11">Now, Moods and History, in a navigation pane</td><td role="cell" data-label="Linux">Now, Moods and History, in an Adwaita window</td></tr>
+        <tr role="row"><th scope="row" role="rowheader">Moods</th><td role="cell" data-label="macOS">List and detail, and the Your Moods summary</td><td role="cell" data-label="Windows 11">List and detail</td><td role="cell" data-label="Linux">List and detail</td></tr>
+        <tr role="row"><th scope="row" role="rowheader">Keywords</th><td role="cell" data-label="macOS">Must, Maybe or Avoid in a segmented control</td><td role="cell" data-label="Windows 11">The same, as radio buttons</td><td role="cell" data-label="Linux">The same, in a toggle group</td></tr>
+        <tr role="row"><th scope="row" role="rowheader">History</th><td role="cell" data-label="macOS">Grid or gallery, with Quick Look</td><td role="cell" data-label="Windows 11">Grid</td><td role="cell" data-label="Linux">Grid</td></tr>
+        <tr role="row"><th scope="row" role="rowheader">Like and Dislike</th><td role="cell" data-label="macOS">Menu, window, notifications (if you turn them on) and Shortcuts</td><td role="cell" data-label="Windows 11">Window, notification-area menu, and buttons on the notification</td><td role="cell" data-label="Linux">Window, and actions on the notification</td></tr>
+        <tr role="row"><th scope="row" role="rowheader">Settings</th><td role="cell" data-label="macOS">A Settings window with panes: General, Providers, Accounts, Memory, Budget, About</td><td role="cell" data-label="Windows 11">A Settings page</td><td role="cell" data-label="Linux">A preferences dialog</td></tr>
+        <tr role="row"><th scope="row" role="rowheader">Keys</th><td role="cell" data-label="macOS">Keychain</td><td role="cell" data-label="Windows 11">Credential Manager</td><td role="cell" data-label="Linux">Secret Service</td></tr>
+        <tr role="row"><th scope="row" role="rowheader">Wallpaper</th><td role="cell" data-label="macOS">Over your own on every display, or as it (then the lock screen follows)</td><td role="cell" data-label="Windows 11">Every monitor, and the lock screen; your own is put back</td><td role="cell" data-label="Linux">Through the wallpaper portal: one picture on every monitor</td></tr>
+        <tr role="row"><th scope="row" role="rowheader">Starts at login</th><td role="cell" data-label="macOS">Login item, if you turn it on</td><td role="cell" data-label="Windows 11">Startup task, if you turn it on</td><td role="cell" data-label="Linux">Background portal, unless you turn it off</td></tr>
+        <tr role="row"><th scope="row" role="rowheader">Updates</th><td role="cell" data-label="macOS">Sparkle, from this site’s update feed</td><td role="cell" data-label="Windows 11">App Installer, or winget</td><td role="cell" data-label="Linux">Flatpak, from Flathub</td></tr>
+        <tr role="row"><th scope="row" role="rowheader">Needs</th><td role="cell" data-label="macOS">macOS 26 or later, Apple silicon or Intel</td><td role="cell" data-label="Windows 11">Windows 11, x64 or Arm</td><td role="cell" data-label="Linux">Flatpak; built from source, GTK 4.22 and libadwaita 1.9 or later (Ubuntu 26.04, Fedora 44)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section" id="accessibility">
+  <div class="split">
+    <div>
+      <h2>Accessibility</h2>
+      <p>AutoPaper aims for WCAG 2.2 AA as W3C’s <a href="https://www.w3.org/TR/wcag2ict-22/">WCAG2ICT</a> applies it to desktop software, and for each platform’s own accessibility guidelines. Each app has been checked in development builds through its system’s accessibility interface (the macOS accessibility API, UI Automation on Windows and AT-SPI on Linux), and what those checks found was fixed. Full passes with VoiceOver, Narrator and Orca are still to come; if something is hard to use, please <a href="https://github.com/msitarzewski/AutoPaper/issues/new/choose">open an issue</a>.</p>
+      <p>What each app does:</p>
+      <ul class="plain">
+        <li>Every control and image has a spoken name. Each keyword says its weight (“rain, Must”), Surprise says its value, and the current mood says so (“Rainy beach, current mood”).</li>
+        <li>Every wallpaper is described in words: its one-line description, plus the note for an echo.</li>
+        <li>No meaning carried by colour alone: the current mood has a checkmark and the word, liked wallpapers a badge with the word.</li>
+        <li>Little motion: wallpapers cross-fade, and the effect while painting holds still when reduced motion is on. New wallpapers can be paused.</li>
+        <li>Standard controls throughout, so the system’s settings for contrast and transparency apply.</li>
+      </ul>
+      <p>This website aims for WCAG 2.2 AA directly.</p>
+    </div>
+    <div>
+      <h2>Privacy, in brief</h2>
+      <ul class="plain">
+        <li><strong>No account, no telemetry, no analytics, and no AutoPaper server.</strong> AutoPaper talks only to the providers you set up.</li>
+        <li>To write a scene, the provider gets the current mood’s keywords and Surprise, short descriptions of recent wallpapers (so it doesn’t repeat them), a few things you’ve liked or disliked, and your language, so titles and descriptions come back in it. To paint it, the image provider gets the finished prompt, the size and the quality. Each request also names AutoPaper’s version and your system’s, and carries your IP address, as any request online does.</li>
+        <li>Requests to OpenAI are sent with <code>store: false</code>, so they aren’t kept as stored conversations; Google’s API keeps no conversation to begin with. Each provider’s own data policy still applies.</li>
+        <li>A <strong>free Gemini key</strong> comes with Google’s unpaid terms: what you send may be used to improve Google’s products and read by human reviewers. A paid project doesn’t, and in the EEA, Switzerland and the UK the paid terms apply either way. AutoPaper’s Settings say so.</li>
+        <li>Your keywords, moods, history, taste, timings, spending and images stay on your computer. With local models, nothing leaves your network at all.</li>
+      </ul>
+      <p>The whole account: <a href="privacy.html">who learns what</a>, and <a href="network.html">every request, host by host</a>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section narrow" id="atmosphere">
+  <h2>Later: Atmosphere</h2>
+  <p>After the first version, AutoPaper is meant to set more than the picture: an accent colour, light or dark mode, and sounds to go with each wallpaper, wherever each system allows it. That’s planned for version 2. The first version is the wallpaper, the lock screen, moods, memory and echoes.</p>
+</section>
+
+<section class="section" id="examples">
+  <h2>More examples</h2>
+  <div class="gallery three">
+    <figure class="example">
+      <img src="examples/desert-glass-960.jpg" srcset="examples/desert-glass-960.jpg 960w, examples/desert-glass.jpg 1920w" sizes="(max-width: 600px) 100vw, (max-width: 900px) 50vw, 300px" width="960" height="540" loading="lazy" decoding="async" alt="A small glass pavilion rests on pale dunes at dawn, scattering faint rainbows across the sand.">
+      <figcaption>
+        <span class="title">A glass pavilion at first light</span>
+        <ul class="chips" aria-label="Keywords">
+          <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">desert</span></li>
+          <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">dawn</span></li>
+          <li class="chip maybe"><span class="w">Maybe</span><span class="sr-only">:</span> <span class="k">glass</span></li>
+          <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">calm</span></li>
+          <li class="chip avoid"><span class="w">Avoid</span><span class="sr-only">:</span> <span class="k">people</span></li>
+        </ul>
+      </figcaption>
+    </figure>
+    <figure class="example">
+      <img src="examples/snow-lanterns-960.jpg" srcset="examples/snow-lanterns-960.jpg 960w, examples/snow-lanterns.jpg 1920w" sizes="(max-width: 600px) 100vw, (max-width: 900px) 50vw, 300px" width="960" height="540" loading="lazy" decoding="async" alt="A path of small paper lanterns winds through a snowy pine forest at blue hour, warm light on fresh snow.">
+      <figcaption>
+        <span class="title">Lanterns through the snowy pines</span>
+        <ul class="chips" aria-label="Keywords">
+          <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">forest</span></li>
+          <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">snow</span></li>
+          <li class="chip maybe"><span class="w">Maybe</span><span class="sr-only">:</span> <span class="k">lanterns</span></li>
+          <li class="chip maybe"><span class="w">Maybe</span><span class="sr-only">:</span> <span class="k">warm</span></li>
+          <li class="chip avoid"><span class="w">Avoid</span><span class="sr-only">:</span> <span class="k">neon</span></li>
+        </ul>
+      </figcaption>
+    </figure>
+    <figure class="example">
+      <img src="examples/rooftops-spring-960.jpg" srcset="examples/rooftops-spring-960.jpg 960w, examples/rooftops-spring.jpg 1920w" sizes="(max-width: 600px) 100vw, (max-width: 900px) 50vw, 300px" width="960" height="540" loading="lazy" decoding="async" alt="A watercolour of old hillside rooftops in spring, cherry blossom between the houses and kites drifting in a pale sky.">
+      <figcaption>
+        <span class="title">Kites over the spring rooftops</span>
+        <ul class="chips" aria-label="Keywords">
+          <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">rooftops</span></li>
+          <li class="chip must"><span class="w">Must</span><span class="sr-only">:</span> <span class="k">spring</span></li>
+          <li class="chip maybe"><span class="w">Maybe</span><span class="sr-only">:</span> <span class="k">mist</span></li>
+          <li class="chip maybe"><span class="w">Maybe</span><span class="sr-only">:</span> <span class="k">city</span></li>
+        </ul>
+        <span class="note">The kites are Surprise’s own addition.</span>
+      </figcaption>
+    </figure>
+  </div>
+  <p class="examples-note" id="about-the-examples"><strong>About these images.</strong> Every wallpaper on this page is an example made before AutoPaper’s apps could make their own. Each was composed the way AutoPaper composes (keywords, then a concept with a title and a one-line description, then a prompt) and painted locally with ComfyUI by Qwen-Image 2.1, Z-Image Turbo or Krea 2 Turbo, whichever did that scene best. What the app makes will depend on the provider and model you choose. The <a href="credits.html">Credits</a> page has the details and the prompt for each.</p>
+</section>
+
+<section class="section" id="idea">
+  <div class="split">
+    <div>
+      <h2>Where the idea came from</h2>
+      <p>From a Reddit post titled “Desktop Wallpaper Agent”. Its author described the idea, and said they wouldn’t be building it themselves. AutoPaper is an attempt to. The line at the top of this page, “Tell your computer what you’d like to see”, is the post’s own, and so is the black ocean with silver structures.</p>
+    </div>
+    <div>
+      <h2>Who’s making it</h2>
+      <p>Michael Sitarzewski, who also made <a href="https://msitarzewski.github.io/AudioPaper/">AudioPaper</a>, working with an AI coding assistant, Claude. The <a href="https://github.com/msitarzewski/AutoPaper">source code</a> is MIT-licensed.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section narrow">
+  <p class="handback">If you’d like a desktop that keeps changing without your writing a single prompt, that’s what AutoPaper is for. It’s free, on macOS, Windows and Linux. If you’d rather your desktop stay put, that’s a fine answer too.</p>
+</section>

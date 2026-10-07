@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=AutoPaper
+GenericName=Wallpaper Maker
+Comment=Keeps making new wallpapers from a few keywords
+# The binary is autopaper-gtk: `autopaper` is the developer CLI.
+Exec=autopaper-gtk
+Icon=io.github.msitarzewski.AutoPaper
+Terminal=false
+Categories=GTK;GNOME;Graphics;
+Keywords=wallpaper;background;desktop;lock screen;image;AI;
+StartupNotify=true
+DBusActivatable=true
+X-GNOME-UsesNotifications=true

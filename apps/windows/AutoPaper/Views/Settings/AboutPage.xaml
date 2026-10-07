@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="AutoPaper.Views.Panes.AboutPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel
+            MaxWidth="{StaticResource PageMaxWidth}"
+            Padding="{StaticResource PagePadding}"
+            Spacing="{StaticResource SettingsCardSpacing}">
+            <BreadcrumbBar x:Name="Crumbs" Margin="0,0,0,20" AutomationProperties.HeadingLevel="Level1" />
+
+            <Grid
+                Padding="24"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                ColumnSpacing="24"
+                CornerRadius="{StaticResource OverlayCornerRadius}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Image
+                    Width="96"
+                    Height="96"
+                    VerticalAlignment="Top"
+                    AutomationProperties.AccessibilityView="Raw"
+                    Source="ms-appx:///Assets/Square44x44Logo.targetsize-96_altform-unplated.png" />
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock AutomationProperties.HeadingLevel="Level2" Style="{StaticResource SubtitleTextBlockStyle}" Text="AutoPaper" />
+                    <TextBlock x:Name="VersionLine" IsTextSelectionEnabled="True" Style="{StaticResource BodyTextBlockStyle}" />
+                    <TextBlock
+                        x:Uid="AboutDescription"
+                        MaxWidth="520"
+                        HorizontalAlignment="Left"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource BodyTextBlockStyle}" />
+                    <!-- Website · Privacy · Help, on AutoPaper's site (they open in the browser). -->
+                    <StackPanel Margin="-12,4,0,0" Orientation="Horizontal" Spacing="0">
+                        <HyperlinkButton x:Uid="AboutWebsite" AutomationProperties.AutomationId="AboutWebsite" NavigateUri="https://msitarzewski.github.io/AutoPaper/" />
+                        <TextBlock VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="·" />
+                        <HyperlinkButton x:Uid="AboutPrivacy" AutomationProperties.AutomationId="AboutPrivacy" NavigateUri="https://msitarzewski.github.io/AutoPaper/privacy.html" />
+                        <TextBlock VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="·" />
+                        <HyperlinkButton x:Uid="AboutHelp" AutomationProperties.AutomationId="AboutHelp" NavigateUri="https://msitarzewski.github.io/AutoPaper/help.html" />
+                    </StackPanel>
+                    <TextBlock
+                        Margin="0,8,0,0"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="MIT · © 2026 Michael Sitarzewski" />
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

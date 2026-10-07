@@ -1,0 +1,19 @@
+{
+  "id": "resp_1b2c3d4e5f6a",
+  "object": "response",
+  "status": "completed",
+  "model": "gpt-6-luna-2026-09-22",
+  "output": [
+    {
+      "type": "message",
+      "id": "msg_1b2c3d4e5f6a",
+      "role": "assistant",
+      "status": "completed",
+      "content": [
+        { "type": "refusal", "refusal": "I'm sorry, I can't help with that request." }
+      ]
+    }
+  ],
+  "store": false,
+  "usage": { "input_tokens": 1790, "output_tokens": 12, "total_tokens": 1802 }
+}

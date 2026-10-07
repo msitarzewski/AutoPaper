@@ -1,0 +1,536 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="AutoPaper.Views.MoodsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:apcontrols="using:AutoPaper.Controls"
+    xmlns:models="using:AutoPaper.Models"
+    xmlns:views="using:AutoPaper.Views">
+
+    <Page.Resources>
+        <!-- Must · Maybe · Avoid: compact radio buttons in a row (the stock control's 120 px minimum is for forms).
+             Deviation from the spec's "segmented control", on purpose (memory-bank/systemPatterns.md, Native surfaces):
+             WinUI has no stock segmented control, and in this app's first build the Community Toolkit's Segmented
+             (8.2.251219) exposed its items to UI Automation without selection state or position, so a screen reader
+             couldn't tell which weight a row had. RadioButtons is the stock Fluent control for one choice of a few,
+             with SelectionItem state, "2 of 3" and arrow keys built in. -->
+        <Style x:Key="WeightRadioStyle" BasedOn="{StaticResource DefaultRadioButtonStyle}" TargetType="RadioButton">
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Padding" Value="6,6,0,0" />
+        </Style>
+
+        <!-- A mood's actions (right-click, Shift+F10, the Menu key). -->
+        <MenuFlyout x:Key="MoodMenu" Opening="OnMoodMenuOpening">
+            <MenuFlyoutItem x:Name="MoodUseItem" x:Uid="MoodMenuUse" Click="OnUseFromMenu">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xE8AB;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutItem x:Uid="MoodMenuDuplicate" Click="OnDuplicate">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xE8C8;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutItem x:Uid="MoodMenuRename" Click="OnRenameFromMenu" KeyboardAcceleratorTextOverride="F2">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xE8AC;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutSeparator />
+            <MenuFlyoutItem x:Name="MoodMoveUpItem" x:Uid="MoodMenuMoveUp" Click="OnMoodMoveUp" KeyboardAcceleratorTextOverride="Alt+Up">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xE74A;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutItem x:Name="MoodMoveDownItem" x:Uid="MoodMenuMoveDown" Click="OnMoodMoveDown" KeyboardAcceleratorTextOverride="Alt+Down">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xE74B;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutSeparator />
+            <MenuFlyoutItem x:Name="MoodDeleteItem" x:Uid="MoodMenuDelete" Click="OnDeleteFromMenu" KeyboardAcceleratorTextOverride="Delete">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xE74D;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+        </MenuFlyout>
+
+        <!-- A keyword's actions (right-click, Shift+F10, the Menu key, Alt+Up/Alt+Down). -->
+        <MenuFlyout x:Key="RowMenu" Opening="OnRowMenuOpening">
+            <MenuFlyoutItem x:Name="MoveUpItem" x:Uid="KeywordMoveUp" Click="OnMoveUp" KeyboardAcceleratorTextOverride="Alt+Up">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xE74A;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutItem x:Name="MoveDownItem" x:Uid="KeywordMoveDown" Click="OnMoveDown" KeyboardAcceleratorTextOverride="Alt+Down">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xE74B;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutSeparator />
+            <MenuFlyoutItem x:Uid="KeywordRemove" Click="OnRemoveFromMenu">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xE74D;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+        </MenuFlyout>
+    </Page.Resources>
+
+    <!-- List › details (Fluent list/details pattern): the moods beside the selected mood. Below 720 px the page shows
+         one at a time (the list, or a mood); MoodsPage.ApplyLayout() switches. The window handles the keys: Ctrl+N is
+         New mood while this page shows, and its Back (the title bar's, Alt+Left) goes from a mood to the list first. -->
+    <Grid x:Name="Layout" SizeChanged="OnLayoutSizeChanged">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="ListColumn" Width="320" />
+            <ColumnDefinition x:Name="DetailColumn" Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ── The list ── -->
+        <Grid
+            x:Name="ListPane"
+            Padding="24,24,16,0"
+            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="0,0,1,0"
+            RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Uid="MoodsTitle" VerticalAlignment="Center" AutomationProperties.HeadingLevel="Level1" Style="{StaticResource TitleTextBlockStyle}" />
+                <!-- The list's command bar: New mood (+). -->
+                <CommandBar
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Background="Transparent"
+                    DefaultLabelPosition="Right"
+                    IsDynamicOverflowEnabled="False"
+                    OverflowButtonVisibility="Collapsed">
+                    <AppBarButton
+                        x:Name="NewMoodButton"
+                        x:Uid="MoodNew"
+                        AutomationProperties.AutomationId="NewMood"
+                        Click="OnNewMood"
+                        Icon="Add" />
+                </CommandBar>
+            </Grid>
+            <TextBlock
+                x:Uid="MoodsIntro"
+                Grid.Row="1"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource BodyTextBlockStyle}" />
+
+            <!-- Every mood in the person's order: drag, or Alt+Up / Alt+Down, to reorder. -->
+            <ListView
+                x:Name="MoodList"
+                x:Uid="MoodList"
+                Grid.Row="2"
+                Margin="-12,0,-8,0"
+                Padding="0,0,0,24"
+                AllowDrop="True"
+                AutomationProperties.AutomationId="MoodList"
+                CanDragItems="True"
+                CanReorderItems="True"
+                ContainerContentChanging="OnMoodContainerChanging"
+                DoubleTapped="OnMoodDoubleTapped"
+                DragItemsCompleted="OnMoodDragCompleted"
+                ItemsSource="{x:Bind MoodItems}"
+                SelectionChanged="OnMoodSelectionChanged"
+                SelectionMode="Single"
+                Tapped="OnMoodTapped">
+                <ListView.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="Up" Invoked="OnMoodUpAccelerator" Modifiers="Menu" />
+                    <KeyboardAccelerator Key="Down" Invoked="OnMoodDownAccelerator" Modifiers="Menu" />
+                    <KeyboardAccelerator Key="F2" Invoked="OnRenameAccelerator" />
+                </ListView.KeyboardAccelerators>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="models:MoodItem">
+                        <Grid Padding="0,10" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" Spacing="2">
+                                <TextBlock
+                                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                                    Text="{x:Bind Name, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis"
+                                    TextWrapping="NoWrap" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    MaxLines="2"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="{x:Bind Summary, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis"
+                                    TextWrapping="WrapWholeWords" />
+                            </StackPanel>
+                            <!-- The current mood: a checkmark and the word, never colour alone. -->
+                            <StackPanel
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="6"
+                                Visibility="{x:Bind CurrentVisibility, Mode=OneWay}">
+                                <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="14" Glyph="&#xE73E;" />
+                                <TextBlock x:Uid="MoodCurrentBadge" Style="{StaticResource CaptionTextBlockStyle}" />
+                            </StackPanel>
+                            <Button
+                                x:Uid="MoodUseButton"
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="{x:Bind UseName, Mode=OneWay}"
+                                Click="OnUseRow"
+                                Visibility="{x:Bind UseVisibility, Mode=OneWay}" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Grid>
+
+        <!-- ── The detail: every mood's summary when none is selected (the Moods item in the navigation), else the
+             selected mood. ── -->
+        <Grid x:Name="DetailPane" Grid.Column="1">
+            <!-- "Your moods": totals, the keywords by weight, the last 30 days, and every mood from most to least used
+                 (MoodsPage.ShowSummaryAsync builds the tiles and cards). -->
+            <ScrollViewer x:Name="SummaryPane" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel
+                    x:Name="SummaryStack"
+                    MaxWidth="900"
+                    Padding="28,24,28,36"
+                    Spacing="20">
+                    <TextBlock x:Uid="MoodsSummaryTitle" AutomationProperties.HeadingLevel="Level2" Style="{StaticResource TitleTextBlockStyle}" />
+                    <StackPanel Spacing="10">
+                        <Grid x:Name="TotalTiles" ColumnSpacing="12" RowSpacing="12" SizeChanged="OnTilesSizeChanged" />
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon
+                                VerticalAlignment="Center"
+                                AutomationProperties.AccessibilityView="Raw"
+                                FontSize="14"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Glyph="&#xE8EC;" />
+                            <TextBlock
+                                x:Name="BreakdownLine"
+                                Grid.Column="1"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource BodyTextBlockStyle}" />
+                        </Grid>
+                    </StackPanel>
+                    <apcontrols:ActivityChart x:Name="Chart" />
+                    <TextBlock x:Uid="MoodsMostUsed" AutomationProperties.HeadingLevel="Level2" Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <StackPanel x:Name="MostUsed" Spacing="10" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <Grid x:Name="MoodPane">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <!-- The mood's title bar: its name in the title position, renamed in place (Enter saves, Esc puts it
+                     back), then its commands: "Current mood" or Use this mood, and Now's reload/stop (for another mood,
+                     it makes that mood current first). -->
+                <Grid
+                    x:Name="TitleBar"
+                    Padding="24,16,16,12"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    BorderThickness="0,0,0,1"
+                    ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox
+                        x:Name="MoodName"
+                        x:Uid="MoodNameBox"
+                        Margin="-11,0,0,0"
+                        VerticalAlignment="Center"
+                        AutomationProperties.AutomationId="MoodName"
+                        FontSize="24"
+                        FontWeight="SemiBold"
+                        KeyDown="OnMoodNameKeyDown"
+                        LostFocus="OnMoodNameLostFocus"
+                        MaxLength="40">
+                        <!-- A title until it's pointed at or focused (then a text field, as Windows apps rename in
+                             place). -->
+                        <TextBox.Resources>
+                            <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                        </TextBox.Resources>
+                    </TextBox>
+                    <CommandBar
+                        x:Name="MoodCommands"
+                        x:Uid="MoodCommands"
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Background="Transparent"
+                        DefaultLabelPosition="Right"
+                        IsDynamicOverflowEnabled="False"
+                        OverflowButtonVisibility="Collapsed">
+                        <AppBarElementContainer x:Name="CurrentLine" VerticalAlignment="Center" IsTabStop="False" Visibility="Collapsed">
+                            <StackPanel Margin="8,0,12,0" Orientation="Horizontal" Spacing="8">
+                                <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="16" Glyph="&#xE73E;" />
+                                <TextBlock x:Uid="MoodCurrentLine" VerticalAlignment="Center" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            </StackPanel>
+                        </AppBarElementContainer>
+                        <AppBarElementContainer x:Name="UseContainer" VerticalAlignment="Center" Visibility="Collapsed">
+                            <Button
+                                x:Name="UseButton"
+                                x:Uid="MoodUseThis"
+                                Margin="0,0,8,0"
+                                AutomationProperties.AutomationId="UseMood"
+                                Click="OnUseThis"
+                                Style="{StaticResource AccentButtonStyle}" />
+                        </AppBarElementContainer>
+                        <apcontrols:MakeOrStopButton x:Name="MoodMakeOrStop" LabelPosition="Collapsed" />
+                    </CommandBar>
+                </Grid>
+
+                <ScrollViewer x:Name="MoodScroller" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel
+                        x:Name="Detail"
+                        MaxWidth="820"
+                        Padding="24,16,28,36"
+                        HorizontalAlignment="Stretch"
+                        Spacing="12">
+                        <!-- Also said by the window, and the name field's description while it shows (ShowNameMessage). -->
+                        <TextBlock
+                            x:Name="NameMessage"
+                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            TextWrapping="Wrap"
+                            Visibility="Collapsed" />
+
+                        <!-- The header: the mood's icon, whether it's in use, its Surprise, and what it has made. -->
+                        <Grid ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Width="48"
+                                Height="48"
+                                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                CornerRadius="{StaticResource OverlayCornerRadius}">
+                                <FontIcon
+                                    AutomationProperties.AccessibilityView="Raw"
+                                    FontSize="22"
+                                    Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                    Glyph="&#xE790;" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock x:Name="InUseLine" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock x:Name="SurpriseLine" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{StaticResource BodyTextBlockStyle}" />
+                            </StackPanel>
+                        </Grid>
+                        <Grid x:Name="MoodTiles" ColumnSpacing="10" RowSpacing="10" SizeChanged="OnTilesSizeChanged" />
+
+                        <!-- Keywords. -->
+                        <TextBlock x:Uid="MoodKeywordsTitle" Margin="0,16,0,0" AutomationProperties.HeadingLevel="Level2" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock
+                            x:Uid="KeywordsIntro"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource BodyTextBlockStyle}" />
+                        <InfoBar
+                            x:Name="NarrowBar"
+                            x:Uid="NarrowKeywords"
+                            IsClosable="False"
+                            IsOpen="True"
+                            Severity="Informational"
+                            Visibility="Collapsed" />
+
+                        <!-- Add a keyword: Enter adds it as Must; a duplicate selects the row that has it. -->
+                        <Grid Margin="0,4,0,0" ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox
+                                x:Name="NewKeyword"
+                                x:Uid="KeywordAddBox"
+                                AutomationProperties.AutomationId="AddKeyword"
+                                KeyDown="OnNewKeywordKeyDown"
+                                MaxLength="40" />
+                            <Button
+                                x:Uid="KeywordAddButton"
+                                Grid.Column="1"
+                                VerticalAlignment="Bottom"
+                                AutomationProperties.AutomationId="AddKeywordButton"
+                                Click="OnAdd" />
+                        </Grid>
+                        <!-- Said to screen readers by the window too (Say → AppModel.Announce). -->
+                        <TextBlock
+                            x:Name="AddMessage"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            TextWrapping="Wrap"
+                            Visibility="Collapsed" />
+                        <TextBlock
+                            x:Name="EmptyLine"
+                            x:Uid="KeywordsEmpty"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            Visibility="Collapsed" />
+
+                        <!-- The keywords, in order. Reorder by dragging, or with Alt+Up / Alt+Down (also in each row's menu). -->
+                        <ListView
+                            x:Name="List"
+                            x:Uid="KeywordList"
+                            Margin="-12,0,0,0"
+                            AllowDrop="True"
+                            AutomationProperties.AutomationId="KeywordList"
+                            CanDragItems="True"
+                            CanReorderItems="True"
+                            ContainerContentChanging="OnContainerContentChanging"
+                            DragItemsCompleted="OnDragItemsCompleted"
+                            ItemsSource="{x:Bind Items}"
+                            SelectionMode="Single">
+                            <ListView.KeyboardAccelerators>
+                                <KeyboardAccelerator Key="Up" Invoked="OnMoveUpAccelerator" Modifiers="Menu" />
+                                <KeyboardAccelerator Key="Down" Invoked="OnMoveDownAccelerator" Modifiers="Menu" />
+                            </ListView.KeyboardAccelerators>
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:KeywordItem">
+                                    <!-- Text, Must · Maybe · Avoid, Remove in a row; on a narrow pane the choice goes under the
+                                         text (OnKeywordRowSizeChanged), so nothing is cut off. -->
+                                    <Grid
+                                        Padding="0,6"
+                                        ColumnSpacing="12"
+                                        RowSpacing="2"
+                                        SizeChanged="OnKeywordRowSizeChanged">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" MinWidth="100" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <TextBox
+                                            VerticalAlignment="Center"
+                                            AutomationProperties.Name="{x:Bind EditName, Mode=OneWay}"
+                                            KeyDown="OnKeywordKeyDown"
+                                            LostFocus="OnKeywordLostFocus"
+                                            MaxLength="40"
+                                            Text="{x:Bind Text, Mode=OneWay}" />
+                                        <!-- Must · Maybe · Avoid: the stock RadioButtons (one of three, arrow keys move the
+                                             choice; each choice is a radio button, "Maybe, 2 of 3"). Its selection is set in
+                                             OnContainerContentChanging, not bound here. -->
+                                        <RadioButtons
+                                            x:Name="Weight"
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            AutomationProperties.Name="{x:Bind WeightName, Mode=OneWay}"
+                                            MaxColumns="3"
+                                            SelectionChanged="OnWeightChanged">
+                                            <RadioButton x:Uid="WeightMustItem" Style="{StaticResource WeightRadioStyle}" />
+                                            <RadioButton x:Uid="WeightMaybeItem" Style="{StaticResource WeightRadioStyle}" />
+                                            <RadioButton x:Uid="WeightAvoidItem" Style="{StaticResource WeightRadioStyle}" />
+                                        </RadioButtons>
+                                        <Button
+                                            x:Uid="KeywordRemoveButton"
+                                            Grid.Column="2"
+                                            VerticalAlignment="Center"
+                                            AutomationProperties.Name="{x:Bind RemoveName, Mode=OneWay}"
+                                            Click="OnRemove">
+                                            <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="16" Glyph="&#xE74D;" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+                        <!-- Surprise (this mood's). -->
+                        <TextBlock x:Uid="SurpriseTitle" Margin="0,20,0,0" AutomationProperties.HeadingLevel="Level2" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock
+                            x:Uid="SurpriseIntro"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource BodyTextBlockStyle}" />
+                        <Grid MaxWidth="640" HorizontalAlignment="Left" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Uid="SurpriseFaithfulEnd" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw" />
+                            <apcontrols:SurpriseSlider
+                                x:Name="Surprise"
+                                x:Uid="SurpriseSlider"
+                                Grid.Column="1"
+                                MinWidth="200"
+                                AutomationProperties.AutomationId="Surprise"
+                                LargeChange="10"
+                                Maximum="100"
+                                Minimum="0"
+                                SmallChange="1"
+                                StepFrequency="1"
+                                ValueChanged="OnSurpriseChanged" />
+                            <TextBlock x:Uid="SurpriseWildEnd" Grid.Column="2" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw" />
+                        </Grid>
+                        <!-- The band's name and percentage repeat the slider's spoken value, so they're left out of the UI
+                             Automation tree; its description is there (and is the slider's help text, heard on focus). -->
+                        <TextBlock
+                            x:Name="BandLine"
+                            AutomationProperties.AccessibilityView="Raw"
+                            Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <TextBlock
+                            x:Name="BandDetail"
+                            Margin="0,-8,0,0"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource BodyTextBlockStyle}" />
+
+                        <!-- Made in this mood: each thumbnail shows itself on the desktop when clicked, and has History's
+                             menu (WallpaperActions); the rest are in History. -->
+                        <TextBlock x:Uid="MoodRecentTitle" Margin="0,20,0,0" AutomationProperties.HeadingLevel="Level2" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock
+                            x:Name="RecentNone"
+                            x:Uid="MoodRecentNone"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            Visibility="Collapsed" />
+                        <ScrollViewer
+                            HorizontalScrollBarVisibility="Auto"
+                            HorizontalScrollMode="Auto"
+                            VerticalScrollBarVisibility="Disabled"
+                            VerticalScrollMode="Disabled">
+                            <StackPanel x:Name="Recent" Padding="0,2,0,6" Orientation="Horizontal" Spacing="8" />
+                        </ScrollViewer>
+                        <HyperlinkButton
+                            x:Name="ShowInHistory"
+                            x:Uid="MoodShowInHistory"
+                            Padding="0"
+                            Click="OnShowInHistory" />
+
+                        <!-- Delete mood… (disabled for the last one: there's always a mood). -->
+                        <StackPanel Margin="0,28,0,0" Spacing="6">
+                            <Button
+                                x:Name="DeleteMoodButton"
+                                x:Uid="MoodDelete"
+                                AutomationProperties.AutomationId="DeleteMood"
+                                Click="OnDeleteThis">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="16" Glyph="&#xE74D;" />
+                                    <TextBlock x:Uid="MoodDeleteText" />
+                                </StackPanel>
+                            </Button>
+                            <TextBlock
+                                x:Name="DeleteNote"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

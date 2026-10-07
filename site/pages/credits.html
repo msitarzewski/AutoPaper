@@ -1,0 +1,63 @@
+<!--
+title: Credits
+description: How every image on this site was made, the icon's sources, and where the idea for AutoPaper came from.
+-->
+<article class="doc">
+  <h1>Credits</h1>
+  <p class="intro">Every image on this site, how it was made, and where the idea for AutoPaper came from.</p>
+
+  <nav class="toc" aria-label="On this page">
+    <strong>On this page</strong>
+    <ol>
+      <li><a href="#examples">Example wallpapers</a></li>
+      <li><a href="#prompts">The prompts</a></li>
+      <li><a href="#icon">The icon</a></li>
+      <li><a href="#idea">The idea</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="examples">Example wallpapers</h2>
+  <p>These were made before AutoPaper’s apps could make wallpapers of their own, so the apps didn’t make them. Each was composed the way AutoPaper’s composer works (keywords, then a concept with a title and a one-line description, then a prompt) and painted locally with ComfyUI on a Mac, by one of three open-weight models — Qwen-Image 2.1, Z-Image Turbo or Krea 2 Turbo — whichever painted that scene best (each is listed below). They’re shown here at 1920 × 1080. Surprise runs from 0 (faithful) to 1 (wild). The one-line descriptions are the images’ text alternatives on the home page.</p>
+  <p>The example wallpapers are shared under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>: use them however you like, with credit to AutoPaper. The models that painted them are under their own licences, listed with each image.</p>
+  <div class="table-wrap stack credits-table"><table role="table">
+    <caption id="examples-caption" class="sr-only">Example wallpapers: where each appears, the keywords that made it, and what painted it</caption>
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Title</th><th scope="col" role="columnheader">Where</th><th scope="col" role="columnheader">Keywords</th><th scope="col" role="columnheader">Made with</th></tr></thead>
+    <tbody role="rowgroup">
+      <tr role="row"><th scope="row" role="rowheader">Rain over the drowned colonnade</th><td role="cell" data-label="Where">Home page, top; Keywords (faithful)</td><td role="cell" data-label="Keywords">Must: rain, ruins, peaceful, night, blue<br>Surprise: 0.2</td><td role="cell" data-label="Made with">ComfyUI, Qwen-Image 2.1, seed 1001<br><a href="https://huggingface.co/Qwen/Qwen-Image-2.1">Qwen Research License</a> (the images belong to whoever makes them, per Qwen)</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">The observatory that grew moss</th><td role="cell" data-label="Where">Keywords (wild)</td><td role="cell" data-label="Keywords">Must: rain, ruins, peaceful, night, blue<br>Surprise: 0.9<br>Added by Surprise: observatory, glowing moss, moths</td><td role="cell" data-label="Made with">ComfyUI, Qwen-Image 2.1, seed 1001<br><a href="https://huggingface.co/Qwen/Qwen-Image-2.1">Qwen Research License</a> (the images belong to whoever makes them, per Qwen)</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Black ocean, silver structures</th><td role="cell" data-label="Where">Memory and echoes (first)</td><td role="cell" data-label="Keywords">Must: ocean, night, quiet<br>Maybe: fog, silver<br>Surprise: 0.35</td><td role="cell" data-label="Made with">ComfyUI, Qwen-Image 2.1, seed 2002<br><a href="https://huggingface.co/Qwen/Qwen-Image-2.1">Qwen Research License</a> (the images belong to whoever makes them, per Qwen)</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">After the storm, the towers at sunrise</th><td role="cell" data-label="Where">Memory and echoes (its echo)</td><td role="cell" data-label="Keywords">Echo of “Black ocean, silver structures”: after a storm, at sunrise, the structures weathered. (An echo keeps its original’s idea rather than its Musts.)</td><td role="cell" data-label="Made with">ComfyUI, Qwen-Image 2.1, seed 1001<br><a href="https://huggingface.co/Qwen/Qwen-Image-2.1">Qwen Research License</a> (the images belong to whoever makes them, per Qwen)</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">A glass pavilion at first light</th><td role="cell" data-label="Where">More examples</td><td role="cell" data-label="Keywords">Must: desert, dawn, calm<br>Maybe: glass<br>Avoid: people<br>Surprise: 0.4</td><td role="cell" data-label="Made with">ComfyUI, Z-Image Turbo, seed 1001<br><a href="https://huggingface.co/Tongyi-MAI/Z-Image-Turbo">Apache 2.0</a></td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Lanterns through the snowy pines</th><td role="cell" data-label="Where">More examples</td><td role="cell" data-label="Keywords">Must: forest, snow<br>Maybe: lanterns, warm<br>Avoid: neon<br>Surprise: 0.3</td><td role="cell" data-label="Made with">ComfyUI, Qwen-Image 2.1, seed 1001<br><a href="https://huggingface.co/Qwen/Qwen-Image-2.1">Qwen Research License</a> (the images belong to whoever makes them, per Qwen)</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Kites over the spring rooftops</th><td role="cell" data-label="Where">More examples</td><td role="cell" data-label="Keywords">Must: rooftops, spring<br>Maybe: mist, city<br>Surprise: 0.6<br>Added by Surprise: kites</td><td role="cell" data-label="Made with">ComfyUI, Krea 2 Turbo, seed 1001<br><a href="https://huggingface.co/krea/Krea-2-Turbo">Krea 2 Community License</a></td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="prompts">The prompts</h2>
+  <p>The prompt each image was painted from. None mentions a keyword marked Avoid, because image models tend to misread “no”. They were written before the apps existed: AutoPaper’s own prompts no longer begin “Desktop wallpaper”, after one model took it literally and painted a screenshot of a desktop.</p>
+  <dl class="prompts">
+    <dt>Rain over the drowned colonnade</dt>
+    <dd>Desktop wallpaper, wide cinematic landscape at night. An ancient stone colonnade, half-submerged in still water, gentle rain falling, fine ripples spreading across the water, soft moonlight diffused through low clouds, deep blue and slate palette with faint silver highlights on wet stone, distant hills fading into mist, low horizon with a calm open sky across the upper half, peaceful and quiet, painterly realism, highly detailed</dd>
+    <dt>The observatory that grew moss</dt>
+    <dd>Desktop wallpaper, wide fantastical landscape at night. The ruins of a vast domed observatory overgrown with softly glowing blue moss, warm rain falling through the broken dome, puddles on the stone floor reflecting the ruins and a sky of drifting deep-blue clouds, a few small luminous moths, peaceful and dreamlike, deep blue and teal palette with a soft cyan glow, digital painting, highly detailed</dd>
+    <dt>Black ocean, silver structures</dt>
+    <dd>Desktop wallpaper, wide minimalist seascape at night. A calm black ocean stretching to the horizon, thin sea fog drifting low over the water, distant tall silver structures standing far out at sea like quiet towers, faint reflections of their lights on the dark water, overcast night sky, palette of black, charcoal and cool silver, serene and still, vast empty space above the horizon, photographic, long exposure</dd>
+    <dt>After the storm, the towers at sunrise</dt>
+    <dd>Desktop wallpaper, wide seascape at early sunrise after a storm. A vast ocean, still restless with lingering swells and scattered whitecaps, broken storm clouds parting, the first warm light on the horizon, distant tall silver structures far out at sea, weathered and rust-streaked, catching the sunrise, wet sea air, palette of storm grey, pale gold and weathered silver, quiet and hopeful, vast open sky, photographic, long exposure</dd>
+    <dt>A glass pavilion at first light</dt>
+    <dd>Desktop wallpaper, wide landscape at dawn. A minimal glass pavilion resting on soft pale sand dunes, the first sunlight refracting through its panes into faint rainbows on the sand, long gentle shadows, a clear pastel sky fading from peach to soft blue, calm and spacious, low horizon, fine sand texture, architectural photography, serene</dd>
+    <dt>Lanterns through the snowy pines</dt>
+    <dd>Desktop wallpaper, wide landscape at blue hour. A quiet snowy pine forest, a narrow path lined with small glowing paper lanterns winding between the trees, warm amber light on fresh snow, gently falling snowflakes, deep blue shadows, cozy and calm, soft depth of field into the distance, painterly illustration, highly detailed</dd>
+    <dt>Kites over the spring rooftops</dt>
+    <dd>Desktop wallpaper, wide cityscape in the morning. Old terracotta rooftops of a hillside town under soft spring mist, blossoming cherry and almond trees between the houses, pale pink and soft green palette, sunlight breaking through the haze, a few kites drifting high in the pale sky, peaceful, airy, watercolor style, delicate detail</dd>
+  </dl>
+
+  <h2 id="icon">The icon</h2>
+  <ul>
+    <li><strong>The app icon</strong> is AutoPaper’s own. Its sparkles are the solid “sparkles” icon from <a href="https://heroicons.com">Heroicons</a> by Tailwind Labs (MIT).</li>
+    <li><strong>The display</strong> it sits on is shared with AudioPaper and GlassPowerTools, by the same author.</li>
+  </ul>
+
+  <h2 id="idea">The idea</h2>
+  <p>AutoPaper started from a Reddit post titled “Desktop Wallpaper Agent”, whose author described the idea and said they wouldn’t be building it themselves. The tagline, “Tell your computer what you’d like to see.”, is the post’s own line, and “Black ocean, silver structures”, the first image in the echo example, is the post’s own example. Thanks to its author.</p>
+</article>

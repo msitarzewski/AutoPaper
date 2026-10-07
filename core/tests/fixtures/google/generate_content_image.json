@@ -1,0 +1,22 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          { "text": "Ancient stone ruins at night in gentle rain." },
+          { "inlineData": { "mimeType": "image/png", "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR42mPUcOthYGAAAASMAPyf1HMsAAAAAElFTkSuQmCC" } }
+        ]
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 42,
+    "candidatesTokenCount": 2520,
+    "totalTokenCount": 2562
+  },
+  "modelVersion": "gemini-3.1-flash-image",
+  "responseId": "pE3iaKyYBO6z1dkPiu2b4QM"
+}

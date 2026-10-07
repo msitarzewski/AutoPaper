@@ -1,0 +1,263 @@
+<!--
+title: Help
+description: Getting started with AutoPaper on macOS, Windows and Linux: moods and keywords, providers and keys, local models with ComfyUI, your own wallpaper, and what to do when something doesn't work.
+-->
+<article class="doc">
+  <h1>Help</h1>
+  <p class="intro">Everything AutoPaper does, where to find it, and what to try when it doesn’t do what you expected. You don’t need to read it in order.</p>
+  <p>This page describes AutoPaper 0.1.0 on macOS, Windows and Linux; where they differ, it says so. Names are as each app shows them: Mac menus use title case (<strong>New Wallpaper Now</strong>), Windows and Linux sentence case (<strong>New wallpaper now</strong>).</p>
+
+  <nav class="toc" aria-label="On this page">
+    <strong>On this page</strong>
+    <ol>
+      <li><a href="#requirements">What you need</a></li>
+      <li><a href="#install">Install</a></li>
+      <li><a href="#first-launch">The first launch</a></li>
+      <li><a href="#where">Where AutoPaper lives</a></li>
+      <li><a href="#moods">Moods and keywords</a></li>
+      <li><a href="#providers">Providers and keys</a></li>
+      <li><a href="#local">Local models</a></li>
+      <li><a href="#your-wallpaper">Your own wallpaper</a></li>
+      <li><a href="#progress">Progress and time left</a></li>
+      <li><a href="#history">History and memory</a></li>
+      <li><a href="#budget">The budget</a></li>
+      <li><a href="#notifications">Notifications</a></li>
+      <li><a href="#siri">Siri and Shortcuts</a></li>
+      <li><a href="#troubleshooting">When something doesn’t work</a></li>
+      <li><a href="#uninstall">Removing AutoPaper</a></li>
+      <li><a href="#accessibility">Screen readers and the keyboard</a></li>
+      <li><a href="#contact">Asking for help</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="requirements">What you need</h2>
+  <ul>
+    <li><strong>macOS 26</strong> or later, on Apple silicon or Intel.</li>
+    <li><strong>Windows 11</strong>, on x64 or Arm.</li>
+    <li><strong>Linux</strong> with Flatpak, whose GNOME runtime brings GTK 4 and libadwaita; or, built from source, GTK 4.22 and libadwaita 1.9 or later, such as Ubuntu 26.04 or Fedora 44. It follows GNOME’s design, and works on KDE and other desktops too, with a tray icon there.</li>
+  </ul>
+  <p>And one of: an <strong>OpenAI</strong> API key, a <strong>Google Gemini</strong> API key, or models running on your own computer or network (see <a href="#local">Local models</a>). Without any of them, <strong>Demo</strong> lets you try the app: it writes simple ideas from your keywords and paints soft gradients, without AI, a network or a cost.</p>
+
+  <h2 id="install">Install</h2>
+  <p>Available from version 0.1.0, the first release, which is on its way. On <a href="https://github.com/msitarzewski/AutoPaper">GitHub</a>, choose <strong>Watch › Custom › Releases</strong> to hear when it’s out.</p>
+  <h3 id="install-mac">macOS</h3>
+  <ol>
+    <li>Download the <code>.dmg</code> from the <a href="https://github.com/msitarzewski/AutoPaper/releases/latest">latest release</a>. It is signed with a Developer ID and notarized by Apple, so it opens without warnings.</li>
+    <li>Open it and drag <strong>AutoPaper</strong> into <strong>Applications</strong>.</li>
+    <li>Open AutoPaper from Applications. Its welcome opens, and a display-and-sparkles icon appears in the menu bar.</li>
+  </ol>
+  <p><strong>Updating:</strong> on its second launch AutoPaper asks whether to check for updates automatically (about once a day). <strong>Settings → About</strong> changes that answer, can also download and install updates automatically, and shows when it last checked. <strong>Check for Updates…</strong> checks now. Each update is verified with AutoPaper’s signature before it’s installed, and your settings, keys, history and wallpapers are kept.</p>
+
+  <h3 id="install-windows">Windows</h3>
+  <p>Either way installs the same signed package:</p>
+  <ul>
+    <li><strong>winget:</strong> in Terminal, <code>winget install msitarzewski.AutoPaper</code>. Update it with <code>winget upgrade msitarzewski.AutoPaper</code>, or <code>winget upgrade --all</code>.</li>
+    <li><strong>App Installer:</strong> download <a href="https://msitarzewski.github.io/AutoPaper/AutoPaper.appinstaller">AutoPaper.appinstaller</a> and open it. Windows’ App Installer shows what AutoPaper is and who signed it, installs it, and then keeps it up to date from the same file.</li>
+  </ul>
+  <p>Then open AutoPaper from Start. It lives in the notification area. The <code>.msixbundle</code> package itself (x64 and Arm) is also attached to each <a href="https://github.com/msitarzewski/AutoPaper/releases/latest">release</a>.</p>
+
+  <h3 id="install-linux">Linux</h3>
+  <ul>
+    <li><strong>Flathub:</strong> install AutoPaper from <a href="https://flathub.org/apps/io.github.msitarzewski.AutoPaper">its Flathub page</a>, GNOME Software or KDE Discover, or with <code>flatpak install flathub io.github.msitarzewski.AutoPaper</code>.</li>
+    <li><strong>A file:</strong> each <a href="https://github.com/msitarzewski/AutoPaper/releases/latest">release</a> also has a <code>.flatpak</code> file; install it with <code>flatpak install --user</code> and the file’s name. It needs Flathub set up, for the GNOME runtime.</li>
+  </ul>
+  <p>Then open AutoPaper from your apps. Flatpak keeps it up to date (GNOME Software, Discover or <code>flatpak update</code>); AutoPaper never checks for updates itself.</p>
+  <p>New versions reach winget and Flathub after each one’s own review, so they can trail a release on GitHub by a few days. If you’d rather build AutoPaper yourself, the <a href="https://github.com/msitarzewski/AutoPaper#build-from-source">README</a> has the steps for each system.</p>
+
+  <h2 id="first-launch">The first launch</h2>
+  <p>Until a provider other than Demo is set up, AutoPaper opens with a welcome: <em>Tell your computer what you’d like to see.</em> It has three steps.</p>
+  <ol>
+    <li><strong>Add a few keywords.</strong> Type one and press <kbd>Return</kbd> (or <kbd>Enter</kbd>). Each starts as a Must; you can change that later.</li>
+    <li><strong>Choose who writes and paints:</strong> <strong>OpenAI</strong>, <strong>Google Gemini</strong>, <strong>Local</strong> (Ollama writes, ComfyUI paints) or <strong>Try it without AI</strong> (Demo).</li>
+    <li><strong>Add your key</strong>, with a link to where you get one; or, for Local, check that Ollama and ComfyUI are running.</li>
+  </ol>
+  <p>Then <strong>Make My First Wallpaper</strong>. You can also skip the welcome (<strong>Not Now</strong> on a Mac, <strong>Skip for now</strong> on Windows, <strong>Skip</strong> on Linux) and set things up in Settings later. On a Mac, nothing on a schedule happens until the first wallpaper has been made, so AutoPaper never changes your desktop just by being opened.</p>
+
+  <h2 id="where">Where AutoPaper lives</h2>
+  <ul>
+    <li><strong>macOS:</strong> a menu in the menu bar (a display with sparkles). It has the current wallpaper’s title, <strong>Like</strong> and <strong>Dislike</strong>, <strong>Mood</strong>, <strong>New Wallpaper Now</strong>, <strong>Pause New Wallpapers</strong>, <strong>Restore My Wallpaper</strong>, <strong>Show AutoPaper</strong>, <strong>Settings…</strong> and <strong>Quit AutoPaper</strong>. AutoPaper is in the Dock only while its window is open, or when you’ve turned off <strong>Show in menu bar</strong> in Settings → General. If you hid the menu bar icon and closed the window, open AutoPaper from Finder again.</li>
+    <li><strong>Windows:</strong> an icon in the notification area, with the same menu. Closing the window keeps AutoPaper there; <strong>Quit AutoPaper</strong> in its menu quits.</li>
+    <li><strong>Linux:</strong> on GNOME, AutoPaper runs in the background with no icon; open its window from the app grid. On KDE and other desktops it has a tray icon with the same menu. Closing the window (<kbd>Ctrl</kbd> <kbd>W</kbd>) keeps it running; <strong>Quit AutoPaper</strong> in the main menu (<kbd>Ctrl</kbd> <kbd>Q</kbd>) quits.</li>
+  </ul>
+  <p>The window has three parts: <strong>Now</strong> (the wallpaper on your desktop, what it is, and what happens next), <strong>Moods</strong> and <strong>History</strong>. Settings are in <strong>Settings…</strong> on a Mac (also the gear at the bottom of the sidebar), in the navigation pane on Windows, and in <strong>Preferences</strong> in the main menu on Linux.</p>
+
+  <h2 id="moods">Moods and keywords</h2>
+  <p>A mood is a name, its keywords and its own <strong>Surprise</strong>. One mood is current, and new wallpapers come from it; your first one is made from the keywords you added in the welcome. Everything else (the schedule, providers, budget, memory and taste) is shared between moods.</p>
+  <ul>
+    <li><strong>Make a mood</strong> with <strong>+</strong> in Moods (<kbd>⌘</kbd> <kbd>N</kbd> on a Mac, <kbd>Ctrl</kbd> <kbd>N</kbd> on Windows and Linux). It starts empty, named “New mood”, ready to rename. <strong>Duplicate</strong> copies a mood’s keywords and Surprise.</li>
+    <li><strong>Switch moods</strong> with <strong>Use</strong> (or <strong>Use This Mood</strong>), by pressing <kbd>Return</kbd> on a mood, or from the <strong>Mood</strong> submenu in the menu bar, notification-area or tray menu. Switching never makes a wallpaper by itself; the next one comes from the new mood.</li>
+    <li><strong>Right-click a mood</strong> (or <kbd>Shift</kbd> <kbd>F10</kbd> on Windows and Linux) for Use, Duplicate, Rename… and Delete…. The last mood can’t be deleted. Deleting a mood keeps its wallpapers in History.</li>
+    <li><strong>Reorder</strong> moods and keywords by dragging, or from the keyboard (see <a href="shortcuts.html">Keyboard shortcuts</a>).</li>
+  </ul>
+  <p><strong>Keywords</strong> are words or short phrases, up to 40 characters each and 64 per mood, each marked:</p>
+  <ul>
+    <li><strong>Must</strong>: in every wallpaper.</li>
+    <li><strong>Maybe</strong>: in some; AutoPaper varies which.</li>
+    <li><strong>Avoid</strong>: never. It isn’t mentioned to the painter at all.</li>
+  </ul>
+  <p><strong>Surprise</strong> runs from 0 (Faithful) to 100 (Wild), with four bands: <em>Faithful</em> (below 25) follows your keywords closely and adds nothing; <em>Fresh</em> (below 50, and where new moods start, at 35) may add one idea of its own; <em>Adventurous</em> (below 75) up to two; <em>Wild</em> takes your keywords as loose inspiration and adds up to three. The higher it is, the less your taste counts and the more chance plays a part.</p>
+  <p>If AutoPaper keeps finding ideas too close to ones you’ve had, it says <em>“Your keywords are narrow, so new ideas are getting hard to find. Add some Maybes or raise Surprise for more variety.”</em> It goes away once new ideas come easily again.</p>
+  <p>On a Mac, choosing <strong>Moods</strong> with no mood selected shows <strong>Your Moods</strong>: how many moods, wallpapers, likes and echoes you have, a chart of wallpapers made in the last 30 days by mood (<strong>Show as Table</strong> shows the same as numbers), and a card for each mood, most used first, with its keywords, Surprise, counts and latest wallpapers. Each mood also shows <strong>Made in this mood</strong>; on Windows and Linux, <strong>Recent wallpapers</strong>.</p>
+
+  <h2 id="providers">Providers and keys</h2>
+  <p>AutoPaper uses AI for two jobs, each set separately in Settings → <strong>Providers</strong>: <strong>Writing ideas</strong> and <strong>Painting</strong>.</p>
+  <div class="table-wrap stack wrap-heads"><table role="table">
+    <caption class="sr-only">What each provider can do, and its default model</caption>
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Provider</th><th scope="col" role="columnheader">Writes</th><th scope="col" role="columnheader">Paints</th><th scope="col" role="columnheader">Default model</th></tr></thead>
+    <tbody role="rowgroup">
+      <tr role="row"><th scope="row" role="rowheader">OpenAI</th><td role="cell" data-label="Writes">Yes</td><td role="cell" data-label="Paints">Yes</td><td role="cell" data-label="Default model"><code>gpt-6-luna</code> writes, <code>gpt-image-2.5-flare</code> paints</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Google Gemini</th><td role="cell" data-label="Writes">Yes</td><td role="cell" data-label="Paints">Yes (needs billing turned on)</td><td role="cell" data-label="Default model">Gemini 3.5 Flash-Lite writes, Nano Banana 2 paints</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Ollama</th><td role="cell" data-label="Writes">Yes</td><td role="cell" data-label="Paints">No</td><td role="cell" data-label="Default model">The first model your Ollama has</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">OpenAI-compatible (LM Studio, LocalAI, stable-diffusion.cpp…)</th><td role="cell" data-label="Writes">Yes</td><td role="cell" data-label="Paints">Yes</td><td role="cell" data-label="Default model">The server’s first model</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">ComfyUI</th><td role="cell" data-label="Writes">No</td><td role="cell" data-label="Paints">Yes</td><td role="cell" data-label="Default model">Z-Image Turbo</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Demo</th><td role="cell" data-label="Writes">Yes</td><td role="cell" data-label="Paints">Yes</td><td role="cell" data-label="Default model">No AI: simple ideas and gradients</td></tr>
+    </tbody>
+  </table></div>
+  <p>The <strong>Model</strong> menu lists what the provider offers; leave it on <em>Default</em> unless you want another. <strong>Test</strong> checks the address, the key and the model list with a small request. <strong>Painting quality</strong> (Standard or High, High unless you change it) is for OpenAI and Gemini, where High costs more.</p>
+  <p><strong>Keys</strong> go in Settings → <strong>Accounts</strong> on a Mac, <strong>Keys</strong> on Windows and Linux. Paste a key and it’s saved as you type, to your Keychain, Credential Manager or Secret Service; clear the field to remove it. Each has a <strong>Get a key</strong> link: <a href="https://platform.openai.com/api-keys">platform.openai.com/api-keys</a> for OpenAI, <a href="https://aistudio.google.com/apikey">aistudio.google.com/apikey</a> for Gemini. A key for an OpenAI-compatible server belongs to that server’s address, and many servers on your own network don’t need one.</p>
+  <p><strong>About free Gemini keys:</strong> a free key may let Google use what you send to improve its products, and human reviewers may read it; a paid project doesn’t. (In the EEA, Switzerland and the UK, the paid terms apply either way.) Painting with Gemini needs a project with billing turned on, as Google’s image models have no free tier. Gemini’s images carry SynthID, Google’s invisible watermark. More in <a href="privacy.html">Privacy</a>.</p>
+
+  <h2 id="local">Local models</h2>
+  <p>With local models, nothing leaves your computer or network, and nothing costs anything. Ollama (or LM Studio) writes; ComfyUI paints. They can run on this computer or another on your network: give the other computer’s address in Settings → Providers. Plain <code>http</code> works only for addresses on your own computer or network; anything else needs <code>https</code>.</p>
+
+  <h3 id="installing">Installing them</h3>
+  <ul>
+    <li><strong>On a Mac</strong>, Settings → Providers (and the welcome) offers <strong>Open in Brew Browser</strong>, which opens <a href="https://brew-browser.zerologic.com">Brew Browser</a> at the right bundle: <strong>Local LLMs</strong> installs Ollama, and <strong>Image Generation</strong> installs ComfyUI. Without Brew Browser, the button is <strong>Get Brew Browser…</strong>. Nothing is installed until you choose to in Brew Browser.</li>
+    <li><strong>On Linux</strong>, the same for Ollama; for ComfyUI, <strong>Installation guide</strong> opens ComfyUI’s own instructions.</li>
+    <li><strong>On Windows</strong>, <strong>Get Ollama for Windows</strong> (or run <code>winget install Ollama.Ollama</code> in Terminal) and <strong>Get ComfyUI Desktop for Windows</strong>.</li>
+  </ul>
+  <p>The models themselves are separate downloads. For Ollama, pull a model in Ollama (for example with <code>ollama pull</code>); AutoPaper uses the first one unless you choose another.</p>
+
+  <h3 id="ollama-lm-studio">Ollama and LM Studio</h3>
+  <p><strong>Ollama</strong> is its own choice in the writing menu, at <code>http://127.0.0.1:11434</code> unless you change it. <strong>LM Studio</strong>, and other servers that work like OpenAI’s API, are <strong>OpenAI-compatible</strong>: give the server’s address (LM Studio’s is usually <code>http://127.0.0.1:1234</code>), and AutoPaper adds <code>/v1</code> if the address has no path. Start the server, load a model, then choose <strong>Test</strong>.</p>
+
+  <h3 id="comfyui">ComfyUI</h3>
+  <p>Choose <strong>ComfyUI</strong> for painting; its address is <code>http://127.0.0.1:8188</code> unless you change it. The <strong>Workflow</strong> menu has two choices.</p>
+  <p><strong>AutoPaper’s</strong> (the default): a tested workflow for each of three models. The <strong>Model</strong> menu lists only those your ComfyUI has everything for; put these files in ComfyUI’s <code>models</code> folders, then choose <strong>Refresh</strong>:</p>
+  <div class="table-wrap stack wrap-heads"><table role="table">
+    <caption class="sr-only">The files each of AutoPaper’s ComfyUI workflows needs, its largest size and its licence</caption>
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Model</th><th scope="col" role="columnheader">Files</th><th scope="col" role="columnheader">Largest size</th><th scope="col" role="columnheader">Licence</th></tr></thead>
+    <tbody role="rowgroup">
+      <tr role="row"><th scope="row" role="rowheader">Z-Image Turbo (the default)</th><td role="cell" data-label="Files"><code>diffusion_models/z_image_turbo_bf16.safetensors</code>, <code>text_encoders/qwen_3_4b.safetensors</code>, <code>vae/ae.safetensors</code></td><td role="cell" data-label="Largest size">2048 px a side, about 3 megapixels (2048 × 1152 for a 16:9 display)</td><td role="cell" data-label="Licence">Apache 2.0</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Krea 2 Turbo</th><td role="cell" data-label="Files"><code>diffusion_models/krea2_turbo_fp8_scaled.safetensors</code>, <code>text_encoders/qwen3vl_4b_fp8_scaled.safetensors</code>, <code>vae/qwen_image_vae.safetensors</code></td><td role="cell" data-label="Largest size">The same as Z-Image Turbo</td><td role="cell" data-label="Licence">Krea 2 Community License</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Qwen-Image 2.1</th><td role="cell" data-label="Files"><code>diffusion_models/qwen_image_2.1_int8_convrot.safetensors</code>, <code>text_encoders/qwen3vl_8b_int8_convrot.safetensors</code>, <code>vae/qwen_image_2.1_vae_bf16.safetensors</code></td><td role="cell" data-label="Largest size">2752 px a side, about 4.3 megapixels</td><td role="cell" data-label="Licence">Qwen Research License</td></tr>
+    </tbody>
+  </table></div>
+  <p>Each paints at the largest size its model supports, at your display’s shape and never larger than your display; AutoPaper then scales it to fit each display. The first two are capped at about 3 megapixels on every computer: a larger image fails at the last step in ComfyUI on Apple silicon. Bigger takes longer. On a fast Mac, a full-size wallpaper took about a minute with Z-Image Turbo, about two with Krea 2 Turbo, and about nine with Qwen-Image 2.1. Settings shows how long each takes on your computer once it has made one (<em>About 9 minutes per wallpaper on this Mac</em>).</p>
+  <p><strong>Your own…</strong>: a workflow you exported from ComfyUI with <strong>Export (API)</strong>, as JSON. Put <code>{{prompt}}</code> where AutoPaper’s scene goes; AutoPaper also fills in <code>{{width}}</code>, <code>{{height}}</code> and <code>{{seed}}</code> where you put them. The Model line then names the model your workflow loads. <strong>Choose Another…</strong> picks a different file.</p>
+
+  <h2 id="your-wallpaper">Your own wallpaper</h2>
+  <h3 id="mac-wallpaper">On a Mac</h3>
+  <p>Settings → General → <strong>Show wallpapers</strong>:</p>
+  <ul>
+    <li><strong>Over my wallpaper</strong> (the default): <em>“Your own wallpaper stays as it is underneath, including macOS’s moving ones, and shows again when you quit AutoPaper or choose Restore My Wallpaper.”</em> AutoPaper’s wallpaper sits in a click-through layer just above your desktop picture and below the icons, on every display and Space, and cross-fades from one to the next. Mission Control, Show Desktop and the lock screen show your own wallpaper.</li>
+    <li><strong>As my wallpaper</strong>: <em>“Replaces your desktop picture, so AutoPaper’s wallpapers also show in Mission Control and on the lock screen. macOS’s moving wallpapers may not come back exactly.”</em> Your own picture for each display is noted first, so it can be put back.</li>
+  </ul>
+  <p>Apps can’t set the Mac’s lock screen picture on its own, so the lock screen shows AutoPaper’s wallpapers only with <strong>As my wallpaper</strong>.</p>
+  <h3 id="win-linux-wallpaper">On Windows and Linux</h3>
+  <p>AutoPaper sets the real wallpaper, after keeping a copy of your own for each monitor (on Windows, including a slideshow or Windows Spotlight), and puts yours back when it quits or you choose <strong>Restore my wallpaper</strong>. Windows Spotlight comes back as the last picture it showed, with <strong>Turn Windows Spotlight back on</strong> to restart it. <strong>Also set the lock screen</strong> (on unless you turn it off) sets Windows’ lock screen too; AutoPaper doesn’t yet put your own lock screen picture back. On Linux, one picture covers every monitor; GNOME’s lock screen always shows the desktop wallpaper, and on KDE the lock screen setting decides. Putting your own wallpaper back works on GNOME, not yet on KDE or other desktops or in a Flatpak; there, Preferences says so.</p>
+  <h3 id="pause">Pausing and restoring</h3>
+  <ul>
+    <li><strong>Pause New Wallpapers</strong> (menu, or Settings → General) stops new ones on the schedule. <strong>New Wallpaper Now</strong> still works. On a Mac the wallpaper you have stays up; on Windows and Linux, pausing currently puts your own wallpaper back.</li>
+    <li><strong>Restore My Wallpaper</strong> shows your own wallpaper again until AutoPaper’s next new one.</li>
+    <li><strong>New wallpaper</strong> in Settings → General sets how often: every hour, every 3, 6 or 12 hours, every day (unless you change it), every week, or <strong>Only when I ask</strong>. Every new wallpaper, including one you ask for, restarts the count.</li>
+  </ul>
+
+  <h2 id="progress">Progress and time left</h2>
+  <p>While a wallpaper is being made, Now shows the stage (<em>Composing an idea…</em>, <em>Checking memory…</em>, <em>Painting…</em>, <em>Downloading…</em>, <em>Preparing for your displays…</em>), a progress ring, and, once AutoPaper knows how long your computer takes, the time left: <em>About 40 seconds left</em>, <em>Almost done</em>. The menu shows the same in a line. The wallpaper in the window looks as if it’s being remade; with reduced motion on, it holds still.</p>
+  <p>The estimate comes only from your own computer: AutoPaper notes how long each provider and model took, at each size, and the recent times count most. Until it has one for what you’ve chosen, it shows no time rather than a guess. To stop, choose <strong>Stop</strong> (the toolbar button that was New Wallpaper Now, on a Mac; <kbd>Esc</kbd> or <kbd>⌘</kbd> <kbd>.</kbd>) or <strong>Cancel</strong>.</p>
+
+  <h2 id="history">History and memory</h2>
+  <p><strong>History</strong> has every wallpaper, newest first. Filter it: <strong>All</strong>, <strong>Liked</strong>, <strong>Disliked</strong>, <strong>Echoes</strong>, and by mood. Each wallpaper’s actions are on its context menu, which the keyboard opens too (on a Mac, also an <strong>Actions</strong> button): <strong>Show on Desktop</strong>, <strong>Like</strong>, <strong>Dislike</strong>, <strong>Make an Echo</strong>, <strong>Show Original and Echoes</strong> (when there are some), <strong>Show in Finder</strong> (File Explorer, Files) and <strong>Delete…</strong>. Deleting one removes its image and AutoPaper forgets it, so a similar idea may come back; echoes of it stay.</p>
+  <p>On a Mac, History has a <strong>Grid</strong> and a <strong>Gallery</strong> (switch in the toolbar; it remembers). The gallery shows the selected wallpaper large, a filmstrip, and its details: description, echo note with <strong>Show Original</strong>, when it was made, its mood and keywords, and a line saying what made it, such as <em>Written by Gemini 3.5 Flash-Lite (Google Gemini) · Painted by Nano Banana 2 (Google Gemini) · 3840×2160 · about $0.04</em>. <strong>Painted by</strong> opens Settings → Providers. <kbd>Space</kbd> opens Quick Look.</p>
+  <p><strong>Settings → Memory</strong> has the rest: <strong>What AutoPaper has learned</strong> (the things you’ve tended to like and dislike, across every mood) with <strong>Reset What It Learned…</strong>; the <strong>Quiet period</strong> and how often <strong>Echoes</strong> come; whether memory is <em>Full</em> or <em>Reduced</em>; how much space images use, <strong>Keep up to</strong>, and <strong>Clear History…</strong>, which can keep memory (so AutoPaper still avoids repeats) or clear it too. Clearing never changes what’s on your desktop.</p>
+
+  <h2 id="budget">The budget</h2>
+  <p>Settings → <strong>Budget</strong> sets a monthly limit for hosted providers: No limit, $1, $2, $5 (unless you change it), $10, $20, or an amount of your own. It shows what this month has cost, what each wallpaper costs and what a month costs at your schedule, all estimated from the providers’ published prices as of October 5, 2026. Months follow UTC. Local providers, OpenAI-compatible servers and Demo cost nothing and are never stopped by the budget.</p>
+  <p>When the budget is spent, AutoPaper brings back a wallpaper you liked (or keeps the current one, if you chose that under <strong>When a new one can’t be made</strong>), and starts again next month. The provider bills you directly; AutoPaper’s numbers are estimates, so check the provider’s own usage page for the real amount.</p>
+
+  <h2 id="notifications">Notifications</h2>
+  <p><strong>Notify me about new wallpapers</strong> in Settings → General: off unless you turn it on on a Mac, on unless you turn it off on Windows and Linux. A notification names the new wallpaper, with <strong>Like</strong>, <strong>Dislike</strong> and <strong>Show</strong>. On a Mac it comes for scheduled wallpapers; on Windows for scheduled ones, or any while the window isn’t in front; on Linux while the window isn’t in front. There’s also one notification when the month’s budget runs out and one when a key stops working, each with a button that goes to the fix; routine problems never notify.</p>
+
+  <h2 id="siri">Siri and Shortcuts</h2>
+  <p>On a Mac, AutoPaper has five actions in the Shortcuts app and Siri: <strong>New Wallpaper</strong>, <strong>Like This Wallpaper</strong>, <strong>Dislike This Wallpaper</strong>, <strong>What’s on My Desktop</strong> (which reads out the wallpaper’s description) and <strong>Switch Mood</strong> (“Switch AutoPaper to Rainy beach”). The <a href="reference.html#automation">Reference</a> lists them. Windows and Linux have none yet.</p>
+
+  <h2 id="troubleshooting">When something doesn’t work</h2>
+  <p>When AutoPaper needs you, Now says so once, in plain words, usually with a link that goes straight to the fix. The wording below is the Mac’s; Windows and Linux say the same with their own names for things (<em>Settings › Keys</em>, <em>Preferences</em>).</p>
+
+  <h3>“Add your OpenAI key”</h3>
+  <p>The provider you chose needs a key. The link opens Settings → Accounts (Keys) with that field ready; paste the key and AutoPaper carries on. Test and Refresh wait until there’s a key.</p>
+
+  <h3>“OpenAI didn’t accept your key.” · “Check your OpenAI key”</h3>
+  <p>The key is wrong, revoked or from another account. Copy it again from the provider’s key page (the <strong>Get a key</strong> link) and paste it over the old one.</p>
+
+  <h3>“OpenAI asked AutoPaper to wait; it’ll try again in 5 minutes.”</h3>
+  <p>The provider is limiting how often you can ask (with Gemini, this is also how a used-up quota shows). AutoPaper waits as long as it was asked to, at most an hour, then tries again. Nothing to do unless it keeps happening; then check your account’s limits with the provider.</p>
+
+  <h3>“The answer from your provider couldn’t be used. AutoPaper will try again later.”</h3>
+  <p>The provider answered, but not with something AutoPaper could use. Common causes: an OpenAI account without credit, or a model your server doesn’t have. Check your account’s billing with the provider, or choose another model in Settings → Providers.</p>
+
+  <h3>“Ollama isn’t running at http://127.0.0.1:11434.”</h3>
+  <p>AutoPaper couldn’t reach your local server (the same for ComfyUI, LM Studio or another server). Start it, and check the address in Settings → Providers; on another computer, check that it accepts connections from your network. On Linux the message is <em>“Ollama isn’t answering. Check that it’s running and its address in Preferences.”</em> If it isn’t installed, see <a href="#installing">Installing them</a>.</p>
+
+  <h3>“The server has no models to use yet.”</h3>
+  <p>Your server is running but has no model. Download one there (for example with <code>ollama pull</code>, or in LM Studio), then choose <strong>Refresh</strong>.</p>
+
+  <h3>“ComfyUI couldn’t paint with Qwen-Image 2.1.” · “Check ComfyUI in Settings”</h3>
+  <p>ComfyUI ran the job but couldn’t finish it: usually a model file or node is missing, or one failed. The link opens Settings → Providers. Check that the model’s three files are in place (see <a href="#comfyui">ComfyUI</a>) and choose <strong>Refresh</strong>; ComfyUI’s own window or log names the node that failed. A scheduled wallpaper that hits this waits for its next turn rather than trying again and again.</p>
+
+  <h3>“That workflow is in ComfyUI’s editor format.”</h3>
+  <p>A workflow of your own must be exported with <strong>Export (API)</strong> in ComfyUI. It also needs a <code>{{prompt}}</code> placeholder where the scene goes; AutoPaper says so if it’s missing, or if the workflow isn’t valid once the placeholders are filled in.</p>
+
+  <h3>“… took too long to answer.” · “… had a problem on its side.” · “The job was stopped in ComfyUI.”</h3>
+  <p>The provider was slow or had an error, or someone stopped the job in ComfyUI. AutoPaper tries again later. A local painting is given up only when it stops making progress (three minutes without a new step) or runs far past its estimate.</p>
+
+  <h3>“OpenAI declined to paint this idea; AutoPaper tried a gentler one, and it declined that too.”</h3>
+  <p>The provider’s content rules refused the idea twice. If it happens often with one mood, change a keyword or lower Surprise.</p>
+
+  <h3>“AutoPaper can’t reach the internet. It’ll try again soon.”</h3>
+  <p>You’re offline, or the provider couldn’t be reached. If you’re back online, it tries again within the hour; <strong>New Wallpaper Now</strong> tries straight away. The first time, it may bring back a wallpaper you liked instead.</p>
+
+  <h3>“This month’s budget is spent.” · “Raise the budget”</h3>
+  <p>The month’s estimated spend has reached your limit. The link opens Settings → Budget. Otherwise new wallpapers start again next month (UTC).</p>
+
+  <h3>The wallpaper doesn’t change</h3>
+  <ul>
+    <li>Check that new wallpapers aren’t paused (the menu says <strong>Resume New Wallpapers</strong> if they are), and that <strong>New wallpaper</strong> isn’t set to <strong>Only when I ask</strong>.</li>
+    <li>Now says when the next one is due, or what’s wrong.</li>
+    <li>On a Mac with <strong>Over my wallpaper</strong>, Mission Control and the lock screen show your own wallpaper; that’s expected. Choose <strong>As my wallpaper</strong> to change that.</li>
+    <li>On Linux, AutoPaper needs permission to set the wallpaper, and to run in the background for wallpapers to come while its window is closed; it says how to allow each if they were refused.</li>
+  </ul>
+
+  <h3>My own wallpaper didn’t come back</h3>
+  <ul>
+    <li><strong>Mac, Over my wallpaper:</strong> it was never changed; choose <strong>Restore My Wallpaper</strong>, or quit AutoPaper.</li>
+    <li><strong>Mac, As my wallpaper:</strong> macOS doesn’t let apps put back its moving wallpapers (the Aerials, dynamic ones) exactly. AutoPaper says <em>“AutoPaper couldn’t put your own picture back.”</em> with <strong>Open Wallpaper settings</strong>; choose yours again there, and consider <strong>Over my wallpaper</strong>, which never touches it.</li>
+    <li><strong>Windows:</strong> if it says <em>“Windows didn’t put your own wallpaper back. Try again in a moment.”</em>, choose <strong>Restore my wallpaper</strong> again. A Spotlight wallpaper comes back as its last picture; <strong>Turn Windows Spotlight back on</strong> restarts it.</li>
+    <li><strong>Linux:</strong> on KDE and other desktops, and in a Flatpak, AutoPaper can’t put it back yet, and Preferences says so; set yours again in your desktop’s settings.</li>
+  </ul>
+
+  <h3>Memory says “Reduced”</h3>
+  <p>The small model AutoPaper uses to compare ideas wasn’t found, so it’s using a simpler comparison that only catches near-identical repeats. In a development build, run <code>scripts/fetch-model.sh</code>; released apps include the model.</p>
+
+  <h3>Open at login doesn’t work</h3>
+  <p>On a Mac, if it says <em>“Allow AutoPaper in System Settings → General → Login Items.”</em>, do that. On Windows, check <strong>Settings → Apps → Startup</strong>; on Linux, check that AutoPaper may run in the background in your desktop’s settings.</p>
+
+  <h2 id="uninstall">Removing AutoPaper</h2>
+  <ol>
+    <li>Choose <strong>Restore My Wallpaper</strong> (or quit AutoPaper), so your own wallpaper is back.</li>
+    <li>Clear your keys in Settings → Accounts (Keys), which removes them from your Keychain, Credential Manager or keyring. Uninstalling doesn’t remove them by itself.</li>
+    <li>Turn off <strong>Open at login</strong> in Settings → General.</li>
+    <li>Quit AutoPaper and remove the app.</li>
+    <li>To remove its wallpapers, history and settings too: on a Mac, delete <code>~/Library/Containers/com.autopaper</code>; on Windows, uninstalling removes them; on Linux, <code>flatpak uninstall --delete-data io.github.msitarzewski.AutoPaper</code> removes the app with all of them (built from source: delete <code>~/.local/share/autopaper</code> and reset its settings with <code>gsettings reset-recursively io.github.msitarzewski.AutoPaper</code>).</li>
+  </ol>
+  <p>A local ComfyUI keeps its own copies of what it painted, in its <code>output/autopaper/</code> folder; delete them there if you like.</p>
+
+  <h2 id="accessibility">Screen readers and the keyboard</h2>
+  <p>Everything in AutoPaper has a name your screen reader reads out. Each wallpaper is described in words (its one-line description, and what changed, for an echo); keywords say their weight (“rain, Must”); Surprise says its value and band; the current mood says so; Like and Dislike say whether they’re on. Progress and problems are announced as they happen. The apps use their systems’ standard controls, so contrast, transparency and reduced-motion settings apply.</p>
+  <p>Keyboard shortcuts for each system are on the <a href="shortcuts.html">Keyboard shortcuts</a> page. Each app has been checked through its system’s accessibility interface; full passes with VoiceOver, Narrator and Orca are still to come. More detail is in the <a href="reference.html#accessibility">Reference</a>.</p>
+  <p>If something is hard to use with a screen reader or the keyboard, please <a href="https://github.com/msitarzewski/AutoPaper/issues/new/choose">tell us</a>.</p>
+
+  <h2 id="contact">Asking for help</h2>
+  <p>Questions and bug reports go to <a href="https://github.com/msitarzewski/AutoPaper/issues">GitHub issues</a>. Say which system you use, the AutoPaper version, and the providers and models you write and paint with. Security or privacy problems go privately instead, as described in <a href="https://github.com/msitarzewski/AutoPaper/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+</article>

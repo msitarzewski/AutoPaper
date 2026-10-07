@@ -1,0 +1,54 @@
+{
+  "models": [
+    {
+      "name": "models/gemini-3.5-flash-lite",
+      "baseModelId": "gemini-3.5-flash-lite",
+      "version": "3.5",
+      "displayName": "Gemini 3.5 Flash-Lite",
+      "description": "Fast, low-cost multimodal model.",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 65536,
+      "supportedGenerationMethods": ["generateContent", "countTokens", "createCachedContent", "batchGenerateContent"],
+      "thinking": true,
+      "temperature": 1,
+      "maxTemperature": 2,
+      "topP": 0.95,
+      "topK": 64
+    },
+    {
+      "name": "models/gemini-3.1-flash-image",
+      "baseModelId": "gemini-3.1-flash-image",
+      "version": "3.1",
+      "displayName": "Nano Banana 2",
+      "description": "Gemini 3.1 Flash Image.",
+      "inputTokenLimit": 131072,
+      "outputTokenLimit": 32768,
+      "supportedGenerationMethods": ["generateContent", "countTokens", "batchGenerateContent"],
+      "thinking": true,
+      "temperature": 1,
+      "maxTemperature": 2,
+      "topP": 0.95,
+      "topK": 64
+    },
+    {
+      "name": "models/gemini-embedding-2",
+      "baseModelId": "gemini-embedding-2",
+      "version": "2",
+      "displayName": "Gemini Embedding 2",
+      "description": "Multimodal embedding model.",
+      "inputTokenLimit": 8192,
+      "outputTokenLimit": 1,
+      "supportedGenerationMethods": ["embedContent", "countTokens", "batchEmbedContents"]
+    },
+    {
+      "name": "models/gemma-4-27b-it",
+      "baseModelId": "gemma-4-27b-it",
+      "version": "001",
+      "displayName": "Gemma 4 27B",
+      "inputTokenLimit": 131072,
+      "outputTokenLimit": 8192,
+      "supportedGenerationMethods": ["generateContent", "countTokens"]
+    }
+  ],
+  "nextPageToken": "Cg5nZW1pbmktMy44LWZsYXNo+/="
+}

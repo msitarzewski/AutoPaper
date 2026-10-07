@@ -1,0 +1,120 @@
+# AutoPaper for Linux as a Flatpak: GNOME runtime 51, built offline from the workspace with the Rust SDK extension.
+#
+#   Local build and install, from the repository root (scripts/linux-release.sh builds the release and its bundle):
+#     flatpak run org.flatpak.Builder --force-clean --disable-rofiles-fuse --user --install \
+#       --state-dir=build/flatpak/state build/flatpak/builddir packaging/flatpak/io.github.msitarzewski.AutoPaper.yml
+#
+# The app's sources below are the workspace, path by path. scripts/linux-release.sh writes the Flathub variant,
+# which replaces the block between "app-sources: begin/end" with the git tag and commit.
+# cargo-sources.json comes from flatpak-cargo-generator (flatpak/flatpak-builder-tools, cargo/) run on Cargo.lock;
+# linux-release.sh checks it against Cargo.lock and regenerates it with --update-cargo-sources.
+id: io.github.msitarzewski.AutoPaper
+runtime: org.gnome.Platform
+# GNOME 51 is the newest runtime on Flathub (Flathub requires the latest at submission). The app uses GTK 4.22 and
+# libadwaita 1.9 APIs, which runtime 51 (GTK 4.24, libadwaita 1.10) provides.
+runtime-version: '51'
+sdk: org.gnome.Sdk
+command: autopaper-gtk
+sdk-extensions:
+  # Runtime 51 is built on freedesktop-sdk 26.08, so this is rust-stable//26.08 (Rust 1.98; the workspace needs 1.92).
+  - org.freedesktop.Sdk.Extension.rust-stable
+finish-args:
+  # Talks to the AI services the person chooses (OpenAI, Google Gemini) and to their own Ollama, ComfyUI or
+  # OpenAI-compatible server, on this computer or the local network.
+  - --share=network
+  # X11 shared memory, needed with fallback-x11.
+  - --share=ipc
+  # GTK 4 draws on Wayland, and on X11 only in sessions without Wayland.
+  - --socket=wayland
+  - --socket=fallback-x11
+  # GPU rendering for GTK 4.
+  - --device=dri
+  # The tray on KDE Plasma and other desktops with a StatusNotifierItem host (ksni registers with the watcher, which
+  # then calls the app back). GNOME shows no tray: there AutoPaper runs as a background app with notifications.
+  - --talk-name=org.kde.StatusNotifierWatcher
+  # Nothing else: the wallpaper (Wallpaper portal), running in the background and starting at login (Background
+  # portal), notifications (Notification portal through GNotification), API keys (Secret portal through oo7), links
+  # and folders (OpenURI portal) and files the person picks (FileChooser portal) all go through portals.
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+modules:
+  # The sentence-embedding model behind AutoPaper's memory (BAAI/bge-small-en-v1.5, MIT), at the Hugging Face revision
+  # and SHA-256s scripts/fetch-model.sh pins. The app finds it next to its binary
+  # (/app/share/io.github.msitarzewski.AutoPaper/models/bge-small-en-v1.5).
+  - name: bge-small-en-v1.5
+    buildsystem: simple
+    build-commands:
+      - install -Dm644 -t ${FLATPAK_DEST}/share/${FLATPAK_ID}/models/bge-small-en-v1.5 config.json tokenizer.json model.safetensors
+      # flatpak-builder installs LICENSE (the source root's licence file) by itself; the model card is extra.
+      - install -Dm644 -t ${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/bge-small-en-v1.5 README.md
+    sources:
+      - type: file
+        url: https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/config.json
+        sha256: 094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750
+      - type: file
+        url: https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/tokenizer.json
+        sha256: d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
+      - type: file
+        url: https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/model.safetensors
+        sha256: 3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad
+      # The model card (its "license: mit") and FlagEmbedding's MIT licence, which it points to.
+      - type: file
+        url: https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/README.md
+        sha256: ddb964361a55c6e5dfca6361615854b260c9c960205d04c7520151aaa1d75837
+      - type: file
+        url: https://raw.githubusercontent.com/FlagOpen/FlagEmbedding/c086741f5e117b7b8ce1745ea00b6c262f281a01/LICENSE
+        sha256: 587a673933425dbc36ec61268d3b954051b2d3ef3c9b322ede357976055ffdd5
+
+  # The app: what scripts/linux-install.sh installs, under /app.
+  - name: autopaper
+    buildsystem: simple
+    build-options:
+      env:
+        CARGO_HOME: /run/build/autopaper/cargo
+        CARGO_NET_OFFLINE: 'true'
+        # "Version (build)" in About.
+        AUTOPAPER_BUILD: flatpak
+        # aws-lc-sys (rustls' crypto) compiles its CPU-jitter entropy source at -O0, but the SDK's CFLAGS add -O2
+        # after it, which that source refuses ("#error ... must not be compiled with optimizations"). Without it,
+        # AWS-LC seeds from the kernel (getrandom), as Homebrew's builds do.
+        AWS_LC_SYS_NO_JITTER_ENTROPY: '1'
+    build-commands:
+      - cargo build --release --offline --locked -p autopaper-linux
+      - install -Dm755 target/release/autopaper-gtk ${FLATPAK_DEST}/bin/autopaper-gtk
+      - install -Dm644 apps/linux/data/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications/${FLATPAK_ID}.desktop
+      # D-Bus activation (DBusActivatable=true): notification buttons and the Background portal start the app by its ID.
+      - sed "s|@bindir@|${FLATPAK_DEST}/bin|" apps/linux/data/${FLATPAK_ID}.service.in > ${FLATPAK_ID}.service
+      - install -Dm644 ${FLATPAK_ID}.service ${FLATPAK_DEST}/share/dbus-1/services/${FLATPAK_ID}.service
+      - install -Dm644 apps/linux/data/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg
+      - install -Dm644 apps/linux/data/icons/hicolor/symbolic/apps/${FLATPAK_ID}-symbolic.svg ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps/${FLATPAK_ID}-symbolic.svg
+      - install -Dm644 apps/linux/data/${FLATPAK_ID}.metainfo.xml ${FLATPAK_DEST}/share/metainfo/${FLATPAK_ID}.metainfo.xml
+      - install -Dm644 apps/linux/data/${FLATPAK_ID}.gschema.xml ${FLATPAK_DEST}/share/glib-2.0/schemas/${FLATPAK_ID}.gschema.xml
+      - glib-compile-schemas --strict ${FLATPAK_DEST}/share/glib-2.0/schemas
+      # flatpak-builder installs LICENSE by itself; the third-party notices are extra.
+      - install -Dm644 -t ${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/autopaper THIRD-PARTY-NOTICES.md
+    sources:
+      # app-sources: begin
+      # The workspace, path by path: never the whole checkout (.env holds the developer CLI's keys; target/ and
+      # models/ are large). Every workspace member is needed for Cargo to read the workspace.
+      - type: file
+        path: ../../Cargo.toml
+      - type: file
+        path: ../../Cargo.lock
+      - type: file
+        path: ../../LICENSE
+      - type: file
+        path: ../../THIRD-PARTY-NOTICES.md
+      - type: dir
+        path: ../../core
+        dest: core
+      - type: dir
+        path: ../../cli
+        dest: cli
+      - type: dir
+        path: ../../uniffi-bindgen
+        dest: uniffi-bindgen
+      - type: dir
+        path: ../../apps/linux
+        dest: apps/linux
+      # app-sources: end
+      - cargo-sources.json

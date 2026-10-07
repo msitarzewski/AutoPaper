@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0c0a0a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f8f6f5" media="(prefers-color-scheme: light)">
+  <title>{{title}}</title>
+  <meta name="description" content="{{description}}">
+  <meta name="author" content="Michael Sitarzewski">
+  <link rel="canonical" href="{{url}}">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="AutoPaper">
+  <meta property="og:url" content="{{url}}">
+  <meta property="og:title" content="{{title}}">
+  <meta property="og:description" content="{{description}}">
+  <meta property="og:image" content="https://msitarzewski.github.io/AutoPaper/social-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The AutoPaper icon — a red display with three white sparkles — beside the words: Tell your computer what you'd like to see. Free for macOS, Windows and Linux. Your own key or a local model; no account, no telemetry.">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="wordmark" href="index.html"><img src="icon-64.png" alt="" width="28" height="28">AutoPaper</a>
+      <nav aria-label="Site">
+{{nav}}
+      </nav>
+    </div>
+  </header>
+
+  <main id="content">
+{{content}}
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      <a href="https://github.com/msitarzewski/AutoPaper">Source</a> ·
+      <a href="https://github.com/msitarzewski/AutoPaper/releases">Releases</a> ·
+      <a href="https://github.com/msitarzewski/AutoPaper/issues">Issues</a> ·
+      <a href="https://github.com/msitarzewski/AutoPaper/blob/main/SECURITY.md">Security</a> ·
+      <a href="help.html">Help</a> ·
+      <a href="privacy.html">Privacy</a> ·
+      <a href="network.html">Network</a> ·
+      <a href="credits.html">Credits</a>
+    </p>
+    <p class="others">Also by Michael Sitarzewski: <a href="https://msitarzewski.github.io/AudioPaper/">AudioPaper</a>, your desktop set to the music you’re playing · <a href="https://github.com/msitarzewski/agency-agents">Agency Agents</a>, specialised AI agent personas for coding assistants · <a href="https://brew-browser.zerologic.com">Brew Browser</a>, a native app for Homebrew</p>
+    <p class="fine">Code: MIT, © 2026 Michael Sitarzewski · Example images: see <a href="credits.html">Credits</a> · Hosted by GitHub Pages. This site sets no cookies, runs no analytics and loads nothing from anywhere else.</p>
+  </footer>
+</body>
+</html>

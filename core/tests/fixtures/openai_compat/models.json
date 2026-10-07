@@ -1,0 +1,23 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "ornith:latest",
+      "object": "model",
+      "created": 1787652682,
+      "owned_by": "library"
+    },
+    {
+      "id": "qwen2.5vl:7b",
+      "object": "model",
+      "created": 1782737522,
+      "owned_by": "library"
+    },
+    {
+      "id": "nomic-embed-text:latest",
+      "object": "model",
+      "created": 1778689219,
+      "owned_by": "library"
+    }
+  ]
+}

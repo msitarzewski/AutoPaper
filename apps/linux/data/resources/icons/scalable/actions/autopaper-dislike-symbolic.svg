@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Dislike: the Like thumb turned down (rotated by hand: GTK's symbolic icon renderer ignores transforms). -->
+  <path fill="#222222" d="M14.5 9h-2a.5.5 0 0 1-.5-.5v-7a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v7A.5.5 0 0 1 14.5 9Z"/>
+  <path fill="#222222" d="M11 8.6 8.1 13.9c-.3.55-.95.8-1.55.6-.8-.27-1.25-1.1-1.05-1.92L6.1 10h-3.6c-.93 0-1.63-.86-1.45-1.77l1.05-5.4A2.25 2.25 0 0 1 4.3 1H11Z"/>
+</svg>

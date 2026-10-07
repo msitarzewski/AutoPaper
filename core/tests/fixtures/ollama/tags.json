@@ -1,0 +1,73 @@
+{
+  "models": [
+    {
+      "name": "ornith:latest",
+      "model": "ornith:latest",
+      "modified_at": "2026-08-25T05:11:22.49068773-05:00",
+      "size": 5629110568,
+      "digest": "a75697c145891910e312c95e4a9fc1ccb8653e5ef543b23b0403a4665b82fd91",
+      "details": {
+        "parent_model": "",
+        "format": "gguf",
+        "family": "qwen35",
+        "families": [
+          "qwen35"
+        ],
+        "parameter_size": "9.0B",
+        "quantization_level": "Q4_K_M",
+        "context_length": 262144,
+        "embedding_length": 4096
+      },
+      "capabilities": [
+        "completion",
+        "tools",
+        "thinking"
+      ]
+    },
+    {
+      "name": "qwen2.5vl:7b",
+      "model": "qwen2.5vl:7b",
+      "modified_at": "2026-06-29T07:52:02.30838202-05:00",
+      "size": 5969245856,
+      "digest": "5ced39dfa4bac325dc183dd1e4febaa1c46b3ea28bce48896c8e69c1e79611cc",
+      "details": {
+        "parent_model": "",
+        "format": "gguf",
+        "family": "qwen25vl",
+        "families": [
+          "qwen25vl"
+        ],
+        "parameter_size": "8.3B",
+        "quantization_level": "Q4_K_M",
+        "context_length": 128000,
+        "embedding_length": 3584
+      },
+      "capabilities": [
+        "completion",
+        "vision"
+      ]
+    },
+    {
+      "name": "nomic-embed-text:latest",
+      "model": "nomic-embed-text:latest",
+      "modified_at": "2026-05-13T11:20:19.277154369-05:00",
+      "size": 274302450,
+      "digest": "0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f",
+      "details": {
+        "parent_model": "",
+        "format": "gguf",
+        "family": "nomic-bert",
+        "families": [
+          "nomic-bert"
+        ],
+        "parameter_size": "137M",
+        "quantization_level": "F16",
+        "context_length": 2048,
+        "embedding_length": 768
+      },
+      "capabilities": [
+        "embedding"
+      ]
+    }
+  ]
+}

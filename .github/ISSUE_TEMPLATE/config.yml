@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security or privacy problem
+    url: https://github.com/msitarzewski/AutoPaper/security/advisories/new
+    about: Privately, as SECURITY.md describes, not in a public issue.
+  - name: Help with using AutoPaper
+    url: https://msitarzewski.github.io/AutoPaper/help.html
+    about: Getting started, providers and keys, local models, and what to do when something doesn't work.

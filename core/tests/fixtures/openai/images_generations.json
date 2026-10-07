@@ -1,0 +1,19 @@
+{
+  "created": 1791216000,
+  "background": "opaque",
+  "output_format": "jpeg",
+  "quality": "high",
+  "size": "3840x2160",
+  "data": [
+    {
+      "b64_json": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAABAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCCApiv/9k="
+    }
+  ],
+  "usage": {
+    "input_tokens": 50,
+    "input_tokens_details": { "text_tokens": 50, "image_tokens": 0 },
+    "output_tokens": 3336,
+    "total_tokens": 3386,
+    "output_tokens_details": { "image_tokens": 3336, "text_tokens": 0 }
+  }
+}

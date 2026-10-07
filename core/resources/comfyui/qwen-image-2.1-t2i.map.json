@@ -1,0 +1,74 @@
+{
+  "template": "qwen-image-2.1-t2i.json",
+  "name": "Qwen-Image 2.1",
+  "format": "ComfyUI API-format prompt graph: {node_id: {class_type, inputs}}. POST it as the `prompt` field of POST /prompt.",
+  "model": "Qwen-Image 2.1 (Qwen), ComfyUI repack Comfy-Org/Qwen-Image-2.1 (int8 convrot weights, int8 Qwen3-VL 8B text encoder)",
+  "licence": {
+    "name": "Qwen Research License (outputs belong to the person; the weights are research-only)",
+    "url": "https://huggingface.co/Qwen/Qwen-Image-2.1"
+  },
+  "source": "The graph that painted the website examples rain-ruins, rain-ruins-wild, snow-lanterns and echo-now/then on the user's Mac (.scratch/examples/graphs/rain-ruins.request.json), with placeholders. Same sampling as Comfy-Org's template image_qwen_image_2_1_t2i (25 steps, cfg 1, euler, simple), except its bf16 text encoder.",
+  "requires": {
+    "diffusion_models": [
+      "qwen_image_2.1_int8_convrot.safetensors"
+    ],
+    "text_encoders": [
+      "qwen3vl_8b_int8_convrot.safetensors"
+    ],
+    "vae": [
+      "qwen_image_2.1_vae_bf16.safetensors"
+    ],
+    "custom_nodes": []
+  },
+  "tested_with": {
+    "comfyui": "0.36.0",
+    "device": "mps (Apple Silicon)",
+    "date": "2026-10-06"
+  },
+  "placeholders": {
+    "prompt": {
+      "node": "4",
+      "input": "prompt",
+      "class_type": "TextEncodeQwenImage21",
+      "token": "{{prompt}}",
+      "type": "string"
+    },
+    "width": {
+      "node": "7",
+      "input": "width",
+      "class_type": "EmptyLatentImage",
+      "token": "{{width}}",
+      "type": "int"
+    },
+    "height": {
+      "node": "7",
+      "input": "height",
+      "class_type": "EmptyLatentImage",
+      "token": "{{height}}",
+      "type": "int"
+    },
+    "seed": {
+      "node": "8",
+      "input": "seed",
+      "class_type": "KSampler",
+      "token": "{{seed}}",
+      "type": "int"
+    }
+  },
+  "output": {
+    "node": "10",
+    "class_type": "SaveImage"
+  },
+  "negative_prompt": "TextEncodeQwenImage21's negative_prompt is left empty (cfg 1.0); its second output is the KSampler's negative.",
+  "notes": [
+    "TextEncodeQwenImage21 is a stock ComfyUI node (comfy_extras/nodes_qwen.py), but only in recent ComfyUI: AutoPaper offers this model only when the server has it.",
+    "The CLIPLoader type 'qwen_image' loads the Qwen3-VL text encoder for Qwen-Image 2.1. Its 'resolution' input only sizes reference images, which this text-to-image graph has none of.",
+    "Qwen-Image 2.1's VAE is 16x, so its decoder sees a quarter of the tokens an 8x VAE does: AutoPaper asks for up to 2752 a side and 4,300,800 pixels (the model card's sizes; core/src/providers/comfyui.rs MODEL_LIMITS).",
+    "Qwen-Image 2.1 returns RGBA images (alpha >= 236); AutoPaper's image pipeline flattens them to RGB.",
+    "filename_prefix 'autopaper/wallpaper' makes ComfyUI write into output/autopaper/."
+  ],
+  "measured_seconds": {
+    "1920x1088_warm": "175-206 on M5 Max (25 steps)",
+    "2576x1664": "536 through the engine, M5 Max, 2026-10-06 (~20 s a step)"
+  }
+}

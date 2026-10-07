@@ -1,0 +1,10 @@
+# UniFFI binding settings for autopaper-core, read by the binding generators in library mode.
+# Swift (scripts/build-xcframework.sh) uses the defaults. C# (scripts/build-core-windows.ps1) uses
+# uniffi-bindgen-cs v0.11.0+v0.31.0, whose keys are listed in docs/research/rust-linux.md ("C# bindings").
+
+[bindings.csharp]
+# The bindings are compiled into the WinUI app (or a class library next to it), under the app's namespace.
+namespace = "AutoPaper.Core"
+access_modifier = "public"
+# Loaded as autopaper_core.dll, shipped next to AutoPaper.exe (one per architecture).
+cdylib_name = "autopaper_core"

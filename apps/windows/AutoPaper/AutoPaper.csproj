@@ -1,0 +1,97 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    AutoPaper for Windows 11: WinUI 3 (Windows App SDK), packaged as MSIX. The agent itself is the Rust core,
+    loaded as autopaper_core.dll through UniFFI's C# bindings. Build the core first, inside Windows:
+        powershell -File scripts\build-core-windows.ps1
+    then build, run or package this project with scripts\windows-app.ps1 (help: Get-Help scripts\windows-app.ps1).
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <!-- Windows 11 only. -->
+    <TargetPlatformMinVersion>10.0.22000.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.22000.0</SupportedOSPlatformVersion>
+    <RootNamespace>AutoPaper</RootNamespace>
+    <AssemblyName>AutoPaper</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</RuntimeIdentifier>
+    <PublishProfile Condition="Exists('Properties\PublishProfiles\win-$(Platform).pubxml')">win-$(Platform).pubxml</PublishProfile>
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- uniffi-bindgen-cs output uses unsafe code and [LibraryImport]. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Program.cs owns Main: single instance and redirected activations (notifications, a second launch). -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+    <Version>0.1.0</Version>
+    <Product>AutoPaper</Product>
+    <Company>Michael Sitarzewski</Company>
+    <Copyright>© 2026 Michael Sitarzewski</Copyright>
+    <!-- Never trimmed or AOT-compiled: classic COM interop (IDesktopWallpaper through CsWin32's built-in COM)
+         and uniffi-bindgen-cs callbacks aren't trim-safe (docs/research/windows.md). -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishAot>false</PublishAot>
+    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">true</PublishReadyToRun>
+    <!-- The generated bindings' warnings aren't ours to fix (the file is marked auto-generated). -->
+    <NoWarn>$(NoWarn);CS8981</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+    <Content Include="Assets\**\*.png" />
+    <Content Include="Assets\AppIcon.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- The core: bindings compiled into this assembly, the DLL for this architecture next to AutoPaper.exe. -->
+  <ItemGroup>
+    <Compile Include="..\Generated\autopaper_core.cs" Link="Generated\autopaper_core.cs" />
+    <Content Include="..\Generated\$(RuntimeIdentifier)\autopaper_core.dll" Link="autopaper_core.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- AutoPaper's own ComfyUI workflows: the files the core is built with (core/resources/comfyui), embedded so
+       Settings can name their models in words while ComfyUI can't be asked (BundledWorkflows). -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\core\resources\comfyui\*.json" LogicalName="ComfyUI.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- The sentence-embedding model behind memory (scripts/fetch-model.sh → models/bge-small-en-v1.5, git-ignored),
+       shipped in the package under Models\. Without it the engine runs memory in reduced mode and says so. -->
+  <PropertyGroup>
+    <EmbeddingModelDir>$(MSBuildThisFileDirectory)..\..\..\models\bge-small-en-v1.5\</EmbeddingModelDir>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('$(EmbeddingModelDir)model.safetensors')">
+    <Content Include="$(EmbeddingModelDir)*.*" LinkBase="Models\bge-small-en-v1.5" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="AutoPaperCheckCore" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('..\Generated\autopaper_core.cs')" Text="The core's C# bindings are missing (apps\windows\Generated\autopaper_core.cs). Run scripts\build-core-windows.ps1 first." />
+    <Error Condition="!Exists('..\Generated\$(RuntimeIdentifier)\autopaper_core.dll')" Text="autopaper_core.dll for $(RuntimeIdentifier) is missing. Run scripts\build-core-windows.ps1 -Arch $(RuntimeIdentifier.Replace('win-', ''))." />
+    <Warning Condition="!Exists('$(EmbeddingModelDir)model.safetensors')" Text="The embedding model isn't in models\bge-small-en-v1.5 (scripts/fetch-model.sh): this build's memory will run in reduced mode." />
+  </Target>
+
+  <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <ProjectCapability Include="Msix" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.346">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools.WinApp" Version="0.7.1" />
+    <PackageReference Include="WinUIEx" Version="2.9.3" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
+  </PropertyGroup>
+</Project>

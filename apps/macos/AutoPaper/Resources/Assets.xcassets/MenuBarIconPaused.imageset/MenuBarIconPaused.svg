@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="18.4" height="16" viewBox="0.5 2.5 35 30.5">
+  <!-- Menu bar template while new wallpapers are paused: the same display, with pause bars knocked out of the
+       screen (evenodd) instead of the sparkles. Drawn on a 36-unit grid; the viewBox is cropped to the drawing
+       so it sits centred at 16 pt tall. -->
+  <path fill-rule="evenodd" d="M4.5 3H31.5A3.5 3.5 0 0 1 35 6.5V22.5A3.5 3.5 0 0 1 31.5 26H4.5A3.5 3.5 0 0 1 1 22.5V6.5A3.5 3.5 0 0 1 4.5 3ZM13.4 9H16.3V20H13.4ZM19.7 9H22.6V20H19.7Z"/>
+  <path d="M16 26H20V29.5H16ZM12.2 29.5H23.8A1.25 1.25 0 0 1 25.05 30.75A1.25 1.25 0 0 1 23.8 32H12.2A1.25 1.25 0 0 1 10.95 30.75A1.25 1.25 0 0 1 12.2 29.5Z"/>
+</svg>

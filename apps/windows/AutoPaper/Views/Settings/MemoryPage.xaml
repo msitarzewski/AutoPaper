@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="AutoPaper.Views.Panes.MemoryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel
+            MaxWidth="{StaticResource PageMaxWidth}"
+            Padding="{StaticResource PagePadding}"
+            Spacing="{StaticResource SettingsCardSpacing}">
+            <BreadcrumbBar x:Name="Crumbs" Margin="0,0,0,20" AutomationProperties.HeadingLevel="Level1" />
+
+            <toolkit:SettingsCard x:Name="QuietCard" x:Uid="MemoryQuiet">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE787;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <ComboBox x:Name="QuietBox" MinWidth="200" AutomationProperties.AutomationId="QuietPeriod" SelectionChanged="OnQuietChanged" />
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="EchoesCard" x:Uid="MemoryEchoes">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8EE;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <ComboBox x:Name="EchoesBox" MinWidth="200" AutomationProperties.AutomationId="Echoes" SelectionChanged="OnEchoesChanged" />
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="StatusCard" x:Uid="MemoryStatus">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xEA80;" />
+                </toolkit:SettingsCard.HeaderIcon>
+            </toolkit:SettingsCard>
+
+            <!-- What AutoPaper has learned (taste_summary): shared by every mood. -->
+            <TextBlock x:Uid="LearnedTitle" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" AutomationProperties.HeadingLevel="Level2" />
+            <toolkit:SettingsCard x:Name="LikedCard" x:Uid="LearnedLikedCard">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8E1;" />
+                </toolkit:SettingsCard.HeaderIcon>
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="DislikedCard" x:Uid="LearnedDislikedCard">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8E0;" />
+                </toolkit:SettingsCard.HeaderIcon>
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Uid="MemoryResetLearned">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE72C;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <Button x:Name="ResetLearnedButton" x:Uid="MemoryResetLearnedButton" AutomationProperties.AutomationId="ResetLearnedSettings" Click="OnResetLearned" />
+            </toolkit:SettingsCard>
+
+            <TextBlock x:Uid="MemoryStorageSection" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" AutomationProperties.HeadingLevel="Level2" />
+            <toolkit:SettingsCard x:Name="UsageCard" x:Uid="MemoryUsage">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE7AA;" />
+                </toolkit:SettingsCard.HeaderIcon>
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="LimitCard" x:Uid="MemoryLimit">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE74E;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <ComboBox x:Name="LimitBox" MinWidth="200" AutomationProperties.AutomationId="StorageLimit" SelectionChanged="OnLimitChanged" />
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Uid="MemoryClear">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE74D;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <Button x:Uid="MemoryClearButton" AutomationProperties.AutomationId="ClearHistory" Click="OnClearHistory" />
+            </toolkit:SettingsCard>
+            <!-- Also said by the window (AppModel.Announce). -->
+            <TextBlock
+                x:Name="Result"
+                Margin="0,12,0,0"
+                Style="{StaticResource BodyTextBlockStyle}"
+                Visibility="Collapsed" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

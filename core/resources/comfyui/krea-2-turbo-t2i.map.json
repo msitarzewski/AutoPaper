@@ -1,0 +1,75 @@
+{
+  "template": "krea-2-turbo-t2i.json",
+  "name": "Krea 2 Turbo",
+  "format": "ComfyUI API-format prompt graph: {node_id: {class_type, inputs}}. POST it as the `prompt` field of POST /prompt.",
+  "model": "Krea 2 Turbo (Krea), ComfyUI repack Comfy-Org/Krea-2 (fp8 scaled weights, fp8 Qwen3-VL 4B text encoder, Qwen-Image VAE)",
+  "licence": {
+    "name": "Krea 2 Community License (outputs owned by the person; revocable, content-filtering and acceptable-use terms)",
+    "url": "https://huggingface.co/krea/Krea-2-Turbo"
+  },
+  "source": "The graph that painted the website example rooftops-spring on the user's Mac (.scratch/examples/graphs/rooftops-spring.request.json), with placeholders and without its ConditioningKrea2Rebalance node (a third-party custom node, Rebalance-Pack): the KSampler's positive is the CLIPTextEncode itself, as in Comfy-Org's template image_krea2_turbo_t2i (8 steps, cfg 1, euler, simple). Compared on 2026-10-06 at 768x432, seed 1001: with a prompt written the way AutoPaper's composer writes them (medium first, full-bleed, no 'wallpaper'), the stock graph followed the watercolour style as well as the rebalanced one.",
+  "requires": {
+    "diffusion_models": [
+      "krea2_turbo_fp8_scaled.safetensors"
+    ],
+    "text_encoders": [
+      "qwen3vl_4b_fp8_scaled.safetensors"
+    ],
+    "vae": [
+      "qwen_image_vae.safetensors"
+    ],
+    "custom_nodes": []
+  },
+  "tested_with": {
+    "comfyui": "0.36.0",
+    "device": "mps (Apple Silicon)",
+    "date": "2026-10-06"
+  },
+  "placeholders": {
+    "prompt": {
+      "node": "4",
+      "input": "text",
+      "class_type": "CLIPTextEncode",
+      "token": "{{prompt}}",
+      "type": "string"
+    },
+    "width": {
+      "node": "7",
+      "input": "width",
+      "class_type": "EmptyLatentImage",
+      "token": "{{width}}",
+      "type": "int"
+    },
+    "height": {
+      "node": "7",
+      "input": "height",
+      "class_type": "EmptyLatentImage",
+      "token": "{{height}}",
+      "type": "int"
+    },
+    "seed": {
+      "node": "8",
+      "input": "seed",
+      "class_type": "KSampler",
+      "token": "{{seed}}",
+      "type": "int"
+    }
+  },
+  "output": {
+    "node": "10",
+    "class_type": "SaveImage"
+  },
+  "negative_prompt": null,
+  "notes": [
+    "There is no negative prompt: the negative conditioning is ConditioningZeroOut of the positive (cfg 1.0), as in the official template.",
+    "Don't open the prompt with 'Desktop wallpaper': Krea 2 Turbo then paints a desktop screenshot (icons, a menu bar). AutoPaper's composer describes a full-bleed scene instead.",
+    "The CLIPLoader type 'krea2' needs a recent ComfyUI: AutoPaper offers this model only when the server lists that type.",
+    "Width and height must be multiples of 16. AutoPaper asks for at most 2048 a side and 2,965,760 pixels: the Qwen-Image VAE is 8x, and on Apple silicon VAEDecode fails past that (core/src/providers/comfyui.rs MODEL_LIMITS).",
+    "filename_prefix 'autopaper/wallpaper' makes ComfyUI write into output/autopaper/."
+  ],
+  "measured_seconds": {
+    "1920x1088_warm": "84-139 on M5 Max",
+    "2032x1312": "140 through the engine, M5 Max, 2026-10-06 (15.2-15.8 s a step)",
+    "768x432": "17-24 (ComfyUI time, M5 Max, 2026-10-06)"
+  }
+}

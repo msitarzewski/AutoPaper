@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- A console check of the core's C# bindings (Generated\autopaper_core.cs + autopaper_core.dll from
+       scripts\build-core-windows.ps1): opens an Engine on a temporary folder with the Demo providers, adds a
+       keyword, makes a wallpaper and renders it, exercising both callback interfaces (SecretStore,
+       ProgressObserver) and an async export. Run by scripts\windows-app.ps1 -Smoke. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.22000.0</TargetPlatformMinVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <!-- The generated bindings aren't ours to tidy. -->
+    <NoWarn>$(NoWarn);CS1591;CS8981;CS0108;CS8618;CS8625</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Generated\autopaper_core.cs" Link="Generated\autopaper_core.cs" />
+    <None Include="..\Generated\$(RuntimeIdentifier)\autopaper_core.dll" Link="autopaper_core.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

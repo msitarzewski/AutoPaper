@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Settings only the Linux app has. Everything AutoPaper itself decides with (keywords, cadence, providers,
+     budget, memory) lives in the core's database, shared in shape with the macOS and Windows apps. -->
+<schemalist>
+  <schema id="io.github.msitarzewski.AutoPaper" path="/io/github/msitarzewski/AutoPaper/">
+    <key name="notify-new-wallpapers" type="b">
+      <default>true</default>
+      <summary>Notify about new wallpapers</summary>
+      <description>Send a notification with Like and Dislike when a new wallpaper is set while the window isn't active.</description>
+    </key>
+    <key name="open-at-login" type="b">
+      <default>true</default>
+      <summary>Open at login</summary>
+      <description>Ask the Background portal to start AutoPaper in the background when you log in.</description>
+    </key>
+    <key name="first-run-done" type="b">
+      <default>false</default>
+      <summary>The welcome has been completed or skipped</summary>
+    </key>
+    <key name="history-layout" type="s">
+      <choices>
+        <choice value="grid"/>
+        <choice value="gallery"/>
+      </choices>
+      <default>'grid'</default>
+      <summary>History's layout</summary>
+      <description>Grid or Gallery, as last chosen in History's header bar.</description>
+    </key>
+    <key name="preferences-page" type="s">
+      <default>'general'</default>
+      <summary>The Preferences page shown last</summary>
+    </key>
+    <key name="window-width" type="i">
+      <default>920</default>
+      <summary>Window width</summary>
+    </key>
+    <key name="window-height" type="i">
+      <default>780</default>
+      <summary>Window height</summary>
+    </key>
+    <key name="window-maximized" type="b">
+      <default>false</default>
+      <summary>Window maximized</summary>
+    </key>
+    <key name="budget-notified-month" type="s">
+      <default>''</default>
+      <summary>The month (YYYY-MM) whose spent budget has been notified</summary>
+    </key>
+    <key name="comfyui-workflow-name" type="s">
+      <default>''</default>
+      <summary>The file name of the person's own ComfyUI workflow</summary>
+      <description>Kept after switching back to AutoPaper's workflow, so the person's own is one choice away.</description>
+    </key>
+    <key name="comfyui-workflow-text" type="s">
+      <default>''</default>
+      <summary>The person's own ComfyUI workflow (API format)</summary>
+      <description>The engine holds only the workflow in use; this keeps the person's own while AutoPaper's is chosen.</description>
+    </key>
+    <key name="own-wallpaper" type="a{ss}">
+      <default>{}</default>
+      <summary>The person's own wallpaper, while AutoPaper's is showing</summary>
+      <description>GNOME's background settings as they were before AutoPaper set one, put back when AutoPaper quits or the person chooses Restore my wallpaper (pausing keeps AutoPaper's showing). Empty while the person's own is showing.</description>
+    </key>
+    <key name="own-wallpaper-set" type="s">
+      <default>''</default>
+      <summary>AutoPaper's picture as it set it</summary>
+      <description>The Wallpaper portal's copy (~/.config/background) right after AutoPaper last set it: modification time, size and inode. A copy that differs is another app's picture, so the person's own isn't put back over it.</description>
+    </key>
+    <key name="recent-providers" type="a{ss}">
+      <default>{}</default>
+      <summary>Each provider's last model and server address</summary>
+      <description>Kept while another provider is chosen ("painting.ComfyUi.address"), so choosing it again brings them back.</description>
+    </key>
+    <key name="key-problem-notified" type="b">
+      <default>false</default>
+      <summary>A missing or rejected key has been notified (cleared when a wallpaper is made)</summary>
+    </key>
+  </schema>
+</schemalist>

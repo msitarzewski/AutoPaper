@@ -1,0 +1,40 @@
+[package]
+name = "autopaper-linux"
+description = "AutoPaper for Linux: GTK 4 + libadwaita, following the GNOME HIG (a tray on KDE and other desktops)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+build = "build.rs"
+
+# `autopaper-gtk`, not `autopaper`: that name is the developer CLI's (cli/).
+[[bin]]
+name = "autopaper-gtk"
+path = "src/main.rs"
+
+[features]
+default = ["tray"]
+# The StatusNotifierItem tray (ksni), shown only when the desktop isn't GNOME. A GNOME-only build (Flatpak for
+# GNOME) can leave it out with `--no-default-features`.
+tray = ["dep:ksni"]
+
+[dependencies]
+autopaper-core.workspace = true
+# Versions verified 2026-10-05 (docs/research/rust-linux.md): Ubuntu 26.04 / Fedora 44 ship GTK 4.22 and
+# libadwaita 1.9, so the newest APIs used are GTK 4.22 (`gnome_50`) and libadwaita 1.9.
+gtk = { package = "gtk4", version = "0.11.5", features = ["gnome_50"] }
+adw = { package = "libadwaita", version = "0.9.2", features = ["v1_9", "gtk_v4_22"] }
+# Portals: Wallpaper (SetWallpaperFile), Background (run in the background + autostart), host-app registration.
+# `gtk4` lets portal dialogs (the one-time "Allow AutoPaper to set backgrounds?") sit on the window.
+ashpd = { version = "0.13.13", default-features = false, features = ["tokio", "wallpaper", "background", "gtk4"] }
+# Secret Service on the host; an encrypted file keyed by the Secret portal inside Flatpak.
+oo7 = "0.6.0"
+ksni = { version = "0.3.6", optional = true }
+tokio = { version = "1.53.2", features = ["rt-multi-thread", "sync", "time"] }
+async-channel = "2"
+# Reads a person's own ComfyUI workflow when it's chosen (the model it loads, or why it can't be used), as the core
+# reads it when it paints. Already in the workspace through the core.
+serde_json = "1"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }

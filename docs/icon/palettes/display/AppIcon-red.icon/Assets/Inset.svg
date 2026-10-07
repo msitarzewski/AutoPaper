@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <g transform="translate(512 512) scale(1.3664) translate(-512 -512)">
+  <!-- Inset rim: a thin ring just inside the bezel's screen opening, coloured as a shadow that is deepest at
+       the top, so the screen reads as recessed into the bezel (as in GlassPowerTools' rendered display). -->
+  <g transform="translate(0 55)">
+    <path fill="#fff" fill-rule="evenodd" d="M303.4 274.4H719A20 20 0 0 1 739 294.4V527.1A20 20 0 0 1 719 547.1H303.4A20 20 0 0 1 283.4 527.1V294.4A20 20 0 0 1 303.4 274.4ZM305.4 283.4A13 13 0 0 0 292.4 296.4V525.1A13 13 0 0 0 305.4 538.1H717A13 13 0 0 0 730 525.1V296.4A13 13 0 0 0 717 283.4Z"/>
+  </g>
+  </g>
+</svg>

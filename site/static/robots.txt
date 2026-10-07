@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://msitarzewski.github.io/AutoPaper/sitemap.xml

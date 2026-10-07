@@ -1,0 +1,16 @@
+[package]
+name = "autopaper-cli"
+description = "Developer CLI over the AutoPaper core (keys from .env)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "autopaper"
+path = "src/main.rs"
+
+[dependencies]
+autopaper-core.workspace = true
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros"] }

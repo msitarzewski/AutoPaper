@@ -1,0 +1,136 @@
+name: CI
+
+# The shared Rust core on all three systems, and each app's build: macOS (unsigned), Linux (GTK 4.22 and libadwaita
+# 1.9, from Ubuntu 26.04) and Windows (WinUI, x64). Signed downloads are made by the release scripts, not here.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+          GITLEAKS_ENABLE_COMMENTS: false
+
+  core:
+    name: Core (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-26, windows-2025]
+    runs-on: ${{ matrix.os }}
+    env:
+      # Windows x64: aws-lc-sys (TLS) uses its prebuilt NASM objects, as scripts/build-core-windows.ps1 does.
+      AWS_LC_SYS_PREBUILT_NASM: 1
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Clippy
+        run: cargo clippy -p autopaper-core -p autopaper-cli --all-targets --locked -- -D warnings
+      - name: Tests
+        run: cargo test -p autopaper-core -p autopaper-cli --locked
+
+  macos-app:
+    name: macOS app (unsigned)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Core as an XCFramework, and a Swift smoke test
+        run: scripts/build-xcframework.sh --smoke
+      - name: Generate project
+        working-directory: apps/macos
+        run: brew install xcodegen && xcodegen generate
+      - name: Build and test the app (unsigned)
+        run: >
+          xcodebuild -project apps/macos/AutoPaper.xcodeproj -scheme AutoPaper
+          -configuration Debug -derivedDataPath build/ci -destination platform=macOS
+          CODE_SIGNING_ALLOWED=NO test
+
+  linux-app:
+    name: Linux app (GTK)
+    runs-on: ubuntu-latest
+    # The app needs GTK 4.22 and libadwaita 1.9 (GNOME 50), newer than the runner's own Ubuntu has.
+    container: ubuntu:26.04
+    steps:
+      - name: Build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install --yes --no-install-recommends build-essential ca-certificates curl git pkg-config \
+            libgtk-4-dev libadwaita-1-dev libglib2.0-bin desktop-file-utils appstream
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Clippy
+        run: cargo clippy -p autopaper-linux --all-targets --locked -- -D warnings
+      - name: Build
+        run: cargo build -p autopaper-linux --locked
+      - name: Tests
+        run: cargo test -p autopaper-linux --locked
+      - name: Desktop entry and AppStream metadata
+        run: |
+          desktop-file-validate apps/linux/data/io.github.msitarzewski.AutoPaper.desktop
+          appstreamcli validate --no-net apps/linux/data/io.github.msitarzewski.AutoPaper.metainfo.xml
+
+  windows-app:
+    name: Windows app (WinUI, x64)
+    runs-on: windows-2025
+    env:
+      AWS_LC_SYS_PREBUILT_NASM: 1
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: uniffi-bindgen-cs (matches the core's UniFFI 0.31)
+        run: cargo install uniffi-bindgen-cs --git https://github.com/NordSecurity/uniffi-bindgen-cs --tag v0.11.0+v0.31.0 --locked
+      - name: Core DLL and C# bindings
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-core-windows.ps1 -Arch x64
+      - name: Bindings check (the Demo engine through C#)
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows-app.ps1 -Smoke -Arch x64
+      - name: Build the app
+        run: dotnet build apps\windows\AutoPaper\AutoPaper.csproj -c Release -p:Platform=x64 -nologo
+      - name: NuGet packages, with their dependencies (for THIRD-PARTY-NOTICES.md)
+        run: dotnet list apps\windows\AutoPaper\AutoPaper.csproj package --include-transitive

@@ -1,0 +1,245 @@
+<!--
+title: Reference
+description: Every AutoPaper setting with its default and range, the limits, how ideas are written, remembered, echoed and painted, what's stored where, and the Siri and Shortcuts actions.
+-->
+<article class="doc">
+  <h1>Reference</h1>
+  <p class="intro">How AutoPaper works, with the numbers. Every figure here is a value in AutoPaper’s <a href="https://github.com/msitarzewski/AutoPaper/tree/main/core/src">source code</a>, the same on macOS, Windows and Linux unless it says otherwise. The <a href="privacy.html">Privacy</a> and <a href="network.html">Network</a> pages cover what is sent where.</p>
+  <p>These are the values in AutoPaper 0.1.0.</p>
+
+  <nav class="toc" aria-label="On this page">
+    <strong>On this page</strong>
+    <ol>
+      <li><a href="#settings">Settings</a></li>
+      <li><a href="#moods">Moods and keywords</a></li>
+      <li><a href="#writing">Writing a scene</a></li>
+      <li><a href="#memory">Memory</a></li>
+      <li><a href="#echoes">Echoes</a></li>
+      <li><a href="#taste">Taste</a></li>
+      <li><a href="#painting">Painting and sizes</a></li>
+      <li><a href="#display">Putting it on screen</a></li>
+      <li><a href="#schedule">The schedule, failures and the budget</a></li>
+      <li><a href="#timings">Time estimates</a></li>
+      <li><a href="#storage">What’s stored, and where</a></li>
+      <li><a href="#accessibility">Accessibility</a></li>
+      <li><a href="#automation">Siri and Shortcuts</a></li>
+      <li><a href="#developers">For developers</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="settings">Settings</h2>
+  <p>On a Mac, <strong>Settings…</strong> in the menu (<kbd>⌘</kbd> <kbd>,</kbd>), with panes General, Providers, Accounts, Memory, Budget and About. On Windows, <strong>Settings</strong> in the navigation pane, with the same pages (Keys for Accounts). On Linux, <strong>Preferences</strong> (<kbd>Ctrl</kbd> <kbd>,</kbd>), with General, Providers, Keys, Memory and Budget; About is in the main menu. Each reopens where you left it.</p>
+
+  <h3 id="general">General</h3>
+  <div class="table-wrap stack wrap-heads"><table role="table">
+    <caption class="sr-only">General settings, their defaults and choices</caption>
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Setting</th><th scope="col" role="columnheader">Default</th><th scope="col" role="columnheader">Choices and notes</th></tr></thead>
+    <tbody role="rowgroup">
+      <tr role="row"><th scope="row" role="rowheader">New wallpaper</th><td role="cell" data-label="Default">Every day</td><td role="cell" data-label="Choices and notes">Every hour, Every 3 hours, Every 6 hours, Every 12 hours, Every day, Every week, Only when I ask.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Pause new wallpapers</th><td role="cell" data-label="Default">Off</td><td role="cell" data-label="Choices and notes">No new ones on the schedule; New Wallpaper Now still works. On a Mac the current wallpaper stays up; on Windows and Linux, pausing puts your own wallpaper back.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Replace wallpapers I dislike</th><td role="cell" data-label="Default">On</td><td role="cell" data-label="Choices and notes">Disliking the wallpaper on your desktop makes a new one straight away, within the budget.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">When a new one can’t be made</th><td role="cell" data-label="Default">Bring back one I liked</td><td role="cell" data-label="Choices and notes">Or <em>Keep the current one</em>. For when you’re offline, a provider is down, or the month’s budget is spent.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Show wallpapers (macOS)</th><td role="cell" data-label="Default">Over my wallpaper</td><td role="cell" data-label="Choices and notes">Or <em>As my wallpaper</em>. See <a href="#display">Putting it on screen</a>.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Your own wallpaper</th><td role="cell" data-label="Default">—</td><td role="cell" data-label="Choices and notes"><strong>Restore My Wallpaper</strong>: your own wallpaper again until AutoPaper’s next new one. On Windows also <strong>Turn Windows Spotlight back on</strong>, when Spotlight was yours. On Linux it’s in the main menu and the tray.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Lock screen</th><td role="cell" data-label="Default">On, where there’s a choice</td><td role="cell" data-label="Choices and notes">macOS: no setting, as apps can’t set the lock screen picture on its own; it shows AutoPaper’s wallpapers only with As my wallpaper. Windows: <em>Also set the lock screen</em>, unless your organisation manages it. GNOME: a note (its lock screen always shows the desktop wallpaper). Other Linux desktops: a switch.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Open at login</th><td role="cell" data-label="Default">Off on macOS and Windows; on on Linux</td><td role="cell" data-label="Choices and notes">Windows calls it <em>Open AutoPaper when I sign in</em>.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Show in menu bar (macOS)</th><td role="cell" data-label="Default">On</td><td role="cell" data-label="Choices and notes">When off, AutoPaper appears in the Dock instead.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Notify me about new wallpapers</th><td role="cell" data-label="Default">Off on macOS; on on Windows and Linux</td><td role="cell" data-label="Choices and notes">See <a href="help.html#notifications">Notifications</a>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 id="providers">Providers</h3>
+  <p>Two groups, <strong>Writing ideas</strong> and <strong>Painting</strong>, each with these settings.</p>
+  <div class="table-wrap stack wrap-heads"><table role="table">
+    <caption class="sr-only">Providers settings, their defaults and choices</caption>
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Setting</th><th scope="col" role="columnheader">Default</th><th scope="col" role="columnheader">Choices and notes</th></tr></thead>
+    <tbody role="rowgroup">
+      <tr role="row"><th scope="row" role="rowheader">Provider</th><td role="cell" data-label="Default">Demo</td><td role="cell" data-label="Choices and notes">Writing: OpenAI, Google Gemini, Ollama, OpenAI-compatible, Demo. Painting: OpenAI, Google Gemini, OpenAI-compatible, ComfyUI, Demo.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Server address</th><td role="cell" data-label="Default">Ollama <code>http://127.0.0.1:11434</code>; ComfyUI <code>http://127.0.0.1:8188</code>; OpenAI-compatible: none, it must be given</td><td role="cell" data-label="Choices and notes">For Ollama, OpenAI-compatible and ComfyUI. <code>https</code> to any address; plain <code>http</code> only to this computer or your local network (loopback, <code>.local</code>, private and link-local addresses). No user name or password in the address. An OpenAI-compatible address with no path gets <code>/v1</code>.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Workflow (ComfyUI)</th><td role="cell" data-label="Default">AutoPaper’s</td><td role="cell" data-label="Choices and notes">Or <em>Your own…</em>: a workflow exported with Export (API), with <code>{{prompt}}</code>, and optionally <code>{{width}}</code>, <code>{{height}}</code> and <code>{{seed}}</code>. On Windows, at most 1 MB.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Model</th><td role="cell" data-label="Default">Default</td><td role="cell" data-label="Choices and notes">What the provider lists, with <strong>Refresh</strong>. Default is <code>gpt-6-luna</code> / <code>gpt-image-2.5-flare</code> for OpenAI; Gemini 3.5 Flash-Lite / Nano Banana 2 (<code>gemini-3.1-flash-image</code>) for Gemini; the first model for Ollama and OpenAI-compatible servers; Z-Image Turbo for ComfyUI. On Windows the model can also be typed.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Painting quality</th><td role="cell" data-label="Default">High</td><td role="cell" data-label="Choices and notes">Standard or High. OpenAI: <code>medium</code> or <code>high</code>. Gemini: 2K or 4K.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Test</th><td role="cell" data-label="Default">—</td><td role="cell" data-label="Choices and notes">Checks the address, the key and the model list with one small request. Waits until a needed key is there.</td></tr>
+    </tbody>
+  </table></div>
+  <p>With a local provider, Providers also helps install it (Brew Browser on a Mac, and for Ollama on Linux; each project’s own installer on Windows; ComfyUI’s guide on Linux). Wherever Google is chosen, it says: <em>“A free Gemini key may let Google use what you send to improve its products; a paid project doesn’t.”</em> Once a model has made a wallpaper, Providers shows how long one takes on your computer.</p>
+
+  <h3 id="keys">Accounts (Keys)</h3>
+  <p><strong>OpenAI API key</strong>, <strong>Google Gemini API key</strong>, and <strong>Key for</strong> the OpenAI-compatible server’s address (only if it asks for one). Saved as you type, half a second after you stop on a Mac, to the Keychain (service <code>com.autopaper.credentials</code>), Credential Manager (<code>AutoPaper:…</code>, kept on this PC only) or the Secret Service. An empty field removes the key. Each has a <strong>Get a key</strong> link.</p>
+
+  <h3 id="memory-settings">Memory</h3>
+  <div class="table-wrap stack wrap-heads"><table role="table">
+    <caption class="sr-only">Memory settings, their defaults and choices</caption>
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Setting</th><th scope="col" role="columnheader">Default</th><th scope="col" role="columnheader">Choices and notes</th></tr></thead>
+    <tbody role="rowgroup">
+      <tr role="row"><th scope="row" role="rowheader">What AutoPaper has learned</th><td role="cell" data-label="Default">—</td><td role="cell" data-label="Choices and notes">Up to 6 things you’ve tended to like and 6 you’ve tended to dislike, across every mood. <strong>Reset What It Learned…</strong> forgets them.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Quiet period</th><td role="cell" data-label="Default">6 months</td><td role="cell" data-label="Choices and notes">1 month, 3 months, 6 months, 1 year, 2 years. See <a href="#memory">Memory</a>.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Echoes</th><td role="cell" data-label="Default">Sometimes</td><td role="cell" data-label="Choices and notes">Off, Rarely (5%), Sometimes (12%), Often (25%): the chance that a scheduled wallpaper is an echo, when one is possible.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Memory</th><td role="cell" data-label="Default">—</td><td role="cell" data-label="Choices and notes"><em>Full</em>, or <em>Reduced</em> when the bundled model is missing.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Keep up to</th><td role="cell" data-label="Default">2 GB</td><td role="cell" data-label="Choices and notes">256 MB, 512 MB, 1 GB, 2 GB, 5 GB of images, with how much is in use.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Clear History…</th><td role="cell" data-label="Default">—</td><td role="cell" data-label="Choices and notes">Keep memory (descriptions stay, so repeats are still avoided; History and Now are empty) or clear memory too (taste as well). Moods, settings and spending stay. Your desktop keeps its picture either way.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 id="budget-settings">Budget</h3>
+  <div class="table-wrap stack wrap-heads"><table role="table">
+    <caption class="sr-only">Budget settings, their defaults and choices</caption>
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Setting</th><th scope="col" role="columnheader">Default</th><th scope="col" role="columnheader">Choices and notes</th></tr></thead>
+    <tbody role="rowgroup">
+      <tr role="row"><th scope="row" role="rowheader">Monthly budget</th><td role="cell" data-label="Default">$5</td><td role="cell" data-label="Choices and notes">No limit, $1, $2, $5, $10, $20, or your own amount: any amount on a Mac; $1 to $1,000 on Windows; $0.50 to $1,000 on Linux. US dollars, by calendar month in UTC.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">This month</th><td role="cell" data-label="Default">—</td><td role="cell" data-label="Choices and notes">Spent so far, each wallpaper’s estimated cost, a month at your schedule, wallpapers made. Estimated from the providers’ published prices as of October 5, 2026.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 id="about">About</h3>
+  <p>The version and build, a one-line description, and “MIT · © 2026 Michael Sitarzewski”.</p>
+  <!-- TODO: About's Website · Privacy · Help links live in the apps, which add them once the site is published. -->
+
+  <h2 id="moods">Moods and keywords</h2>
+  <div class="table-wrap stack wrap-heads"><table role="table">
+    <caption class="sr-only">Limits and defaults for moods and keywords</caption>
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">What</th><th scope="col" role="columnheader">Limit or default</th></tr></thead>
+    <tbody role="rowgroup">
+      <tr role="row"><th scope="row" role="rowheader">Mood name</th><td role="cell" data-label="Limit or default">1 to 40 characters, unique (ignoring case). New moods are “New mood”; a duplicate is “<em>name</em> copy”.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Number of moods</th><td role="cell" data-label="Limit or default">No limit; at least one, so the last can’t be deleted.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Keywords per mood</th><td role="cell" data-label="Limit or default">Up to 64, each up to 40 characters, unique within the mood (ignoring case). New ones are Must.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Surprise</th><td role="cell" data-label="Limit or default">0 to 100; new moods start at 35. Faithful below 25, Fresh below 50, Adventurous below 75, Wild from 75.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Shared by every mood</th><td role="cell" data-label="Limit or default">The schedule, providers, budget, quiet period, echoes setting, memory and taste.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The first mood in an older library is named from its first two keywords that aren’t Avoids (“Rain, Beach”), otherwise “My mood”. Switching moods makes nothing by itself. Echoes are three times as likely to come from the current mood’s wallpapers.</p>
+
+  <h2 id="writing">Writing a scene</h2>
+  <ol>
+    <li>The writer is sent the current mood’s keywords and Surprise, up to 20 recent wallpapers’ descriptions (“don’t repeat these”), up to 6 liked and 6 disliked things, and your language. It’s asked for <strong>four</strong> ideas in one answer, each with a title (at most 60 characters), a one-line description, the place, what’s in it, the time of day, weather, season, mood, palette, style, composition, and the prompt (at most 2,500 characters).</li>
+    <li>The temperature is 0.4 + 0.8 × Surprise, where the model accepts one. Ideas of its own: none when Faithful, up to 1 when Fresh, 2 when Adventurous, 3 when Wild.</li>
+    <li>Each idea is checked: every Must in the prompt, no Avoid anywhere in the prompt, title or description, nothing empty, nothing too long.</li>
+    <li>Each valid idea is scored: novelty × (1 − 0.3 × Surprise) + taste × (1 − 0.6 × Surprise) + a random amount up to 0.3 × Surprise. The best one that isn’t too close to anything you’ve had wins.</li>
+    <li>If none is new enough, the writer is asked again, at most twice, naming up to 8 past wallpapers it came too close to; then the least similar valid idea is taken. If asking again doesn’t help, it stops early. When 3 of a mood’s last 5 wallpapers had to be taken that way, AutoPaper says your keywords are narrow.</li>
+    <li>If the writer or the painter refuses an idea, it’s asked once for a gentler, plainly described scene; a second refusal is reported.</li>
+  </ol>
+  <p>Titles and descriptions are written in your language; everything else, and always the prompt, in English. Prompts ask for a landscape picture without text, letters, logos, watermarks or interface, with calm space where desktop icons sit, and never mention an Avoid.</p>
+
+  <h2 id="memory">Memory</h2>
+  <ul>
+    <li>Each wallpaper is remembered as an embedding of its title, description, place, contents, time, weather, season, mood and palette, made on your computer by <strong>bge-small-en-v1.5</strong> (BAAI, MIT licence, 384 dimensions), which is part of the app.</li>
+    <li>A new idea is compared with every past wallpaper: similarity × a weight for its age, which is 1 within the quiet period and then halves every half quiet period. At <strong>0.79</strong> or more, it’s too close.</li>
+    <li>Memory is kept when images are cleared to save space, and when history is cleared with <em>Keep memory</em>.</li>
+    <li>Without the model, a simpler word-based comparison is used (threshold 0.70), which catches only near-identical ideas, and Settings → Memory says <em>Reduced</em>.</li>
+    <li>Each image also gets a 64-bit picture fingerprint; a near-copy of a recent image is noted in the log, not painted again (that would be billed twice).</li>
+  </ul>
+
+  <h2 id="echoes">Echoes</h2>
+  <ul>
+    <li><strong>Which wallpapers can echo:</strong> ones older than the quiet period, not disliked, not cleared from history, and with no echo in their line within the quiet period. Liked ones are three times as likely; older ones more likely (twice as likely at a year old, up to four times at three years); ones from the current mood three times as likely.</li>
+    <li><strong>How often:</strong> the Echoes setting’s chance, rolled for each scheduled wallpaper when one can echo. <strong>Make an Echo</strong> in History works on any wallpaper, whenever you like.</li>
+    <li><strong>What changes:</strong> 2 things below Surprise 50, 3 from 50: weather, time of day, season, the passage of time (decay or renewal), viewpoint or distance, era or medium. Your Avoids still apply; the mood’s Musts and Maybes don’t.</li>
+    <li><strong>What counts as an echo:</strong> similar to its original (0.72 or more) but not a copy (below 0.93), with at least one of the asked-for changes visible, and new against everything else. Each is linked to its original, with a note saying what changed. A scheduled echo that doesn’t work out becomes an ordinary new wallpaper.</li>
+  </ul>
+
+  <h2 id="taste">Taste</h2>
+  <ul>
+    <li>Like or Dislike adds one to a tally for each thing the wallpaper was made of: its place, contents, palette, mood, style, time of day, weather, season and the keywords used. Changing your mind undoes the old rating; choosing the same again clears it.</li>
+    <li>Tallies halve every year.</li>
+    <li>Something becomes a hint to the writer (“tends to like”, “tends to dislike”) once about three ratings agree: at least 65% liked, or at most 35%. Up to 6 of each are sent.</li>
+    <li>Taste is a hint, never a rule, and counts for less the higher Surprise is. Avoid is the rule.</li>
+  </ul>
+
+  <h2 id="painting">Painting and sizes</h2>
+  <p>You don’t choose a size: AutoPaper asks for the one closest to your main display’s shape, as large as the painter allows and no larger than your display. Until the app has told it the display’s size, it aims at 3840 × 2160.</p>
+  <div class="table-wrap stack wrap-heads"><table role="table">
+    <caption class="sr-only">The sizes each painter is asked for</caption>
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Painter</th><th scope="col" role="columnheader">Sizes</th></tr></thead>
+    <tbody role="rowgroup">
+      <tr role="row"><th scope="row" role="rowheader">OpenAI (<code>gpt-image-2</code> and later)</th><td role="cell" data-label="Sizes">3840 × 2160, 2560 × 1440, 1920 × 1088, 3632 × 2272, 2560 × 1600, 3840 × 1648, 3440 × 1440, and portrait 2160 × 3840 and 2272 × 3632</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Google Gemini</th><td role="cell" data-label="Sizes">The nearest of 16:9, 21:9, 3:2, 4:3, 1:1, 3:4, 2:3 and 9:16, at 2K (Standard) or 4K (High): 2752 × 1536 or 5504 × 3072 for 16:9. Nano Banana 2 Lite paints at 1K</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">ComfyUI: Z-Image Turbo, Krea 2 Turbo</th><td role="cell" data-label="Sizes">Up to 2048 px a side and 2,965,760 pixels, in steps of 16: 2048 × 1152 for 16:9, 2032 × 1312 for a 16:10 Retina display</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">ComfyUI: Qwen-Image 2.1</th><td role="cell" data-label="Sizes">Up to 2752 px a side and 4,300,800 pixels: 2576 × 1664 for a 16:10 Retina display</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">ComfyUI: your own workflow</th><td role="cell" data-label="Sizes">Up to 2048 px a side and 1920 × 1088’s pixels, unless it loads one of the models above</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">OpenAI-compatible</th><td role="cell" data-label="Sizes">Any size in steps of 64, up to 2048 px a side and 4,194,304 pixels</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Demo</th><td role="cell" data-label="Sizes">Up to 3840 × 2160</td></tr>
+    </tbody>
+  </table></div>
+  <p>The pixel cap for Z-Image Turbo and Krea 2 Turbo is where their image decoder fails in ComfyUI on Apple silicon; it applies on every computer, since AutoPaper can’t tell what a ComfyUI server runs on. The bundled workflows take 8 steps (Z-Image Turbo, Krea 2 Turbo) and 25 (Qwen-Image 2.1).</p>
+  <p>Every image is checked before use: PNG, JPEG or WebP (judged from the file itself), at most 50 MB, 64 megapixels and 16,384 px a side, turned upright if its camera data says so, and flattened if it has transparency.</p>
+
+  <h2 id="display">Putting it on screen</h2>
+  <ul>
+    <li><strong>Every display gets the same wallpaper</strong>, made for it: cropped from the centre to the display’s shape, scaled to its exact pixels (Lanczos), lightly sharpened only when enlarged more than 1.25 times, and saved as a JPEG at quality 90 without metadata. On Linux, the Wallpaper portal takes one picture for every monitor, made for the largest.</li>
+    <li><strong>macOS, Over my wallpaper</strong> (the default): one borderless, click-through window per display, just above the desktop picture and below the icons, on every Space. Wallpapers cross-fade in 1.6 seconds (0.3 with Reduce Motion). Your desktop picture is never changed; quitting closes the windows.</li>
+    <li><strong>macOS, As my wallpaper</strong>: sets each display’s desktop picture, after noting your own for each, so it shows in Mission Control and on the lock screen. macOS doesn’t let apps put back its moving wallpapers exactly.</li>
+    <li><strong>Windows</strong>: sets each monitor’s wallpaper, positioned to fill, and the lock screen. Before the first, it keeps a copy of each monitor’s picture, its position and colour, and whether it was a slideshow or Windows Spotlight, and puts them back when AutoPaper quits, is paused, or you choose Restore my wallpaper.</li>
+    <li><strong>Linux</strong>: through the desktop’s Wallpaper portal, which may ask once. On GNOME (outside Flatpak), your own wallpaper settings are recorded first and put back when AutoPaper quits, is paused, or you choose Restore my wallpaper.</li>
+  </ul>
+
+  <h2 id="schedule">The schedule, failures and the budget</h2>
+  <ul>
+    <li>The schedule counts from the last new wallpaper, of any kind: on the schedule, New Wallpaper Now, a disliked one’s replacement, or an echo. Bringing back an old one doesn’t count. A scheduled wallpaper starts early by its estimated time (at most half an interval), so it’s ready when due.</li>
+    <li>The apps check when it’s due, and again when the computer wakes or is unlocked.</li>
+    <li>After a failure, the next try waits 10 minutes, then 20, 40, and 60, or longer if the provider asks (at most an hour). The first failure in a row that isn’t yours to fix brings back a wallpaper you liked, unless you chose <em>Keep the current one</em>. A painting ComfyUI couldn’t do waits for the next scheduled time instead. Cancelling isn’t a failure.</li>
+    <li>Before each paid request, its estimated cost is checked against what’s left of the month’s budget. Each paid request counts as soon as it’s answered, even if the wallpaper doesn’t work out. Local providers, OpenAI-compatible servers and Demo cost nothing.</li>
+    <li>Estimated prices (as of October 5, 2026): OpenAI’s default painter at 3840 × 2160 about $0.026 (Standard) or $0.10 (High); Nano Banana 2 about $0.10 at 2K and $0.15 at 4K. Writing a scene costs about a tenth of a cent with OpenAI’s default writer, and about half a cent with Gemini’s.</li>
+  </ul>
+
+  <h2 id="timings">Time estimates</h2>
+  <ul>
+    <li>Every finished request to a provider is recorded on your computer: writing or painting, provider, server address (for your own servers), model, size, steps, and how many seconds it took. The newest 50 are kept for each provider and model. They’re never sent.</li>
+    <li>An estimate is the median of comparable records, each weighted by age (a 30-day-old one counts half) and scaled to the size and steps wanted. With no records, there’s no estimate.</li>
+    <li>While painting with ComfyUI, progress follows its steps, at the pace measured in that painting; otherwise it follows the estimate, showing at most 95%.</li>
+    <li>ComfyUI jobs have no fixed time limit. One is stopped after 3 minutes without progress following a step (or 4 times its slowest step), 10 minutes in a step-less part, or past the longer of 30 minutes and 3 times its estimate. Hosted writers have 60 seconds and painters 240; Ollama and OpenAI-compatible writers 180 seconds, painters 300. The <a href="network.html">Network</a> page has every limit.</li>
+  </ul>
+
+  <h2 id="storage">What’s stored, and where</h2>
+  <div class="table-wrap stack wrap-heads"><table role="table">
+    <caption class="sr-only">What AutoPaper stores, and where</caption>
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">What</th><th scope="col" role="columnheader">Where</th></tr></thead>
+    <tbody role="rowgroup">
+      <tr role="row"><th scope="row" role="rowheader">Moods, keywords, settings, history, memory, taste, spending and timings</th><td role="cell" data-label="Where"><code>autopaper.sqlite3</code> in the data folder</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Wallpapers as delivered</th><td role="cell" data-label="Where"><code>images/</code><em>year</em><code>/</code> in the data folder; the oldest go first past <em>Keep up to</em>, never liked ones or the one on the desktop</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Thumbnails, 640 px wide</th><td role="cell" data-label="Where"><code>thumbs/</code>; kept when the original goes</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Wallpapers made for each display</th><td role="cell" data-label="Where"><code>renders/</code>; a cache, cleared first, except what’s on the desktop</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">The data folder</th><td role="cell" data-label="Where">macOS: <code>~/Library/Containers/com.autopaper/Data/Library/Application Support/AutoPaper</code>. Windows: the app’s <code>LocalState</code> folder. Linux: <code>~/.local/share/autopaper</code></td></tr>
+      <tr role="row"><th scope="row" role="rowheader">App preferences</th><td role="cell" data-label="Where">macOS: AutoPaper’s preferences, in the same container. Windows: the app’s settings. Linux: GSettings, <code>io.github.msitarzewski.AutoPaper</code></td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Keys</th><td role="cell" data-label="Where">Keychain, Credential Manager, Secret Service</td></tr>
+    </tbody>
+  </table></div>
+  <p>Failed attempts are kept 30 days, without images, then deleted. Everything else stays until you delete it. <a href="privacy.html#whats-stored-on-your-computer">Privacy</a> has the full list.</p>
+
+  <h2 id="accessibility">Accessibility</h2>
+  <p>AutoPaper aims for WCAG 2.2 AA as W3C’s <a href="https://www.w3.org/TR/wcag2ict-22/">WCAG2ICT</a> applies it to desktop software, and for Apple’s, Microsoft’s and GNOME’s accessibility guidelines. This site aims for WCAG 2.2 AA directly.</p>
+  <ul>
+    <li><strong>Spoken names:</strong> every control and image has one. Wallpapers are described by their one-line description and, for an echo, what changed; keywords say their weight (“rain, Must”); Surprise its value and band; moods whether they’re current (“Rainy beach, current mood”); Like and Dislike whether they’re on; progress its percentage and time left.</li>
+    <li><strong>Announcements:</strong> stages, problems and changes (a mood made current, a keyword moved) are announced politely.</li>
+    <li><strong>Keyboard:</strong> designed to work entirely from the keyboard, including reordering and every History action. See <a href="shortcuts.html">Keyboard shortcuts</a>.</li>
+    <li><strong>Colour:</strong> never the only sign. The current mood has a checkmark and the word; ratings and echoes have badges with words.</li>
+    <li><strong>Motion:</strong> wallpapers cross-fade. While one is painting, the picture in the window ripples (macOS) or a veil breathes (Windows) or fades in once (Linux); with reduced motion on, it holds still. New wallpapers can be paused.</li>
+    <li><strong>Contrast and transparency:</strong> standard controls throughout, so Increase Contrast, high-contrast themes and Reduce Transparency apply.</li>
+  </ul>
+  <p>Each app has been checked through its system’s accessibility interface (the macOS accessibility API, UI Automation on Windows, AT-SPI on Linux) in development builds. Full passes with VoiceOver, Narrator and Orca are still to come; if something is hard to use, please <a href="https://github.com/msitarzewski/AutoPaper/issues/new/choose">open an issue</a>.</p>
+
+  <h2 id="automation">Siri and Shortcuts</h2>
+  <p>Five App Intents on macOS, available to Siri (with ready-made phrases) and the Shortcuts app. Windows and Linux have none yet.</p>
+  <div class="table-wrap stack wrap-heads"><table role="table">
+    <caption class="sr-only">AutoPaper’s Siri and Shortcuts actions, their phrases and what they do</caption>
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Action</th><th scope="col" role="columnheader">Siri phrases</th><th scope="col" role="columnheader">What it does</th></tr></thead>
+    <tbody role="rowgroup">
+      <tr role="row"><th scope="row" role="rowheader">New Wallpaper</th><td role="cell" data-label="Siri phrases">“New wallpaper in AutoPaper”, “Make a new AutoPaper wallpaper”</td><td role="cell" data-label="What it does">Makes a new wallpaper from your current mood now and puts it on the desktop.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Like This Wallpaper</th><td role="cell" data-label="Siri phrases">“Like this AutoPaper wallpaper”, “I like this AutoPaper wallpaper”</td><td role="cell" data-label="What it does">Tells AutoPaper you like the wallpaper on the desktop, so it makes more like it.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Dislike This Wallpaper</th><td role="cell" data-label="Siri phrases">“Dislike this AutoPaper wallpaper”, “I don’t like this AutoPaper wallpaper”</td><td role="cell" data-label="What it does">Tells AutoPaper you don’t like it; with Replace Wallpapers I Dislike on, it makes a new one.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">What’s on My Desktop</th><td role="cell" data-label="Siri phrases">“Describe my AutoPaper wallpaper”, “Read the AutoPaper wallpaper”</td><td role="cell" data-label="What it does">Says what AutoPaper has put on the desktop, in words, and returns it as text for shortcuts.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Switch Mood</th><td role="cell" data-label="Siri phrases">“Switch AutoPaper to <em>Rainy beach</em>”, “Use the <em>Rainy beach</em> mood in AutoPaper”</td><td role="cell" data-label="What it does">Makes a mood current. Nothing is made right away.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Siri tends to answer questions itself, so the phrases are commands. In the Shortcuts app, any of these can have a keyboard shortcut of its own.</p>
+
+  <h2 id="developers">For developers</h2>
+  <p>Every decision lives in one Rust library, <code>autopaper-core</code>: composing, memory, echoes, taste, moods, the schedule, the budget, providers, the network rules, images and storage. The three apps are native (SwiftUI on macOS, WinUI 3 on Windows, GTK 4 and libadwaita on Linux) and use it through UniFFI, or directly on Linux. Each provider is one file in <a href="https://github.com/msitarzewski/AutoPaper/tree/main/core/src/providers"><code>core/src/providers/</code></a>. The core’s tests run with <code>cargo test</code>. See <a href="https://github.com/msitarzewski/AutoPaper/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+  <p>The repository includes <code>autopaper</code>, a command-line tool over the same core, with keys from a <code>.env</code> file:</p>
+  <pre><code>autopaper moods                      # the moods, the current one marked, with their keywords
+autopaper compose                    # one writing request: the ideas, their checks and scores
+autopaper generate                   # make a wallpaper now, with the progress an app shows
+autopaper models images              # what a Model menu lists for the painter
+autopaper --display 3840x2160 run    # what an app's timer does: make one if it's due
+autopaper simulate --days 1100       # years of wallpapers with stand-in providers: memory, echoes, taste</code></pre>
+  <p>The source is on <a href="https://github.com/msitarzewski/AutoPaper">GitHub</a>; its <a href="https://github.com/msitarzewski/AutoPaper#build-from-source">README</a> has the steps to build each app.</p>
+</article>

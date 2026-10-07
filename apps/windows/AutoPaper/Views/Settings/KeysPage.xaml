@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="AutoPaper.Views.Panes.KeysPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel
+            MaxWidth="{StaticResource PageMaxWidth}"
+            Padding="{StaticResource PagePadding}"
+            Spacing="{StaticResource SettingsCardSpacing}">
+            <BreadcrumbBar x:Name="Crumbs" Margin="0,0,0,12" AutomationProperties.HeadingLevel="Level1" />
+            <TextBlock
+                x:Uid="KeysIntro"
+                Margin="0,0,0,12"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource BodyTextBlockStyle}" />
+
+            <!-- Keys save as you type (no Save button), to Windows Credential Manager. Each status line is also said by
+                 the window when it changes (AppModel.Announce). -->
+            <toolkit:SettingsCard x:Name="OpenAiCard" x:Uid="KeyOpenAi">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8D7;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <toolkit:SettingsCard.Description>
+                    <StackPanel Spacing="2">
+                        <TextBlock x:Name="OpenAiStatus" TextWrapping="Wrap" />
+                        <HyperlinkButton x:Uid="KeyOpenAiGet" Padding="0" NavigateUri="https://platform.openai.com/api-keys" />
+                    </StackPanel>
+                </toolkit:SettingsCard.Description>
+                <PasswordBox x:Name="OpenAiKey" x:Uid="KeyOpenAiBox" Width="300" AutomationProperties.AutomationId="OpenAiKey" PasswordChanged="OnKeyChanged" />
+            </toolkit:SettingsCard>
+
+            <toolkit:SettingsCard x:Name="GoogleCard" x:Uid="KeyGoogle">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8D7;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <toolkit:SettingsCard.Description>
+                    <StackPanel Spacing="2">
+                        <TextBlock x:Name="GoogleStatus" TextWrapping="Wrap" />
+                        <TextBlock x:Uid="GeminiNoteShort" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                        <HyperlinkButton x:Uid="KeyGoogleGet" Padding="0" NavigateUri="https://aistudio.google.com/apikey" />
+                    </StackPanel>
+                </toolkit:SettingsCard.Description>
+                <PasswordBox x:Name="GoogleKey" x:Uid="KeyGoogleBox" Width="300" AutomationProperties.AutomationId="GoogleKey" PasswordChanged="OnKeyChanged" />
+            </toolkit:SettingsCard>
+
+            <!-- OpenAI-compatible servers: one key per server address, never sent to another one. -->
+            <TextBlock x:Uid="KeysCompatibleSection" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" AutomationProperties.HeadingLevel="Level2" />
+            <TextBlock
+                x:Name="CompatibleNone"
+                x:Uid="KeysCompatibleNone"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource BodyTextBlockStyle}" />
+            <StackPanel x:Name="CompatibleKeys" Spacing="{StaticResource SettingsCardSpacing}" />
+
+            <TextBlock
+                x:Name="Problem"
+                Margin="0,12,0,0"
+                Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                Style="{StaticResource BodyTextBlockStyle}"
+                Visibility="Collapsed" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -119,8 +119,10 @@ https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.0 (tag v0.1.0; commi
   Sparkle key done) then `gh release create`, then commit appcast LAST; Windows VM `windows-release.ps1 -Version X
   -CopyTo \\Mac\Home\Clean\autopaper` (needs az login in the VM, x64 .NET 8) then `scripts/publish-windows.sh X`;
   Linux push tag vX (CI Flatpak workflow) then `scripts/publish-flatpak.sh --tag vX`, upload `build/flatpak/release/*`.
-- Open: winget submission; Linux own-wallpaper restore inside Flatpak (picker design offered); extra empty Azure
-  subscription "Michael - App Signing"; VM leftovers (Downloads\test.appinstaller); real-key Sparkle update test.
+- Done 2026-10-07: real-key Sparkle update test in the macOS VM (fake 0.0.9 → the released 0.1.0 zip, real EdDSA key,
+  Gatekeeper-notarized, no get-task-allow); Windows VM leftovers removed.
+- Open: winget submission (optional; manifests in packaging/winget, the user opens the PR or asks); Linux own-wallpaper
+  restore inside Flatpak (picker design offered); extra empty Azure subscription "Michael - App Signing" (user: eh).
 
 ## Next (in order)
 1. The four release agents; review; the user's Artifact Signing account.

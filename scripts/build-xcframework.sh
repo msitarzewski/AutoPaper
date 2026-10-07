@@ -93,7 +93,9 @@ for target in "${TARGETS[@]}"; do
     log="$WORK/build-$target.log"
     rustup run stable cargo rustc -p autopaper-core --lib --release --target "$target" --crate-type staticlib \
         -- --print native-static-libs 2>&1 | tee "$log"
-    libs="$(sed -n 's/.*native-static-libs: //p' "$log" | tail -n 1)"
+    # Colour codes and carriage returns stripped: with CARGO_TERM_COLOR=always (CI), rustc's note ends in an
+    # escape sequence that would otherwise stick to the last library ("-lm" + ESC[0m).
+    libs="$(sed -e $'s/\x1b\\[[0-9;]*[A-Za-z]//g' -e $'s/\r//g' "$log" | sed -n 's/.*native-static-libs: //p' | tail -n 1)"
     [ -n "$libs" ] || die "rustc didn't say which native libraries $target needs (see $log)"
     NATIVE_LIBS="$NATIVE_LIBS $libs"
 done

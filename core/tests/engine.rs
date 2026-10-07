@@ -153,7 +153,8 @@ async fn keywords_to_a_stored_wallpaper_that_becomes_current() {
     assert!(autopaper_core::text::mentions(&generation.concept.prompt, "fog"));
     assert!(!autopaper_core::text::mentions(&generation.concept.prompt, "people"));
     assert!(exists(&generation.image_path) && exists(&generation.thumb_path));
-    assert!(generation.image_path.as_deref().unwrap().contains("/images/2026/"));
+    // Either separator: Windows paths use backslashes.
+    assert!(generation.image_path.as_deref().unwrap().replace('\\', "/").contains("/images/2026/"));
     assert_eq!((generation.width, generation.height), DISPLAY, "free sizes stop at the display's pixels");
     assert_eq!(generation.keywords.len(), 4);
     assert_eq!(generation.cost_microusd, 0);

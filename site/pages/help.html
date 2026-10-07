@@ -51,18 +51,18 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
   <h3 id="install-windows">Windows</h3>
   <p>Either way installs the same signed package:</p>
   <ul>
-    <li><strong>winget:</strong> in Terminal, <code>winget install msitarzewski.AutoPaper</code>. Update it with <code>winget upgrade msitarzewski.AutoPaper</code>, or <code>winget upgrade --all</code>.</li>
-    <li><strong>App Installer:</strong> download <a href="https://msitarzewski.github.io/AutoPaper/AutoPaper.appinstaller">AutoPaper.appinstaller</a> and open it. Windows’ App Installer shows what AutoPaper is and who signed it, installs it, and then keeps it up to date from the same file.</li>
+    <li><strong>winget:</strong> in Terminal, <code>winget install msitarzewski.AutoPaper</code>. It installs the package attached to each <a href="https://github.com/msitarzewski/AutoPaper/releases/latest">release</a> on GitHub. Update it with <code>winget upgrade msitarzewski.AutoPaper</code>, or <code>winget upgrade --all</code>.</li>
+    <li><strong>App Installer:</strong> download <a href="https://msitarzewski.com/app-updates/autopaper/AutoPaper.appinstaller">AutoPaper.appinstaller</a> and open it. Windows’ App Installer shows what AutoPaper is and who signed it, installs it from msitarzewski.com, the author’s own server, and then keeps it up to date from there.</li>
   </ul>
   <p>Then open AutoPaper from Start. It lives in the notification area. The <code>.msixbundle</code> package itself (x64 and Arm) is also attached to each <a href="https://github.com/msitarzewski/AutoPaper/releases/latest">release</a>.</p>
 
   <h3 id="install-linux">Linux</h3>
   <ul>
-    <li><strong>Flathub:</strong> install AutoPaper from <a href="https://flathub.org/apps/io.github.msitarzewski.AutoPaper">its Flathub page</a>, GNOME Software or KDE Discover, or with <code>flatpak install flathub io.github.msitarzewski.AutoPaper</code>.</li>
-    <li><strong>A file:</strong> each <a href="https://github.com/msitarzewski/AutoPaper/releases/latest">release</a> also has a <code>.flatpak</code> file; install it with <code>flatpak install --user</code> and the file’s name. It needs Flathub set up, for the GNOME runtime.</li>
+    <li><strong>One click:</strong> open <a href="https://msitarzewski.com/app-updates/autopaper/AutoPaper.flatpakref">AutoPaper.flatpakref</a>. GNOME Software or KDE Discover adds AutoPaper’s repository (the remote <code>autopaper</code>, on msitarzewski.com, the author’s own server) and installs AutoPaper from it. From a terminal: <code>flatpak install --from https://msitarzewski.com/app-updates/autopaper/AutoPaper.flatpakref</code>. Ubuntu ships neither Flatpak nor a store that opens that file: run <code>sudo apt install flatpak</code> first.</li>
+    <li><strong>A file:</strong> each <a href="https://github.com/msitarzewski/AutoPaper/releases/latest">release</a> also has a <code>.flatpak</code> file; install it with <code>flatpak install --user</code> and the file’s name. It sets up the same repository.</li>
   </ul>
-  <p>Then open AutoPaper from your apps. Flatpak keeps it up to date (GNOME Software, Discover or <code>flatpak update</code>); AutoPaper never checks for updates itself.</p>
-  <p>New versions reach winget and Flathub after each one’s own review, so they can trail a release on GitHub by a few days. If you’d rather build AutoPaper yourself, the <a href="https://github.com/msitarzewski/AutoPaper#build-from-source">README</a> has the steps for each system.</p>
+  <p>The GNOME runtime AutoPaper needs comes from Flathub’s runtime repository, which Flatpak sets up if you don’t have it. Then open AutoPaper from your apps. Flatpak keeps it up to date from AutoPaper’s repository (GNOME Software, Discover or <code>flatpak update</code>); AutoPaper never checks for updates itself.</p>
+  <p>New versions reach winget after Microsoft’s review, so they can trail a release on GitHub by a few days. If you’d rather build AutoPaper yourself, the <a href="https://github.com/msitarzewski/AutoPaper#build-from-source">README</a> has the steps for each system.</p>
 
   <h2 id="first-launch">The first launch</h2>
   <p>Until a provider other than Demo is set up, AutoPaper opens with a welcome: <em>Tell your computer what you’d like to see.</em> It has three steps.</p>
@@ -249,7 +249,7 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
     <li>Clear your keys in Settings → Accounts (Keys), which removes them from your Keychain, Credential Manager or keyring. Uninstalling doesn’t remove them by itself.</li>
     <li>Turn off <strong>Open at login</strong> in Settings → General.</li>
     <li>Quit AutoPaper and remove the app.</li>
-    <li>To remove its wallpapers, history and settings too: on a Mac, delete <code>~/Library/Containers/com.autopaper</code>; on Windows, uninstalling removes them; on Linux, <code>flatpak uninstall --delete-data io.github.msitarzewski.AutoPaper</code> removes the app with all of them (built from source: delete <code>~/.local/share/autopaper</code> and reset its settings with <code>gsettings reset-recursively io.github.msitarzewski.AutoPaper</code>).</li>
+    <li>To remove its wallpapers, history and settings too: on a Mac, delete <code>~/Library/Containers/com.autopaper</code>; on Windows, uninstalling removes them; on Linux, <code>flatpak uninstall --delete-data io.github.msitarzewski.AutoPaper</code> removes the app with all of them, and <code>flatpak remote-delete autopaper</code> removes its repository (built from source: delete <code>~/.local/share/autopaper</code> and reset its settings with <code>gsettings reset-recursively io.github.msitarzewski.AutoPaper</code>).</li>
   </ol>
   <p>A local ComfyUI keeps its own copies of what it painted, in its <code>output/autopaper/</code> folder; delete them there if you like.</p>
 

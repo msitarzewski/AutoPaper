@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-time (idempotent) setup on pipx for AutoPaper's update hosting at https://msitarzewski.com/app-updates/autopaper/:
-#   flatpak/                    the Flatpak repository (OSTree, GPG-signed), filled by scripts/linux-release.sh
-#   windows/                    the MSIX bundles, filled by scripts/windows-release.ps1
+#   flatpak/                    the Flatpak repository (OSTree, GPG-signed), filled by scripts/publish-flatpak.sh
+#   windows/                    the MSIX bundles, filled by scripts/publish-windows.sh
 #   AutoPaper.appinstaller      Windows' App Installer feed
 #   AutoPaper.flatpakref        one-click Linux install (adds the repository, so Flatpak keeps it updated)
 #

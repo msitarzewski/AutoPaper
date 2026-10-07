@@ -223,8 +223,8 @@ impl General {
         if !desktop::can_restore_wallpaper() {
             // Inside Flatpak and on desktops other than GNOME, AutoPaper can't read which wallpaper was there before
             // (docs/app-spec.md 3a): said here, rather than leaving the person to wonder where Restore my wallpaper is.
-            // In Flatpak the sandbox is the reason (no portal says which wallpaper is showing, and Flathub doesn't allow
-            // apps the host's settings), not the desktop.
+            // In Flatpak the sandbox is the reason (no portal says which wallpaper is showing, and AutoPaper's Flatpak
+            // doesn't ask for the host's settings, dconf), not the desktop.
             let reason = if desktop::is_sandboxed() {
                 "The Flatpak sandbox keeps your desktop's settings private, so AutoPaper can't bring back the wallpaper you \
                  had: quitting leaves its last one showing."

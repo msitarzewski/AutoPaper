@@ -5,7 +5,7 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <name>AutoPaper</name>
-  <!-- Flathub's quality guidelines: at most 35 characters, no leading article, no full stop. -->
+  <!-- Short for GNOME Software's tiles: at most 35 characters, no leading article, no full stop. -->
   <summary>New wallpapers from a few keywords</summary>
   <developer id="io.github.msitarzewski">
     <name>Michael Sitarzewski</name>
@@ -37,8 +37,9 @@
   <url type="bugtracker">https://github.com/msitarzewski/AutoPaper/issues</url>
   <url type="vcs-browser">https://github.com/msitarzewski/AutoPaper</url>
   <!-- Window screenshots of the Flatpak (GNOME 51 runtime) on GNOME's default settings, 2x: 2000x1400 windows plus their
-       shadow (GNOME's Alt+Print). The wallpapers in them were painted locally with ComfyUI (Z-Image Turbo). Pinned to the
-       release tag: Flathub's builders download each image when they build. -->
+       shadow (GNOME's Alt+Print). The wallpapers in them were painted locally with ComfyUI (Z-Image Turbo). GNOME
+       Software loads them from these URLs (AutoPaper's repository carries this AppStream data), so they're pinned to the
+       release tag. -->
   <screenshots>
     <screenshot type="default">
       <image>https://raw.githubusercontent.com/msitarzewski/AutoPaper/v0.1.0/packaging/flatpak/screenshots/1-now.png</image>

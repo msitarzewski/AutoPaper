@@ -1,17 +1,17 @@
 # AutoPaper for Linux as a Flatpak: GNOME runtime 51, built offline from the workspace with the Rust SDK extension.
+# It's published in AutoPaper's own repository, https://msitarzewski.com/app-updates/autopaper/flatpak (signed; the
+# GNOME runtime comes from Flathub): CI builds the bundles with scripts/linux-release.sh (.github/workflows/flatpak.yml)
+# and scripts/publish-flatpak.sh signs them into the repository from the Mac.
 #
-#   Local build and install, from the repository root (scripts/linux-release.sh builds the release and its bundle):
-#     flatpak run org.flatpak.Builder --force-clean --disable-rofiles-fuse --user --install \
-#       --state-dir=build/flatpak/state build/flatpak/builddir packaging/flatpak/io.github.msitarzewski.AutoPaper.yml
+#   A local build and its bundle, from the repository root, on Linux: scripts/linux-release.sh
 #
-# The app's sources below are the workspace, path by path. scripts/linux-release.sh writes the Flathub variant,
-# which replaces the block between "app-sources: begin/end" with the git tag and commit.
-# cargo-sources.json comes from flatpak-cargo-generator (flatpak/flatpak-builder-tools, cargo/) run on Cargo.lock;
-# linux-release.sh checks it against Cargo.lock and regenerates it with --update-cargo-sources.
+# The app's sources below are the workspace, path by path (never the whole checkout: .env holds the developer CLI's
+# keys). cargo-sources.json comes from flatpak-cargo-generator (flatpak/flatpak-builder-tools, cargo/) run on
+# Cargo.lock; linux-release.sh checks it against Cargo.lock and regenerates it with --update-cargo-sources.
 id: io.github.msitarzewski.AutoPaper
 runtime: org.gnome.Platform
-# GNOME 51 is the newest runtime on Flathub (Flathub requires the latest at submission). The app uses GTK 4.22 and
-# libadwaita 1.9 APIs, which runtime 51 (GTK 4.24, libadwaita 1.10) provides.
+# GNOME 51, the newest GNOME runtime (supported for about a year, until GNOME 53). The app uses GTK 4.22 and libadwaita
+# 1.9 APIs, which runtime 51 (GTK 4.24, libadwaita 1.10) provides.
 runtime-version: '51'
 sdk: org.gnome.Sdk
 command: autopaper-gtk
@@ -93,7 +93,6 @@ modules:
       # flatpak-builder installs LICENSE by itself; the third-party notices are extra.
       - install -Dm644 -t ${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/autopaper THIRD-PARTY-NOTICES.md
     sources:
-      # app-sources: begin
       # The workspace, path by path: never the whole checkout (.env holds the developer CLI's keys; target/ and
       # models/ are large). Every workspace member is needed for Cargo to read the workspace.
       - type: file
@@ -116,5 +115,4 @@ modules:
       - type: dir
         path: ../../apps/linux
         dest: apps/linux
-      # app-sources: end
       - cargo-sources.json

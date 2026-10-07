@@ -62,6 +62,36 @@ AGENTS.md (from ~/Clean) copied to the root. Waiting for the Linux agent's compi
 branch → main, one commit, `gh repo create` (settings from the repo agent's list; Dependabot alerts on, private
 vulnerability reporting on), push, Pages = GitHub Actions, watch CI + Pages.
 
+**Published 2026-10-06:** https://github.com/msitarzewski/AutoPaper (public; first commit 437ae99 on `main`, 444
+files, gitleaks clean). Settings: topics, Issues/Wiki/Projects on, Discussions off, Pages = GitHub Actions (live:
+https://msitarzewski.github.io/AutoPaper/, "Coming soon"), Dependabot alerts on, private vulnerability reporting on,
+secret scanning + push protection on, default workflow permissions read. Linux agent resumed after the commit (open:
+Flatpak suspend/resume live check; own-wallpaper restore impossible in Flatpak without host dconf; **Flathub's
+generative-AI policy: manifests must not be AI-written and a person must open the PR** — needs the user).
+Release v0.1.0 still waits on: Windows Artifact Signing (user), the Sparkle Keychain "Always Allow" (user), restoring
+the site's release hero + held Windows feed files, a v0.1.0 tag.
+
+**Linux agent final (2026-10-06):** all 8 parity items done (AdwNavigationSplitView sidebar with moods under Moods,
+mood page with GtkEditableLabel name, summary chart, Grid|Gallery, provenance, reload/stop, Pause keeps,
+KeywordNotFollowed link, About/Help F1); 29 tests; Flatpak on GNOME 51 builds/installs/runs; `scripts/linux-release.sh`
+makes the bundle (aarch64 only so far; x86_64 needs CI or an x86 machine). **Decisions for the user:** (1) Flathub's
+generative-AI policy forbids AI-written manifests and AI-opened PRs ("Disclosure does not exempt manifests") — the user
+would write the Flathub manifest and open the PR, or skip Flathub; (2) own-wallpaper restore in Flatpak needs host
+dconf (linter errors) — alternative: the person picks their picture once via the FileChooser portal and Restore puts it
+back through the Wallpaper portal. Doc fixes it listed (rust-linux.md manifest sketch, techContext finish-args and VM
+clock, systemPatterns + app-spec GNOME moods layout) are still to do.
+**CI:** first run: Windows/Linux app builds and core on Ubuntu/macOS passed; fixed in 8af425c: gitleaks pinned to
+8.30.1, colour codes stripped from rustc's link list in build-xcframework.sh, Windows path separator in an engine test.
+
+**Self-hosting progress (2026-10-06):** pipx setup ran (user): `/srv/www/msitarzewski.com/app-updates/autopaper/{flatpak,windows}`
+live, Caddy lines in place (backup `.bak.1791342113`). CI fully green at b96c6c9. Docs agent: README/help/PRIVACY/
+NETWORK/CONTRIBUTING/pages.yml switched to msitarzewski.com (uncommitted). Windows agent: `windows-release.ps1` writes
+the feed beside the bundle (feed at the base, bundles under windows/, versioned), `scripts/publish-windows.sh` (bundle
+first, feed last, HTTPS checks, keeps 3, refuses dev feeds on the real name); tested install + silent update from the
+server on a test path, cleaned up. Release flow: VM `windows-release.ps1 -Version <v> -CopyTo \\Mac\Home\Clean\autopaper`
+→ Mac `scripts/publish-windows.sh <v>` → attach the bundle to the GitHub release (winget URL). Waiting on the Linux
+agent (own Flatpak repo + CI workflow + publish-flatpak.sh), then one commit.
+
 ## Next (in order)
 1. The four release agents; review; the user's Artifact Signing account.
 2. Publish: create the repo, first commit, push, Pages; build + sign artifacts; GitHub release v0.1.0; feeds last.

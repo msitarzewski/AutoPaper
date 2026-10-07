@@ -6,7 +6,7 @@ This page describes AutoPaper 0.1.0 on macOS, Windows and Linux, and changes wit
 
 ## The short version
 
-- **No telemetry, no analytics, no accounts, no AutoPaper server.** AutoPaper talks only to the providers you set up, and only to make wallpapers or to check that a provider works. The one exception is the Mac app's update check, if you allow it (see [Updates](#updates)); on Windows and Linux, updates are your system's job.
+- **No telemetry, no analytics, no accounts, no AutoPaper server.** AutoPaper talks only to the providers you set up, and only to make wallpapers or to check that a provider works. The one exception is the Mac app's update check, if you allow it (see [Updates](#updates)); on Windows and Linux, updates are your system's job, from the author's own server, which keeps no access logs.
 - **Out of the box it sends nothing.** Until you choose a provider, AutoPaper uses **Demo**, which writes simple ideas and paints gradients on your computer, without any network.
 - **What leaves your computer**, when you use a hosted provider: to write a scene, the current mood's keywords and Surprise, short descriptions of recent wallpapers, a few things you've liked or disliked, and your language; to paint it, the finished prompt, the size and the quality. Plus AutoPaper's version, your system's name and version, and your IP address, as with any request online.
 - **What never leaves your computer:** your images, history, ratings, mood names, spending, timings and settings. Memory (the check that a new idea isn't one you've had) runs on your computer with a small bundled model.
@@ -21,11 +21,13 @@ This page describes AutoPaper 0.1.0 on macOS, Windows and Linux, and changes wit
 | **Google** (`generativelanguage.googleapis.com`), if you choose Google Gemini | The same | The same |
 | **Your own servers**: Ollama, LM Studio or another server that works like OpenAI's API, ComfyUI | The same, plus, for ComfyUI, the whole workflow AutoPaper runs (AutoPaper's own or yours) | The same, at the address you gave |
 | **A hosted service you point AutoPaper at** (an OpenAI-compatible address on the internet) | The same | The same. AutoPaper doesn't know or vouch for such a service; its own terms apply |
-| **GitHub** (this project's website, `msitarzewski.github.io`, and its releases) | That a copy of AutoPaper checked for updates, its version, and your IP address | On a Mac, about once a day if you allowed automatic checks, otherwise only when you choose **Check for Updates…**; on Windows, installed with App Installer, when Windows checks for a new version (each time AutoPaper starts, and about every 8 hours). An update's download comes from GitHub's release servers. See [Updates](#updates) |
-| **Microsoft** (winget), **Flathub** (Linux) | That AutoPaper was installed or updated, as with any app from them | Only when you install or update through them |
+| **GitHub** (this project's website, `msitarzewski.github.io`, and its releases) | That a copy of AutoPaper checked for updates, its version, and your IP address | On a Mac, about once a day if you allowed automatic checks, otherwise only when you choose **Check for Updates…**. The Mac's updates, and the Windows package winget installs, are downloaded from GitHub's release servers. See [Updates](#updates) |
+| **msitarzewski.com**, the author's own server (Windows' App Installer file and packages, and the Linux Flatpak repository) | Your IP address and your system's User-Agent, while it answers; it keeps no access logs | On Windows, installed with App Installer: each time AutoPaper starts, and about every 8 hours. On Linux: whenever Flatpak checks for or installs updates. See [Updates](#updates) |
+| **Microsoft** (winget) | That AutoPaper was installed or updated with winget, as with any app from it | Only when you install or update with winget |
+| **Flathub's runtime repository** (Linux) | That the GNOME runtime AutoPaper runs on was installed or updated, as for any Flatpak app that uses it | When Flatpak installs or updates that runtime |
 | **Websites you open from AutoPaper**: "Get a key" (OpenAI, Google AI Studio), Brew Browser, Ollama, ComfyUI | Whatever your browser tells any website | Only when you click the link. AutoPaper opens the page in your browser (or Brew Browser itself) and makes no request of its own |
 
-AutoPaper itself has no server and learns nothing.
+AutoPaper has no server of its own that the apps talk to, and learns nothing. The update files for Windows and Linux are static files on the author's server, which keeps no access logs.
 
 **Under their terms as of October 2026:**
 
@@ -93,7 +95,10 @@ Keys are stored under these names: on macOS, Keychain items for the service `com
 ## Permissions
 
 - **macOS:** AutoPaper runs in the App Sandbox and asks for only outgoing network connections and read access to a file you choose (a ComfyUI workflow of your own). No location, contacts, camera, microphone or photos. Notifications are off unless you turn them on, and macOS asks first.
-- **Windows:** a packaged desktop app. It reads and sets the desktop picture, sets the lock screen picture unless you turn that off, and shows notifications unless you turn them off.
+- **Windows:** a packaged desktop app. It reads and sets the desktop picture, sets the lock screen picture unless you turn that off, and shows notifications unless you turn them off. It has access to your Pictures library (the `picturesLibrary` capability) only because Windows hands an app the lock screen's current picture only with it: AutoPaper uses it to read your own lock screen picture, so it can put it back, and for nothing else. When you install it, App Installer lists three things it can do:
+  - **Uses all system resources** (`runFullTrust`): it's an ordinary desktop app, as every WinUI 3 desktop app is, rather than one confined like a Microsoft Store app.
+  - **Use your pictures library** (`picturesLibrary`): only to read the lock screen picture, as above.
+  - **Write registry entries and files that are not cleaned up on uninstall** (`unvirtualizedResources`): when AutoPaper sets the lock screen picture, Windows records that in your own settings rather than in a private copy only AutoPaper sees. Without it, Windows Settings kept showing your old lock screen and the change didn't take. AutoPaper uses it for nothing else; its history, images and settings stay in its own app folder.
 - **Linux:** it sets the wallpaper through the desktop's Wallpaper portal (which may ask you once), runs in the background through the Background portal, and keeps keys in the Secret Service.
 - **Siri and Shortcuts (macOS):** AutoPaper's actions can make a new wallpaper, like or dislike the current one, switch moods, and say what's on your desktop. The answers stay on your Mac, apart from whatever Siri itself does with a spoken request.
 - **Network:** outgoing only. AutoPaper accepts no incoming connections.
@@ -107,12 +112,14 @@ Keys are stored under these names: on macOS, Keychain items for the service `com
 
 ## Updates
 
-Each app is updated the usual way for its system. None of these sends your keys, keywords, prompts, wallpapers or settings, and none carries an account or a device ID: AutoPaper has neither. What's sent is what any browser sends for a file: your IP address, and a User-Agent naming the program asking.
+Each app is updated the usual way for its system. None of these sends your keys, keywords, prompts, wallpapers or settings, and none carries an account or a device ID: AutoPaper has neither. What's sent is what any browser sends for a file: your IP address, and a User-Agent naming the program asking. Flatpak also says, as it does to every repository, which app it's fetching and, when updating, which version you have.
 
 - **macOS (Sparkle):** on its second launch AutoPaper asks whether to check for updates automatically; nothing is checked before you answer. If you allow it, it checks about once a day, and **Check for Updates…** checks whenever you choose. A check downloads the update feed, `https://msitarzewski.github.io/AutoPaper/appcast.xml`, from this project's website on GitHub Pages, with the User-Agent `AutoPaper/<version> Sparkle/<version>`. Sparkle can also send a system profile (your Mac's model, processor, macOS version and language); AutoPaper leaves that off, so it is never sent. An update you choose to install is downloaded from GitHub's release servers, and it's installed only if its signature matches the public key built into AutoPaper.
-- **Windows, installed with App Installer:** Windows' App Installer, not AutoPaper, checks AutoPaper's App Installer file, `https://msitarzewski.github.io/AutoPaper/AutoPaper.appinstaller`, each time AutoPaper starts and in the background about every 8 hours (the file's own update settings), and downloads a new version's package from GitHub's release servers. Windows installs it only if its signature checks out.
-- **Windows, installed with winget:** `winget upgrade` asks Microsoft's winget repository for the newest version, and downloads it from GitHub's release servers, when you run it.
-- **Linux (Flatpak):** Flatpak and Flathub handle updates (GNOME Software, KDE Discover or `flatpak update`), as for any app from Flathub. AutoPaper never checks for updates itself.
+- **Windows, installed with App Installer:** Windows' App Installer, not AutoPaper, checks AutoPaper's App Installer file, `https://msitarzewski.com/app-updates/autopaper/AutoPaper.appinstaller`, each time AutoPaper starts and in the background about every 8 hours (the file's own update settings), and downloads a new version's package from the same server. Windows installs it only if its signature checks out.
+- **Windows, installed with winget:** `winget upgrade` asks Microsoft's winget repository for the newest version, and downloads the package attached to that release on GitHub, when you run it.
+- **Linux (Flatpak):** Flatpak, not AutoPaper, checks AutoPaper's Flatpak repository, `https://msitarzewski.com/app-updates/autopaper/flatpak` (the remote `autopaper`), whenever GNOME Software or KDE Discover checks for updates or you run `flatpak update`. A check downloads the repository's summary; an update downloads only the files that changed. Flatpak installs only what the repository's key signed. AutoPaper never checks for updates itself.
+
+**msitarzewski.com** is the author's own server. HTTPS ends at a front proxy, which forwards each request over a private network to the file server; neither keeps access logs for msitarzewski.com. Like any web server, it sees your IP address and the User-Agent of the program asking (Windows' App Installer, or Flatpak) while it answers.
 
 ## Questions
 

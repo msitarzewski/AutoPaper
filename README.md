@@ -103,7 +103,7 @@ No web views and no cross-platform UI kit. Each app follows its own platform's g
 | Built with | SwiftUI and AppKit, Liquid Glass | WinUI 3 (Windows App SDK, .NET 10) | GTK 4 and libadwaita (Rust) |
 | Lives in | A menu in the menu bar | The notification area | The background, with notifications (a tray icon on KDE and other desktops) |
 | Keys kept in | Keychain | Credential Manager | Secret Service |
-| Updates | Sparkle | App Installer or winget | Flatpak (Flathub) |
+| Updates | Sparkle | App Installer or winget | Flatpak, from AutoPaper's own repository |
 | Needs | macOS 26 or later, Apple silicon or Intel | Windows 11, x64 or Arm | Flatpak (its GNOME runtime brings GTK and libadwaita); built from source, GTK 4.22 and libadwaita 1.9 or later |
 
 ```
@@ -135,17 +135,21 @@ It updates itself with [Sparkle](https://sparkle-project.org): on its second lau
 winget install msitarzewski.AutoPaper
 ```
 
-Or download [`AutoPaper.appinstaller`](https://msitarzewski.github.io/AutoPaper/AutoPaper.appinstaller) and open it: Windows' App Installer installs AutoPaper and keeps it up to date from the same file. The signed MSIX bundle (x64 and Arm) is also attached to each [release](https://github.com/msitarzewski/AutoPaper/releases/latest). Installed with winget, `winget upgrade msitarzewski.AutoPaper` updates it.
+winget installs the signed MSIX bundle (x64 and Arm) attached to each [release](https://github.com/msitarzewski/AutoPaper/releases/latest), and `winget upgrade msitarzewski.AutoPaper` updates it. New versions reach winget after Microsoft's review, so they can trail a release by a few days.
+
+Or download [`AutoPaper.appinstaller`](https://msitarzewski.com/app-updates/autopaper/AutoPaper.appinstaller) and open it: Windows' App Installer installs AutoPaper from msitarzewski.com, the author's own server, and keeps it up to date from there.
 
 ### Linux
 
+Open [`AutoPaper.flatpakref`](https://msitarzewski.com/app-updates/autopaper/AutoPaper.flatpakref): GNOME Software or KDE Discover adds AutoPaper's repository (the remote `autopaper`, on msitarzewski.com, the author's own server) and installs it. From a terminal:
+
 ```sh
-flatpak install flathub io.github.msitarzewski.AutoPaper
+flatpak install --from https://msitarzewski.com/app-updates/autopaper/AutoPaper.flatpakref
 ```
 
-Or from [Flathub's page](https://flathub.org/apps/io.github.msitarzewski.AutoPaper), in GNOME Software or KDE Discover. Each [release](https://github.com/msitarzewski/AutoPaper/releases/latest) also has a `.flatpak` file: `flatpak install --user <file>.flatpak` (it needs Flathub set up, for the GNOME runtime). Flatpak keeps it up to date; AutoPaper never checks for updates itself.
+Ubuntu ships neither Flatpak nor a store that opens that file: run `sudo apt install flatpak` first, then the command above.
 
-New versions reach winget and Flathub after each one's own review, so they can trail a GitHub release by a few days.
+Each [release](https://github.com/msitarzewski/AutoPaper/releases/latest) also has a `.flatpak` file; `flatpak install --user <file>.flatpak` sets up the same repository. The GNOME runtime AutoPaper needs comes from Flathub's runtime repository, which Flatpak sets up if you don't have it. Either way, Flatpak keeps AutoPaper up to date (`flatpak update`, GNOME Software or Discover); AutoPaper never checks for updates itself.
 
 ## Providers and keys
 
@@ -167,7 +171,7 @@ The full account is in **[PRIVACY.md](./PRIVACY.md)** (who learns what, what's s
 - No telemetry, analytics, accounts or AutoPaper server. Out of the box AutoPaper uses Demo and sends nothing.
 - To write a scene, the provider you chose gets the current mood's keywords and Surprise, short descriptions of recent wallpapers, a few things you've liked or disliked, and your language. To paint it, the finished prompt, the size and the quality.
 - Your images, history, ratings, spending and settings stay on your computer. Memory runs on your computer with a small bundled model. With local models, nothing leaves your network.
-- Updates are checked by Sparkle on a Mac (the feed on this project's GitHub Pages, no system profile), by Windows' App Installer or winget, and by Flatpak on Linux.
+- Updates are checked by Sparkle on a Mac (the feed on this project's GitHub Pages, no system profile), by Windows' App Installer (from msitarzewski.com, the author's own server, which keeps no access logs) or winget, and by Flatpak on Linux (from the same server).
 
 ## Accessibility
 
@@ -230,7 +234,7 @@ cargo run -p autopaper-linux                 # build and run from target/
 scripts/linux-install.sh                     # or install to ~/.local, so the desktop knows it (desktop entry, icons, schema)
 ```
 
-The Flatpak builds from `packaging/flatpak/` with `flatpak run org.flatpak.Builder --force-clean --user --install builddir packaging/flatpak/io.github.msitarzewski.AutoPaper.yml` (needs `org.flatpak.Builder` and the GNOME SDK from Flathub).
+The Flatpak builds from `packaging/flatpak/` with `flatpak run org.flatpak.Builder --force-clean --user --install builddir packaging/flatpak/io.github.msitarzewski.AutoPaper.yml` (needs `org.flatpak.Builder` and the GNOME SDK, from Flathub's runtime repository).
 
 ### The website
 
@@ -252,7 +256,7 @@ packaging/            The Flatpak manifest (the release script adds the winget m
 docs/app-spec.md      What every app does, so the three match in behaviour while each fits its platform
 docs/research/        Research notes behind the technical choices
 docs/icon/            The app icon's sources and palette build
-site/                 The website (GitHub Pages): page fragments, layout, static assets, update feeds
+site/                 The website (GitHub Pages): page fragments, layout, static assets, the Mac's update feed
 scripts/              Builds, installs, the website, third-party notices, and the release scripts
 memory-bank/          The project's working notes (AGENT-ZERO's Memory Bank)
 ```

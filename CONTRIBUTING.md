@@ -79,10 +79,12 @@ AutoPaper follows WCAG 2.2 AA through [WCAG2ICT](https://www.w3.org/TR/wcag2ict-
 All three platforms release together, at one version (`version` in `Cargo.toml`, `MARKETING_VERSION` in `apps/macos/project.yml`, the Windows package manifest, and the AppStream metainfo's release notes):
 
 1. **macOS:** `scripts/release.sh` archives a Release build, exports it with the Developer ID certificate, notarizes and staples the app and the `.dmg`, and signs the Sparkle update `.zip` with the EdDSA key in the maintainer's Keychain (`generate_keys --account AutoPaper`). `scripts/appcast.py` adds it to `site/static/appcast.xml`.
-2. **Windows** (in Windows): `scripts/windows-release.ps1` builds one x64 + ARM64 `.msixbundle`, signs it with Azure Artifact Signing, and writes `site/static/AutoPaper.appinstaller` and the winget manifests (`packaging/winget/`).
-3. **Linux:** `scripts/linux-release.sh` builds the `.flatpak` bundle and the files a Flathub submission needs (`packaging/flatpak/`), checked with Flathub's linter.
-4. Publish the GitHub release with every file **before** pushing the feeds, since `appcast.xml` and `AutoPaper.appinstaller` point at the release's files. The website, feeds included, deploys itself on push to `main`.
-5. Then the stores: a pull request to [winget-pkgs](https://github.com/microsoft/winget-pkgs) for `msitarzewski.AutoPaper`, and the update to the Flathub repository for `io.github.msitarzewski.AutoPaper`.
+2. **Windows** (in Windows): `scripts/windows-release.ps1` builds one x64 + ARM64 `.msixbundle`, signs it with Azure Artifact Signing, and writes the App Installer file (which points at msitarzewski.com) and the winget manifests (`packaging/winget/`, which point at the copy attached to the GitHub release).
+3. **Linux:** `scripts/linux-release.sh` builds the release into AutoPaper's GPG-signed Flatpak repository, and a `.flatpak` bundle that points at the same repository, checked with `flatpak-builder-lint`.
+4. **GitHub release:** publish it with every file (the `.dmg` and Sparkle `.zip`, the `.msixbundle`, the `.flatpak`, and their checksums).
+5. **msitarzewski.com** (`/app-updates/autopaper/`, set up once with `scripts/pipx-app-updates.sh`): upload the `.msixbundle` into `windows/` and the repository into `flatpak/`, then `AutoPaper.appinstaller` and `AutoPaper.flatpakref` last, since they point at what's already there.
+6. **The Mac feed:** push `site/static/appcast.xml` only after the GitHub release is published, since it points at the release's `.zip`. The website deploys itself on push to `main`.
+7. **winget:** a pull request to [winget-pkgs](https://github.com/microsoft/winget-pkgs) for `msitarzewski.AutoPaper`.
 
 ## Reporting bugs
 

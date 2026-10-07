@@ -108,11 +108,30 @@ Every update is verified against the EdDSA public key built into the app (`SUPub
 
 ### Windows: App Installer or winget
 
-AutoPaper makes no request. If you installed it with **App Installer**, Windows checks `https://msitarzewski.github.io/AutoPaper/AutoPaper.appinstaller` each time AutoPaper starts and in the background about every 8 hours (the file's `UpdateSettings`: `OnLaunch` with `HoursBetweenUpdateChecks="0"`, and `AutomaticBackgroundTask`), and downloads a new version's `.msixbundle` from GitHub's release servers, checking its signature before installing it. If you installed it with **winget**, `winget upgrade` asks Microsoft's winget repository for the newest version when you run it, and downloads the package from GitHub's release servers.
+AutoPaper makes no request: Windows does.
+
+| Host | Request | When | Sends |
+|---|---|---|---|
+| `msitarzewski.com` | `GET /app-updates/autopaper/AutoPaper.appinstaller` (the App Installer file) | Installed with App Installer: each time AutoPaper starts, and in the background about every 8 hours (the file's `UpdateSettings`: `OnLaunch` with `HoursBetweenUpdateChecks="0"`, and `AutomaticBackgroundTask`) | Your IP address and App Installer's User-Agent |
+| `msitarzewski.com` | The new version's `.msixbundle`, under `/app-updates/autopaper/windows/` | When the file names a newer version | — |
+| Microsoft's winget repository | winget's index of packages | Installed with winget: only when you run `winget install` or `winget upgrade` | What winget sends |
+| `github.com` → GitHub's download servers | The `.msixbundle` attached to the release | When winget installs or updates AutoPaper | — |
+
+Windows installs a package only if its signature checks out.
 
 ### Linux: Flatpak
 
-AutoPaper makes no request. Flatpak updates it from Flathub (`dl.flathub.org`), through GNOME Software, KDE Discover or `flatpak update`, like any other Flatpak app.
+AutoPaper makes no request: Flatpak does, from AutoPaper's own Flatpak repository (the remote `autopaper`).
+
+| Host | Request | When | Sends |
+|---|---|---|---|
+| `msitarzewski.com` | `GET /app-updates/autopaper/AutoPaper.flatpakref` | Once, when you install with it | — |
+| `msitarzewski.com` | The repository under `/app-updates/autopaper/flatpak/`: its `config` and `summary`, then only the files that changed | Whenever GNOME Software or KDE Discover checks for updates, or you run `flatpak update`; and when installing | Your IP address, Flatpak's User-Agent (with its version), and the headers Flatpak sends to every repository: `Flatpak-Ref` (the app it's fetching) and, when updating, `Flatpak-Upgrade-From` (the version you have) |
+| `dl.flathub.org` (Flathub's runtime repository) | The GNOME runtime (`org.gnome.Platform`) AutoPaper runs on, and its updates | When Flatpak installs or updates that runtime | — |
+
+Flatpak installs only what the repository's GPG key signed. A `.flatpak` file from a GitHub release sets up the same repository, so it's updated the same way.
+
+`msitarzewski.com` is the author's own server: HTTPS ends at a front proxy, which forwards each request over a private network to the file server, and neither keeps access logs for msitarzewski.com.
 
 ## When something fails
 
@@ -123,7 +142,7 @@ AutoPaper makes no request. Flatpak updates it from Flathub (`dl.flathub.org`), 
 ## Not contacted
 
 - No AutoPaper server, and no analytics, telemetry or crash-reporting service: none is built in.
-- No update server of AutoPaper's own: the Mac app's feed is a static file on this project's GitHub Pages site, and Windows and Linux updates come through the system's installer.
+- No AutoPaper service: the Mac app's update feed is a static file on this project's GitHub Pages site, and the Windows and Linux update files are static files on msitarzewski.com, fetched by Windows and Flatpak, never by AutoPaper.
 - No fonts, content delivery networks or image hosts. OpenAI and Google return images inside their answers; an OpenAI-compatible server's link is followed only to that server itself.
 - No model downloads while running. The model memory uses (BAAI's bge-small-en-v1.5, 384 dimensions) is part of the app and runs on your computer. Without it, AutoPaper falls back to a simpler local comparison and says so in Settings → Memory.
 

@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
-Builds, packs and signs AutoPaper for Windows: one x64 + arm64 .msixbundle, its App Installer file (updates) and its
-winget manifests.
+Builds, packs and signs AutoPaper for Windows: one x64 + arm64 .msixbundle, its App Installer file (the update feed,
+served from msitarzewski.com) and its winget manifests.
 
 .DESCRIPTION
 Run it INSIDE Windows (the "Windows 11" VM), from a local copy of the repository (Windows can't build packages
@@ -14,6 +14,8 @@ reliably from the Parallels share; memory-bank/techContext.md), with Windows Pow
     az login                                  # or AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET
     powershell -File scripts\windows-release.ps1 -Version 0.1.0 -CopyTo \\Mac\Home\Clean\autopaper
 
+then, on the Mac, scripts/publish-windows.sh 0.1.0 puts the bundle and the App Installer file on the update server.
+
 Steps, in order:
 
     1. The core for arm64 and x64 (scripts\build-core-windows.ps1 -Arch all; both are required here), unless -SkipCore.
@@ -24,9 +26,11 @@ Steps, in order:
        Package.appxmanifest is never edited: the change is made in an unpacked copy, which MakeAppx packs again.
     4. Each package signed, then bundled (MakeAppx) into build\windows\<Version>\AutoPaper_<Version>_x64_arm64.msixbundle,
        which is signed and verified (SignTool; the signer must be the packages' Publisher).
-    5. site\static\AutoPaper.appinstaller (the update feed served from GitHub Pages; a copy goes next to the bundle for
-       the GitHub release) and packaging\winget\manifests\m\msitarzewski\AutoPaper\<Version>\ (three files, schema
-       1.12.0, checked with winget validate when winget is installed). Nothing is submitted anywhere.
+    5. build\windows\<Version>\AutoPaper.appinstaller, the update feed, next to the bundle (see "Updates" below), and
+       packaging\winget\manifests\m\msitarzewski\AutoPaper\<Version>\ (three files, schema 1.12.0, checked with winget
+       validate when winget is installed), whose installer is the copy of the bundle attached to the GitHub release
+       v<Version>. Nothing is published or submitted anywhere: scripts/publish-windows.sh (on the Mac) uploads the feed
+       and the bundle, and the GitHub release and winget-pkgs are done by hand.
 
 Signing (Azure Artifact Signing, Microsoft's documented MSIX route: SignTool with the Artifact Signing dlib,
 https://learn.microsoft.com/windows/msix/package/sign-msix-package-guide):
@@ -57,10 +61,21 @@ and its password file, made by scripts\windows-app.ps1 -Pack, or here on first u
 upgrades before the Artifact Signing account exists. Its App Installer file and winget manifests say they're a
 development build; a release run with Artifact Signing replaces them.
 
-Updates work like Sparkle on the Mac: a person who installs from AutoPaper.appinstaller (downloaded and opened; the
-ms-appinstaller: link is off by default since December 2023) gets the package with that file's address kept, and
-Windows checks it on every launch of AutoPaper (HoursBetweenUpdateChecks 0) and every 8 hours in the background,
-updating silently (desktop apps get no prompt). winget installs update through winget.
+Updates work like Sparkle on the Mac, from AutoPaper's own server (not GitHub, whose downloads redirect and come back
+as application/octet-stream): https://msitarzewski.com/app-updates/autopaper/ (Caddy on pipx; scripts/pipx-app-updates.sh)
+
+    AutoPaper.appinstaller                              the feed (application/appinstaller, Cache-Control: no-cache);
+                                                        its own Uri is this address, so a downloaded copy always
+                                                        defers to the live one
+    windows/AutoPaper_<Version>_x64_arm64.msixbundle    the bundle it points to (application/msixbundle). The name is
+                                                        versioned, so a new release never replaces a file someone is
+                                                        still downloading; older ones are kept for a while
+
+A person who installs from AutoPaper.appinstaller (downloaded and opened; the ms-appinstaller: link is off by default
+since December 2023) gets the package with the feed's address kept, and Windows checks it on every launch of AutoPaper
+(HoursBetweenUpdateChecks 0) and every 8 hours in the background, updating silently (desktop apps get no prompt; the
+new version is there by the next launch). winget installs update through winget, from the GitHub release.
+-UpdatesUrl, -FeedName and -BundleFolder change where the feed says things are (a test feed in a test folder).
 
 The Windows App SDK is packaged with the app (WindowsAppSDKSelfContained), so the bundle installs on its own: a
 framework-dependent package needs Microsoft.WindowsAppRuntime.2 installed first, which only the Store provides
@@ -82,8 +97,18 @@ Use the core already in apps\windows\Generated (both architectures must be there
 The signing certificate's exact subject, overriding what's read from the certificate profile (Artifact Signing).
 
 .PARAMETER CopyTo
-A repository folder to copy the App Installer file and the winget manifests into after a successful run, e.g.
-\\Mac\Home\Clean\autopaper (only those files; the bundle stays in build\windows\<Version>).
+A repository folder to copy the release into after a successful run, e.g. \\Mac\Home\Clean\autopaper: the bundle and
+the App Installer file to build\windows\<Version>\ there (git-ignored; scripts/publish-windows.sh uploads them from
+there), and the winget manifests to packaging\winget\.
+
+.PARAMETER UpdatesUrl
+The update server's address for AutoPaper, ending in /. Default: https://msitarzewski.com/app-updates/autopaper/
+
+.PARAMETER FeedName
+The App Installer file's name there. Default: AutoPaper.appinstaller (test builds use their own, e.g. test.appinstaller).
+
+.PARAMETER BundleFolder
+The folder there that holds the bundles. Default: windows (test builds use their own, e.g. windows-test).
 
 .PARAMETER TargetDir
 Cargo's target directory for the core (passed to build-core-windows.ps1); must be on a local disk.
@@ -101,7 +126,13 @@ param(
     [string]$Publisher = '',
     [string]$CopyTo = '',
     [string]$TargetDir = '',
-    [switch]$FrameworkDependent
+    [switch]$FrameworkDependent,
+    [ValidatePattern('^https://[^\s?#]+/$')]
+    [string]$UpdatesUrl = 'https://msitarzewski.com/app-updates/autopaper/',
+    [ValidatePattern('^[A-Za-z0-9._-]+\.appinstaller$')]
+    [string]$FeedName = 'AutoPaper.appinstaller',
+    [ValidatePattern('^[A-Za-z0-9._-]+$')]
+    [string]$BundleFolder = 'windows'
 )
 
 Set-StrictMode -Version Latest
@@ -121,11 +152,14 @@ $Tools = Join-Path $Repo 'build\windows\tools'
 $Architectures = @('x64', 'arm64')
 $PackageName = 'AutoPaper'
 
-# Where the release lives (docs/app-spec.md, memory-bank/activeContext.md "Release v0.1.0").
+# Where the release lives: the website and the GitHub release (winget's installer), and the update server (the App
+# Installer feed and the bundle it points to; scripts/publish-windows.sh uploads them, scripts/pipx-app-updates.sh
+# set the server up).
 $Owner = 'msitarzewski'
 $Site = 'https://msitarzewski.github.io/AutoPaper'
-$AppInstallerUri = "$Site/AutoPaper.appinstaller"
-$BundleUri = "https://github.com/$Owner/AutoPaper/releases/download/v$Version/$BundleName"
+$ReleaseBundleUri = "https://github.com/$Owner/AutoPaper/releases/download/v$Version/$BundleName"
+$AppInstallerUri = "$UpdatesUrl$FeedName"
+$BundleUri = "$UpdatesUrl$BundleFolder/$BundleName"
 $TimestampUrl = 'http://timestamp.acs.microsoft.com'
 
 # Pinned tools (NuGet), checked by the SHA-256 of their .nupkg.
@@ -497,7 +531,7 @@ $built = if ($DevCert) { ' DEVELOPMENT BUILD (development certificate): regenera
 Write-Step 'Writing the App Installer file'
 $appInstaller = @"
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- AutoPaper's update feed, made by scripts/windows-release.ps1 for v$Version.$built -->
+<!-- AutoPaper's update feed, made by scripts/windows-release.ps1 for v$Version and uploaded by scripts/publish-windows.sh.$built -->
 <AppInstaller xmlns="http://schemas.microsoft.com/appx/appinstaller/2021" Version="$PackageVersion" Uri="$AppInstallerUri">
   <MainBundle Name="$PackageName" Publisher="$(ConvertTo-XmlAttribute $Signing.Subject)" Version="$PackageVersion" Uri="$BundleUri" />
   <UpdateSettings>
@@ -507,9 +541,8 @@ $appInstaller = @"
 </AppInstaller>
 "@
 if ($appInstaller -match '[^\x09\x0A\x0D\x20-\x7E]') { throw 'The App Installer file must be ASCII only.' }
-$siteFile = Join-Path $Repo 'site\static\AutoPaper.appinstaller'
-Write-Utf8 $siteFile $appInstaller
-Write-Utf8 (Join-Path $Output 'AutoPaper.appinstaller') $appInstaller
+$feedFile = Join-Path $Output $FeedName
+Write-Utf8 $feedFile $appInstaller
 $null = [xml]$appInstaller
 
 Write-Step 'Writing the winget manifests'
@@ -566,7 +599,7 @@ ManifestVersion: 1.12.0
 $installerEntries = ($Architectures | ForEach-Object {
 @"
 - Architecture: $_
-  InstallerUrl: $BundleUri
+  InstallerUrl: $ReleaseBundleUri
   InstallerSha256: $InstallerSha256
   SignatureSha256: $SignatureSha256
 "@
@@ -601,10 +634,11 @@ if (Get-Command winget -ErrorAction SilentlyContinue) {
 }
 
 if ($CopyTo) {
-    Write-Step "Copying the App Installer file and the winget manifests to $CopyTo"
-    $siteTarget = Join-Path $CopyTo 'site\static\AutoPaper.appinstaller'
-    New-Item -ItemType Directory -Force (Split-Path $siteTarget) | Out-Null
-    Copy-Item -LiteralPath $siteFile -Destination $siteTarget -Force
+    Write-Step "Copying the bundle, the App Installer file and the winget manifests to $CopyTo"
+    $releaseTarget = Join-Path $CopyTo "build\windows\$Version"
+    New-Item -ItemType Directory -Force $releaseTarget | Out-Null
+    Copy-Item -LiteralPath $Bundle, $feedFile -Destination $releaseTarget -Force
+    if ((Get-Sha256 (Join-Path $releaseTarget $BundleName)) -ne $InstallerSha256) { throw "The copy of the bundle in $releaseTarget doesn't match." }
     $wingetTarget = Join-Path $CopyTo "packaging\winget\manifests\m\$Owner\AutoPaper\$Version"
     if (Test-Path $wingetTarget) { Remove-Item $wingetTarget -Recurse -Force }
     New-Item -ItemType Directory -Force $wingetTarget | Out-Null
@@ -620,6 +654,9 @@ Write-Host "Package family   $FamilyName"
 Write-Host ('Bundle           {0} ({1:N0} bytes)' -f $Bundle, (Get-Item $Bundle).Length)
 Write-Host "  SHA-256        $InstallerSha256"
 Write-Host "  Signature      $SignatureSha256 (AppxSignature.p7x)"
-Write-Host "App Installer    $siteFile (and $(Join-Path $Output 'AutoPaper.appinstaller'))"
+Write-Host "App Installer    $feedFile"
+Write-Host "  feed           $AppInstallerUri"
+Write-Host "  bundle         $BundleUri"
 Write-Host "winget           $wingetFolder"
-Write-Host "Upload to the GitHub release v${Version}: $BundleName and AutoPaper.appinstaller ($BundleUri)"
+Write-Host "Publish: scripts/publish-windows.sh $Version on the Mac (the feed and its bundle), and attach $BundleName to"
+Write-Host "the GitHub release v$Version ($ReleaseBundleUri), which the winget manifests point to."

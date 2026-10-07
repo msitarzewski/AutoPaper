@@ -1,15 +1,14 @@
 name: Website
 
 # Builds site/ (plus PRIVACY.md and NETWORK.md) with scripts/build_site.py and publishes it to GitHub Pages, as
-# AudioPaper's does. The update feeds are served from here too: Sparkle's appcast (macOS) and the App Installer file
-# (Windows), both written by the release scripts. Pushing either one republishes the site.
+# AudioPaper's does. The Mac's update feed, Sparkle's appcast (written by scripts/release.sh), is served from here too;
+# pushing it republishes the site. Windows' App Installer file and the Linux Flatpak repository are on msitarzewski.com.
 on:
   push:
     branches: [main]
     paths:
       - site/**
       - site/static/appcast.xml
-      - site/static/AutoPaper.appinstaller
       - PRIVACY.md
       - NETWORK.md
       - scripts/build_site.py

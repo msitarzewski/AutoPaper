@@ -1,0 +1,68 @@
+name: Flatpak
+
+# AutoPaper for Linux as Flatpak bundles, x86_64 and aarch64, each on its own runner in Flathub's GNOME 51 builder
+# container, built by scripts/linux-release.sh (the same script as a local build). The bundles are the build's output
+# only: unsigned, and not pointing anywhere for updates. scripts/publish-flatpak.sh, run on the Mac with the
+# repository's signing key, downloads them (gh run download), signs them into AutoPaper's own Flatpak repository
+# (https://msitarzewski.com/app-updates/autopaper/flatpak) and makes the GitHub release's downloads from it.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flatpak-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    name: Flatpak (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    # flatpak-builder needs bubblewrap, which needs a privileged container.
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
+      options: --privileged
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - name: The tag is the version
+        if: github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)"
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::The tag is $TAG but Cargo.toml says $version"
+            exit 1
+          fi
+      # flatpak-builder's state: downloaded sources (crates, the embedding model) and modules built before.
+      - uses: actions/cache@v6
+        with:
+          path: build/flatpak/${{ matrix.arch }}/state
+          key: flatpak-${{ matrix.arch }}-${{ hashFiles('packaging/flatpak/*.yml', 'packaging/flatpak/cargo-sources.json') }}
+          restore-keys: flatpak-${{ matrix.arch }}-
+      - name: Build
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: scripts/linux-release.sh --arch "$ARCH"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: AutoPaper-flatpak-${{ matrix.arch }}
+          path: |
+            build/flatpak/out/AutoPaper-*-${{ matrix.arch }}.flatpak
+            build/flatpak/out/AutoPaper-*-${{ matrix.arch }}.flatpak.sha256
+          if-no-files-found: error
+          retention-days: 30
+          # The bundle is already compressed.
+          compression-level: 0

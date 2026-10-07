@@ -1,27 +1,30 @@
 #!/usr/bin/env bash
-# Builds AutoPaper's release Flatpak from this checkout and checks it with Flathub's linter. Writes, under
-# build/flatpak/out/: the single-file bundle AutoPaper-<version>-<arch>.flatpak and its .sha256, and flathub/ with the
-# files a Flathub submission needs (the manifest with the app's source pinned to the release tag and commit, and
-# cargo-sources.json). It opens no pull request and pushes nothing.
+# Builds AutoPaper's Flatpak from this checkout and makes its bundle, AutoPaper-<version>-<arch>.flatpak, and its
+# .sha256 under build/flatpak/out/. CI runs it (.github/workflows/flatpak.yml, in Flathub's GNOME 51 builder container)
+# and so can any Linux machine with flatpak.
 #
-#   scripts/linux-release.sh [--arch ARCH] [--tag TAG] [--commit SHA] [--update-cargo-sources] [--allow-lint-errors]
+# The bundle is the build's output, unsigned. scripts/publish-flatpak.sh (on the Mac, with the repository's signing key)
+# imports it into AutoPaper's own Flatpak repository, https://msitarzewski.com/app-updates/autopaper/flatpak, and makes
+# the GitHub release's downloads from the signed repository. To try a build here:
+#   flatpak install --user build/flatpak/out/AutoPaper-<version>-<arch>.flatpak
 #
-#   --arch ARCH              aarch64 or x86_64 (default: this machine's). Building for the other one needs
-#                            qemu-user-static registered with binfmt_misc and that architecture's runtime, SDK and Rust
-#                            extension; the compiler then runs emulated, which takes hours.
-#   --tag TAG                the release tag the Flathub manifest builds (default: v<version> from Cargo.toml)
-#   --commit SHA             the tag's commit (default: what TAG points to in this checkout)
+#   scripts/linux-release.sh [--arch ARCH] [--update-cargo-sources] [--lint] [--allow-lint-errors]
+#
+#   --arch ARCH              aarch64 or x86_64 (default: this machine's). CI builds each on its own runner; building
+#                            for the other here needs qemu-user-static registered with binfmt_misc and that
+#                            architecture's runtime, SDK and Rust extension, and then the compiler runs emulated (hours).
 #   --update-cargo-sources   regenerate packaging/flatpak/cargo-sources.json when it no longer matches Cargo.lock
 #                            (otherwise a stale one stops the script)
-#   --allow-lint-errors      finish with success even when the linter reports errors (they're still shown)
+#   --lint                   also run flatpak-builder-lint (manifest, build directory, repository): Flathub's linter, a
+#                            useful check of the manifest, permissions and AppStream data even off Flathub
+#   --allow-lint-errors      with --lint, finish with success even when the linter reports errors (they're shown)
 #
-# Needs flatpak with the Flathub remote, python3 (3.11+), and org.flatpak.Builder, which has flatpak-builder and
-# flatpak-builder-lint as Flathub runs them: flatpak install flathub org.flatpak.Builder. The GNOME runtime and SDK and
-# the Rust extension are installed from Flathub (per user) when they aren't installed yet.
+# Needs flatpak and python3 (3.11+), and flatpak-builder: the Flatpak org.flatpak.Builder (flatpak install flathub
+# org.flatpak.Builder; it also has flatpak-builder-lint), else the system's with elfutils (as in CI's container). The GNOME
+# runtime and SDK and the Rust extension are installed from Flathub (per user) when they aren't installed yet.
 set -euo pipefail
 
 APP_ID="io.github.msitarzewski.AutoPaper"
-REPO_URL="https://github.com/msitarzewski/AutoPaper.git"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PACKAGING="$ROOT/packaging/flatpak"
 MANIFEST="$PACKAGING/$APP_ID.yml"
@@ -29,21 +32,20 @@ CARGO_SOURCES="$PACKAGING/cargo-sources.json"
 # flatpak-cargo-generator, pinned (flatpak/flatpak-builder-tools, cargo/flatpak-cargo-generator.py).
 GENERATOR_COMMIT="74697c75b630d7330e77250fc13cb5ea688d9479"
 GENERATOR_SHA256="0a2db6be87d75910facef28ab46d4d6460802e8419ab850d0caa6a364d26b380"
+# The GNOME runtime comes from Flathub, for the build and for every installation.
 FLATHUB_REPO="https://dl.flathub.org/repo/flathub.flatpakrepo"
 
 ARCH=""
-TAG=""
-COMMIT=""
 UPDATE_SOURCES=0
+LINT=0
 ALLOW_LINT_ERRORS=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --arch) ARCH="$2"; shift 2 ;;
-    --tag) TAG="$2"; shift 2 ;;
-    --commit) COMMIT="$2"; shift 2 ;;
     --update-cargo-sources) UPDATE_SOURCES=1; shift ;;
+    --lint) LINT=1; shift ;;
     --allow-lint-errors) ALLOW_LINT_ERRORS=1; shift ;;
-    *) sed -n '2,20p' "$0"; exit 2 ;;
+    *) sed -n '2,26p' "$0"; exit 2 ;;
   esac
 done
 
@@ -52,15 +54,21 @@ step() { printf '\n== %s\n' "$*"; }
 
 command -v flatpak >/dev/null || die "flatpak is needed"
 command -v python3 >/dev/null || die "python3 (3.11 or newer) is needed"
-flatpak info org.flatpak.Builder >/dev/null 2>&1 ||
-  die "org.flatpak.Builder is needed: flatpak install flathub org.flatpak.Builder"
-builder() { flatpak run --command="$1" org.flatpak.Builder "${@:2}"; }
+# flatpak-builder: Flathub's org.flatpak.Builder when it's installed (it carries every tool a build calls), else the
+# system's (as in CI's container), which runs eu-strip from elfutils outside the build sandbox.
+if flatpak info org.flatpak.Builder >/dev/null 2>&1; then
+  builder() { flatpak run --command="$1" org.flatpak.Builder "${@:2}"; }
+elif command -v flatpak-builder >/dev/null; then
+  command -v eu-strip >/dev/null || die "the system's flatpak-builder needs eu-strip (Ubuntu: apt install elfutils)"
+  builder() { "$@"; }
+else
+  die "flatpak-builder is needed: flatpak install flathub org.flatpak.Builder (or the system's, with elfutils)"
+fi
 
 VERSION="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' "$ROOT/Cargo.toml")"
 [[ -n "$VERSION" ]] || die "no [workspace.package] version in Cargo.toml"
-TAG="${TAG:-v$VERSION}"
 ARCH="${ARCH:-$(flatpak --default-arch)}"
-case "$ARCH" in aarch64 | x86_64) ;; *) die "--arch must be aarch64 or x86_64 (Flathub's architectures)" ;; esac
+case "$ARCH" in aarch64 | x86_64) ;; *) die "--arch must be aarch64 or x86_64" ;; esac
 if [[ "$ARCH" != "$(flatpak --default-arch)" ]] && ! flatpak --supported-arches | grep -qx "$ARCH"; then
   die "this machine can't run $ARCH builds: install qemu-user-static (with binfmt_misc) first"
 fi
@@ -69,7 +77,7 @@ WORK="$ROOT/build/flatpak/$ARCH"
 OUT="$ROOT/build/flatpak/out"
 mkdir -p "$WORK" "$OUT"
 
-# The metainfo's newest release is the one being made.
+# The metainfo's newest release is the one being made (GNOME Software shows its notes).
 METAINFO="$ROOT/apps/linux/data/$APP_ID.metainfo.xml"
 release="$(sed -n 's/.*<release version="\([^"]*\)".*/\1/p' "$METAINFO" | head -n 1)"
 [[ "$release" == "$VERSION" ]] ||
@@ -151,94 +159,67 @@ else
 fi
 
 step "Building $APP_ID $VERSION for $ARCH (log: build/flatpak/$ARCH/build.log)"
-# Flathub's own options (flathub-build in org.flatpak.Builder): screenshots are downloaded and mirrored as Flathub
-# serves them. Not --sandbox: the local manifest's sources are the checkout, outside packaging/flatpak.
-# No rofiles-fuse: it can't mount from inside org.flatpak.Builder's sandbox.
+# Branch "stable": the one AutoPaper's repository publishes. Not --sandbox: the manifest's sources are the checkout,
+# outside packaging/flatpak. No rofiles-fuse: it can't mount inside org.flatpak.Builder's sandbox or CI's container.
 started=$(date +%s)
 set +e
 builder flatpak-builder --force-clean --disable-rofiles-fuse --user --arch="$ARCH" --default-branch=stable \
-  "${install_deps[@]}" --mirror-screenshots-url=https://dl.flathub.org/media --compose-url-policy=full \
-  --state-dir="$WORK/state" --repo="$WORK/repo" "$WORK/builddir" "$MANIFEST" 2>&1 | tee "$WORK/build.log" |
+  "${install_deps[@]}" --state-dir="$WORK/state" --repo="$WORK/repo" "$WORK/builddir" "$MANIFEST" 2>&1 |
+  tee "$WORK/build.log" |
   sed -u 's/\r/\n/g' | grep --line-buffered -Ev '^ *(Compiling |[0-9]+ +[0-9]|% Total|Dload)'
 built="${PIPESTATUS[0]}"
 set -e
 [[ "$built" == 0 ]] || die "the build failed; see build/flatpak/$ARCH/build.log"
 echo "Built in $(( ($(date +%s) - started) / 60 )) min $(( ($(date +%s) - started) % 60 )) s."
 
+step "AppStream screenshots"
+# GNOME Software shows the screenshots from the metainfo's URLs, pinned to the release's tag. appstreamcli compose drops
+# any it can't download (screenshot-download-error), so a build made before the tag is pushed has none: a tag build
+# (CI on the tag's push) must keep them all.
+count_screenshots() { { grep -o '<screenshot[ >]' || true; } | wc -l | tr -d ' '; }
+catalog="$WORK/builddir/files/share/app-info/xmls/$APP_ID.xml.gz"
+[[ -f "$catalog" ]] || die "flatpak-builder made no AppStream catalog ($catalog)"
+wanted="$(count_screenshots < "$METAINFO")"
+kept="$(gzip -dc "$catalog" | count_screenshots)"
+if [[ "$kept" == "$wanted" ]]; then
+  echo "All $wanted kept."
+elif [[ "${GITHUB_REF_TYPE:-}" == tag ]]; then
+  die "the AppStream catalog kept $kept of the metainfo's $wanted screenshots: are their URLs (tag v$VERSION) reachable?"
+else
+  echo "Only $kept of $wanted kept: their URLs are pinned to the tag v$VERSION, which isn't pushed yet (fine for a test build)."
+fi
+
 step "Bundle"
+# Unsigned and pointing nowhere for updates: publish-flatpak.sh makes the signed downloads from the repository.
 bundle="$OUT/AutoPaper-$VERSION-$ARCH.flatpak"
 flatpak build-bundle --arch="$ARCH" --runtime-repo="$FLATHUB_REPO" "$WORK/repo" "$bundle" "$APP_ID" stable
 (cd "$OUT" && sha256sum "$(basename "$bundle")" > "$(basename "$bundle").sha256")
 echo "$bundle ($(du -h "$bundle" | cut -f 1))"
 cat "$bundle.sha256"
 
-step "Flathub submission files"
-flathub_manifest=""
-rm -rf "$OUT/flathub"
-if [[ -z "$COMMIT" ]]; then
-  COMMIT="$(git -C "$ROOT" rev-parse -q --verify "refs/tags/$TAG^{commit}" 2>/dev/null || true)"
-fi
-if [[ -z "$COMMIT" ]]; then
-  echo "Skipped: no tag $TAG in this checkout (tag the release, or pass --tag and --commit)."
-else
-  [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]] || die "--commit must be a full 40-character commit hash"
-  if [[ -n "$(git -C "$ROOT" status --porcelain 2>/dev/null)" ]] ||
-    [[ "$(git -C "$ROOT" rev-parse -q HEAD 2>/dev/null)" != "$COMMIT" ]]; then
-    echo "Note: this checkout isn't $TAG ($COMMIT) as committed, so the bundle may differ from what Flathub builds."
-  fi
-  mkdir -p "$OUT/flathub"
-  flathub_manifest="$OUT/flathub/$APP_ID.yml"
-  # The local manifest with its header and its app-sources block swapped for the release's git source.
-  python3 - "$MANIFEST" "$flathub_manifest" "$REPO_URL" "$TAG" "$COMMIT" <<'PY'
-import re, sys
-
-source, target, url, tag, commit = sys.argv[1:]
-text = open(source).read()
-body = text[text.index("\nid: ") + 1:]
-block = re.compile(r"^( *)# app-sources: begin\n.*?^ *# app-sources: end\n", re.M | re.S)
-match = block.search(body)
-if not match:
-    sys.exit("the manifest has no app-sources block")
-indent = match.group(1)
-# YAML reads a hash of digits (with at most one "e") as a number, so only such a hash is quoted.
-if re.fullmatch(r"[0-9]*(e[0-9]*)?", commit):
-    commit = f"'{commit}'"
-git = (f"{indent}- type: git\n{indent}  url: {url}\n{indent}  tag: {tag}\n{indent}  commit: {commit}\n")
-header = "# AutoPaper for Linux on Flathub: GNOME runtime 51, built offline from the release tag.\n"
-open(target, "w").write(header + body[:match.start()] + git + body[match.end():])
-PY
-  cp "$CARGO_SOURCES" "$OUT/flathub/cargo-sources.json"
-  # Flathub builds x86_64 and aarch64 by default, which AutoPaper supports, so there's no flathub.json.
-  ls -1 "$OUT/flathub"
-fi
-
-step "Flathub's linter"
 lint_failed=()
-lint() {
-  local name="$1"
-  shift
-  echo "-- $name"
-  if builder flatpak-builder-lint "$@"; then
-    echo "clean"
-  else
-    lint_failed+=("$name")
-  fi
-}
-lint "manifest" manifest "$MANIFEST"
-[[ -n "$flathub_manifest" ]] && lint "Flathub manifest" manifest "$flathub_manifest"
-lint "build directory" builddir "$WORK/builddir"
-lint "repository" repo "$WORK/repo"
+if [[ "$LINT" == 1 ]]; then
+  step "flatpak-builder-lint"
+  lint() {
+    local name="$1"
+    shift
+    echo "-- $name"
+    if builder flatpak-builder-lint "$@"; then
+      echo "clean"
+    else
+      lint_failed+=("$name")
+    fi
+  }
+  lint "manifest" manifest "$MANIFEST"
+  lint "build directory" builddir "$WORK/builddir"
+  lint "repository" repo "$WORK/repo"
+fi
 
 step "Done"
 echo "Bundle:   $bundle"
 echo "SHA-256:  $bundle.sha256"
-[[ -n "$flathub_manifest" ]] && echo "Flathub:  $OUT/flathub/ (manifest, cargo-sources.json)"
-echo "Install:  flatpak install --user $bundle"
-cat <<'NOTE'
-Flathub's rules (docs.flathub.org/docs/for-app-authors/requirements, "Generative AI policy"): the manifest submitted to
-Flathub must not contain AI-generated or AI-assisted content, the submission pull request must be opened by a person,
-and AI-generated code or packaging in the app must be disclosed.
-NOTE
+echo "Try it:   flatpak install --user $bundle"
+echo "Publish:  scripts/publish-flatpak.sh (on the Mac), which signs it into AutoPaper's repository"
 if [[ ${#lint_failed[@]} -gt 0 ]]; then
   printf -v failed '%s, ' "${lint_failed[@]}"
   echo "The linter reported errors for: ${failed%, } (docs.flathub.org/linter explains each)."

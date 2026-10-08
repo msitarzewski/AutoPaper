@@ -84,6 +84,11 @@
     <keyword>lock screen</keyword>
   </keywords>
   <releases>
+    <release version="0.1.1" date="2026-10-08">
+      <description>
+        <p>A Console that shows every wallpaper run and what happened, clearer explanations when the monthly budget blocks a new wallpaper (your current wallpaper stays), and local models that need minutes to load now get time to start.</p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-10-06">
       <description>
         <p>The first release of AutoPaper for Linux.</p>

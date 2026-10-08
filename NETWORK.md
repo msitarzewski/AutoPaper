@@ -66,7 +66,7 @@ The address you give; `http://127.0.0.1:11434` unless you change it. No key.
 
 | Request | When | Sends | Time limit, size limit |
 |---|---|---|---|
-| `POST /api/chat` | Writing a scene | The model, the instructions and message, the answer's schema as `format`, `stream: false`, `think: false`, the temperature | 180 s, 8 MB |
+| `POST /api/chat` | Writing a scene | The model, the instructions and message, the answer's schema as `format`, `stream: false`, `think: false`, the temperature | 10 minutes or more (see below), 8 MB |
 | `GET /api/tags` | Model list, **Test**, and before writing when no model is chosen (to use the first one) | — | 20 s, 4 MB |
 
 ## OpenAI-compatible servers (LM Studio, LocalAI, stable-diffusion.cpp and others)
@@ -75,8 +75,8 @@ The address you give; there's no default, and `/v1` is added when the address ha
 
 | Request | When | Sends | Time limit, size limit |
 |---|---|---|---|
-| `POST {address}/chat/completions` | Writing a scene | The model (if chosen), the instructions and message, the answer's schema as `response_format`, the temperature, `stream: false` | 180 s, 8 MB |
-| `POST {address}/images/generations` | Painting | The model (if chosen), the prompt, the size (at most 2048 px a side and never more pixels than your display), `n: 1`, `response_format: b64_json` | 300 s, 72 MB |
+| `POST {address}/chat/completions` | Writing a scene | The model (if chosen), the instructions and message, the answer's schema as `response_format`, the temperature, `stream: false` | 10 minutes or more (see below), 8 MB |
+| `POST {address}/images/generations` | Painting | The model (if chosen), the prompt, the size (at most 2048 px a side and never more pixels than your display), `n: 1`, `response_format: b64_json` | 10 minutes or more (see below), 72 MB |
 | `GET` the link the server returned | Only if the server answers with a link instead of the image | — The link is followed only if it's on the server's own address (the same scheme, host and port) | 120 s, 50 MB |
 | `GET {address}/models` | Model list, **Test**, and before writing when no model is chosen | — | 20 s, 4 MB |
 
@@ -95,6 +95,7 @@ The address you give; `http://127.0.0.1:8188` unless you change it. No key.
 
 A ComfyUI painting has no fixed time limit: it can take as long as it keeps making progress. It's given up and stopped when no progress arrives for 3 minutes after a step (or 4 times its slowest step, if that's longer), or 10 minutes while a step-less part of the job runs (loading a model, decoding the picture), or when it passes the longer of 30 minutes and 3 times AutoPaper's estimate for it. Waiting in ComfyUI's queue behind someone else's job doesn't count. The bundled workflows save each painting in ComfyUI's own `output/autopaper/` folder, as any ComfyUI job does; AutoPaper doesn't delete anything there.
 
+Ollama and OpenAI-compatible servers (writing and painting) are given 10 minutes, because a model loaded from scratch can take minutes to read from disk and answer its first request. Once AutoPaper has seen how long a call usually takes on your computer, it waits 3 times that when that's longer, up to an hour. A quick history never shortens the 10 minutes. You can press Stop at any time. Hosted services (OpenAI, Google) keep their short limits.
 
 ## Checking for updates
 

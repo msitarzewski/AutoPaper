@@ -190,7 +190,7 @@ description: Every AutoPaper setting with its default and range, the limits, how
     <li>Every finished request to a provider is recorded on your computer: writing or painting, provider, server address (for your own servers), model, size, steps, and how many seconds it took. The newest 50 are kept for each provider and model. They’re never sent.</li>
     <li>An estimate is the median of comparable records, each weighted by age (a 30-day-old one counts half) and scaled to the size and steps wanted. With no records, there’s no estimate.</li>
     <li>While painting with ComfyUI, progress follows its steps, at the pace measured in that painting; otherwise it follows the estimate, showing at most 95%.</li>
-    <li>ComfyUI jobs have no fixed time limit. One is stopped after 3 minutes without progress following a step (or 4 times its slowest step), 10 minutes in a step-less part, or past the longer of 30 minutes and 3 times its estimate. Hosted writers have 60 seconds and painters 240; Ollama and OpenAI-compatible writers 180 seconds, painters 300. The <a href="network.html">Network</a> page has every limit.</li>
+    <li>ComfyUI jobs have no fixed time limit. One is stopped after 3 minutes without progress following a step (or 4 times its slowest step), 10 minutes in a step-less part, or past the longer of 30 minutes and 3 times its estimate. Hosted writers have 60 seconds and painters 240; Ollama and OpenAI-compatible writers and painters 10 minutes, or 3 times how long that call usually takes on your computer when that is longer (at most an hour), because a model loaded from scratch can take minutes. The <a href="network.html">Network</a> page has every limit.</li>
   </ul>
 
   <h2 id="console">Console and statistics</h2>

@@ -147,3 +147,13 @@ never produces a new-wallpaper notification. Preserve ordinary scheduled backoff
 native manual/echo actions consume the new Shown-returning APIs.
 **References**: `systemPatterns.md#Service availability before wallpaper generation`, `core/src/engine.rs:2021`;
 `core/tests/engine.rs:2393`.
+
+### 2026-10-08: Local servers wait 10 minutes, and longer when their history says so (no timeout setting)
+**Status**: Approved (user: "make it up to 10 minutes… preloading can take a while from scratch… or an input field? thoughts?" → "build 1 to 3")
+**Context**: Ollama and OpenAI-compatible text had a fixed 180 s and compat painting 300 s; a model loaded from scratch can exceed that.
+**Decision**: `providers::local_timeout_secs(expected)` = max(10 min, 3 × the learned estimate), at most an hour, for Ollama text and
+OpenAI-compatible text and images; `ComposeRequest.expected_secs` (new) is filled by the engine from the Concepts timings, as
+`ImageRequest.expected_secs` already is. Hosted services keep 60 s/240 s; ComfyUI keeps its stall windows and 30-minute ceiling.
+**Alternatives**: a per-provider input field (three apps + the settings format, and nobody can guess the number); a "loading the model"
+progress stage (needs an FFI enum change and text in all three apps — left for a UI round); background warm-up (not built).
+**Consequences**: compat servers that are remote hosts also wait up to 10 minutes (Stop works at any time); core-only change, ships with the next release.

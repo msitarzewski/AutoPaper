@@ -6,7 +6,8 @@
 //! Base URL from the selection (default http://127.0.0.1:11434), checked with `HostPolicy::UserEndpoint`.
 //! No key. An empty model means the first listed. A connection failure means "Ollama isn't running"
 //! (`ProviderUnavailable`), not `Offline`; a request that used its whole timeout means it was too slow
-//! (`ProviderUnavailable` too). Text timeout 180 s (local models can be slow to load). An answer that was cut
+//! (`ProviderUnavailable` too). Text timeout: max(10 minutes, 3 × the learned estimate) — a model loaded from scratch can take
+//! minutes (`providers::local_timeout_secs`). An answer that was cut
 //! short or isn't JSON is returned as that text (a JSON string): the composer finds no candidates in it, so
 //! the engine asks again; an empty answer is `InvalidResponse`.
 //! Shapes: `core/tests/fixtures/ollama/` (recorded from Ollama 0.34.2).
@@ -23,10 +24,9 @@ use crate::net::{HostPolicy, error_for_status};
 use crate::ports::{HttpClient, HttpMethod, HttpRequest};
 
 use super::openai_compat::json_in_text;
-use super::{ComposeRequest, ComposeResponse, TextProvider, Usage, used_whole_timeout};
+use super::{ComposeRequest, ComposeResponse, TextProvider, Usage, local_timeout_secs, used_whole_timeout};
 
 const KIND: ProviderKind = ProviderKind::Ollama;
-const TEXT_TIMEOUT_SECS: u64 = 180;
 const LIST_TIMEOUT_SECS: u64 = 20;
 /// A thinking model's answer can carry its (ignored) reasoning too.
 const MAX_TEXT_RESPONSE_BYTES: usize = 8 * 1024 * 1024;
@@ -124,7 +124,7 @@ impl TextProvider for Ollama {
             "think": false,
             "options": { "temperature": request.temperature },
         });
-        let chat: ChatResponse = self.send(HttpMethod::Post, "/api/chat", Some(&body), TEXT_TIMEOUT_SECS, MAX_TEXT_RESPONSE_BYTES).await?;
+        let chat: ChatResponse = self.send(HttpMethod::Post, "/api/chat", Some(&body), local_timeout_secs(request.expected_secs), MAX_TEXT_RESPONSE_BYTES).await?;
         let content = chat.message.map(|message| message.content).unwrap_or_default();
         let why = if chat.done_reason.as_deref() == Some("length") {
             "Ollama's answer was cut short"
@@ -217,6 +217,7 @@ mod tests {
             schema: json!({ "type": "object", "properties": { "candidates": { "type": "array" } }, "required": ["candidates"] }),
             temperature: 0.56,
             inputs: ComposeInputs::default(),
+            expected_secs: None,
         }
     }
 
@@ -232,7 +233,7 @@ mod tests {
         assert_eq!(sent.method, HttpMethod::Post);
         assert_eq!(sent.url, "http://127.0.0.1:11434/api/chat");
         assert_eq!(sent.policy, HostPolicy::UserEndpoint);
-        assert_eq!(sent.timeout_secs, TEXT_TIMEOUT_SECS);
+        assert_eq!(sent.timeout_secs, 10 * 60, "a model loaded from scratch can take minutes");
         assert!(sent.headers.iter().all(|(k, _)| !k.eq_ignore_ascii_case("authorization")));
         let body = http.json_body(0);
         assert_eq!(body["model"], "ornith:latest");
@@ -375,12 +376,25 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn a_slow_model_is_given_three_times_what_it_usually_takes() {
+        let http = Arc::new(StubHttp::new());
+        http.once("/api/chat", 200, CHAT);
+        http.once("/api/chat", 200, CHAT);
+        let usually_slow = ComposeRequest { expected_secs: Some(400.0), ..request("big:70b") };
+        ollama(&http).compose(usually_slow).await.unwrap();
+        let usually_quick = ComposeRequest { expected_secs: Some(20.0), ..request("small:1b") };
+        ollama(&http).compose(usually_quick).await.unwrap();
+        assert_eq!(http.requests()[0].timeout_secs, 1200, "3 × 400 s");
+        assert_eq!(http.requests()[1].timeout_secs, 600, "quick history never shortens the cold-start allowance");
+    }
+
     #[tokio::test(start_paused = true)]
     async fn too_slow_is_unavailable_not_absent() {
         match Ollama::new(Arc::new(Stalled), "http://127.0.0.1:11434".into()).compose(request("gemma4")).await {
             Err(AutoPaperError::ProviderUnavailable { provider: KIND, reason, detail }) => {
                 assert_eq!(reason, ProviderUnavailableReason::TimedOut);
-                assert_eq!(detail, "Ollama didn't answer within 180 s");
+                assert_eq!(detail, "Ollama didn't answer within 600 s");
             }
             other => panic!("{other:?}"),
         }

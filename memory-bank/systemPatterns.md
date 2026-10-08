@@ -558,7 +558,9 @@ will perform though over time. Will we keep that info?"
   engine-wide (`set_progress_detail_observer`), not a method on `ProgressObserver` (UniFFI can't default trait
   methods; see FFI surface).
 - Timeouts, typed failure, early start: see ComfyUI and Scheduling above. Hosted providers keep their request
-  timeouts; Ollama/OpenAI-compatible text keep theirs (180 s): the learned timeout is ComfyUI's (the only local *job*).
+  timeouts. Ollama and OpenAI-compatible text and images wait `providers::local_timeout_secs(expected)` = max(10 minutes, 3 × the learned
+  estimate), at most an hour (2026-10-08: a cold model load can take minutes; the history only lengthens it, `ComposeRequest.expected_secs` is
+  filled by the engine from the Concepts timings); ComfyUI keeps its stall windows and ceiling. Hosted services keep 60 s writers / 240 s painters.
 - Demo slow mode (`AUTOPAPER_DEMO_DELAY_SECS=N`, 1–3600, read by `Engine::open`; Rust: `set_demo_delay`): a
   quarter of N writing, the rest painting as 8 reported steps — so VMs can show the ring and time left without
   ComfyUI; its timings make Demo estimates appear after one run. Off by default.

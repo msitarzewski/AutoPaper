@@ -2405,7 +2405,14 @@ impl Inner {
     ) -> Result<Vec<Evaluated>> {
         self.check_cancel()?;
         self.stage(observer, ProgressStage::Composing);
-        let request = composer::build_request(context, job.settings.text_provider.model.trim());
+        let mut request = composer::build_request(context, job.settings.text_provider.model.trim());
+        // How long this writer has taken here: a local server waits longer than 10 minutes only when it usually needs it.
+        request.expected_secs = self
+            .estimate_secs(ProviderJob::Concepts, job.text_kind, &job.text_origin, &job.text_model, 0, 0, None)
+            .unwrap_or_else(|error| {
+                tracing::warn!(%error, "couldn't read how long writing took");
+                None
+            });
         self.console.event(None, "Writing", Some(job.text_kind), &job.text_model, "instructions",
             &format!("System instructions:\n{}\n\nUser prompt:\n{}\n\nSchema:\n{}\n\nTemperature (where supported): {}", request.system, request.user, request.schema, request.temperature));
         let started = tokio::time::Instant::now();

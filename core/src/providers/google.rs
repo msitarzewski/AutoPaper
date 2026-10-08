@@ -792,6 +792,7 @@ mod tests {
             schema: schema(),
             temperature: 0.68,
             inputs: ComposeInputs::default(),
+            expected_secs: None,
         }
     }
 
@@ -1344,6 +1345,7 @@ mod tests {
             }),
             temperature: 0.4,
             inputs: ComposeInputs::default(),
+            expected_secs: None,
         };
         let response = google.compose(request).await.expect("compose");
         assert!(response.output["word"].is_string(), "{}", response.output);

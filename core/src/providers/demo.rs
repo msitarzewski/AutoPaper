@@ -742,6 +742,7 @@ mod tests {
             schema: serde_json::json!({}),
             temperature: 0.7,
             inputs,
+            expected_secs: None,
         }
     }
 

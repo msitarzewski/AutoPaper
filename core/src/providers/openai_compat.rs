@@ -10,7 +10,8 @@
 //! server it was entered for and is never sent to another address. An
 //! empty model means the first listed model that isn't an embedding model (concepts) or the server's
 //! own choice (images). Sizes: free-form (step 64, max side 2048, max 4.2 MP) unless the server rejects
-//! them. Timeouts: text 180 s, image 300 s; a request that used its whole timeout → `ProviderUnavailable`.
+//! them. Timeouts: text and image max(10 minutes, 3 × the learned estimate) — a model loaded from scratch can take minutes
+//! (`providers::local_timeout_secs`); a request that used its whole timeout → `ProviderUnavailable`.
 //! An answer that was cut short or isn't JSON is returned as that text (a JSON string): the composer finds
 //! no candidates in it, so the engine asks again; an empty answer is `InvalidResponse`.
 //! Nothing answering at a local address (loopback, private, link-local, `.local`) means the server isn't
@@ -31,12 +32,10 @@ use crate::ports::{HttpClient, HttpMethod, HttpRequest, HttpResponse, SecretStor
 
 use super::{
     ComposeRequest, ComposeResponse, FreeSize, ImageCapabilities, ImageProvider, ImageRequest, ImageResponse, TextProvider, Usage,
-    used_whole_timeout,
+    local_timeout_secs, used_whole_timeout,
 };
 
 const KIND: ProviderKind = ProviderKind::OpenAiCompatible;
-const TEXT_TIMEOUT_SECS: u64 = 180;
-const IMAGE_TIMEOUT_SECS: u64 = 300;
 const LIST_TIMEOUT_SECS: u64 = 20;
 const DOWNLOAD_TIMEOUT_SECS: u64 = 120;
 const MAX_TEXT_RESPONSE_BYTES: usize = 8 * 1024 * 1024;
@@ -214,7 +213,7 @@ impl TextProvider for OpenAiCompatible {
             "stream": false,
         });
         let completion: ChatCompletion =
-            self.send_json(HttpMethod::Post, "/chat/completions", Some(&body), TEXT_TIMEOUT_SECS, MAX_TEXT_RESPONSE_BYTES).await?;
+            self.send_json(HttpMethod::Post, "/chat/completions", Some(&body), local_timeout_secs(request.expected_secs), MAX_TEXT_RESPONSE_BYTES).await?;
         let choice = completion.choices.into_iter().next().ok_or_else(|| invalid("the server returned no answer"))?;
         if choice.message.refusal.as_deref().is_some_and(|refusal| !refusal.trim().is_empty()) {
             return Err(AutoPaperError::Refused { provider: KIND });
@@ -276,7 +275,7 @@ impl ImageProvider for OpenAiCompatible {
             body["model"] = json!(model);
         }
         let images: ImagesResponse =
-            self.send_json(HttpMethod::Post, "/images/generations", Some(&body), IMAGE_TIMEOUT_SECS, MAX_IMAGE_RESPONSE_BYTES).await?;
+            self.send_json(HttpMethod::Post, "/images/generations", Some(&body), local_timeout_secs(request.expected_secs), MAX_IMAGE_RESPONSE_BYTES).await?;
         let claimed_mime = images.output_format.as_deref().map(mime_for_format).unwrap_or("image/png").to_string();
         let image = images.data.into_iter().next().ok_or_else(|| invalid("the server returned no image"))?;
         let (bytes, mime) = match (image.b64_json, image.url) {
@@ -443,6 +442,7 @@ mod tests {
             schema: json!({ "type": "object", "properties": { "candidates": { "type": "array" } }, "required": ["candidates"] }),
             temperature: 0.56,
             inputs: ComposeInputs::default(),
+            expected_secs: None,
         }
     }
 
@@ -505,7 +505,7 @@ mod tests {
         assert_eq!(sent.method, HttpMethod::Post);
         assert_eq!(sent.url, "http://127.0.0.1:11434/v1/chat/completions");
         assert_eq!(sent.policy, HostPolicy::UserEndpoint);
-        assert_eq!(sent.timeout_secs, TEXT_TIMEOUT_SECS);
+        assert_eq!(sent.timeout_secs, 10 * 60);
         assert_eq!(header(sent, "authorization"), None, "no key, no header");
         let body = http.json_body(0);
         assert_eq!(body["model"], "qwen2.5vl:7b");
@@ -700,7 +700,7 @@ mod tests {
 
         let sent = &http.requests()[0];
         assert_eq!(sent.url, "http://127.0.0.1:1234/v1/images/generations");
-        assert_eq!(sent.timeout_secs, IMAGE_TIMEOUT_SECS);
+        assert_eq!(sent.timeout_secs, 10 * 60);
         assert_eq!(header(sent, "authorization"), Some("Bearer sd-key"));
         let body = http.json_body(0);
         assert_eq!(
@@ -813,12 +813,12 @@ mod tests {
         match slow.compose(compose_request("m")).await {
             Err(AutoPaperError::ProviderUnavailable { provider: KIND, reason, detail }) => {
                 assert_eq!(reason, ProviderUnavailableReason::TimedOut);
-                assert_eq!(detail, "the server didn't answer within 180 s");
+                assert_eq!(detail, "the server didn't answer within 600 s");
             }
             other => panic!("{other:?}"),
         }
         match slow.generate(image_request("m")).await {
-            Err(AutoPaperError::ProviderUnavailable { detail, .. }) => assert_eq!(detail, "the server didn't answer within 300 s"),
+            Err(AutoPaperError::ProviderUnavailable { detail, .. }) => assert_eq!(detail, "the server didn't answer within 600 s"),
             other => panic!("{other:?}"),
         }
     }

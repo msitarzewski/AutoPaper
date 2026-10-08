@@ -29,6 +29,23 @@ pub(crate) fn used_whole_timeout(started: tokio::time::Instant, timeout_secs: u6
     started.elapsed() + TIMEOUT_SLACK >= Duration::from_secs(timeout_secs)
 }
 
+/// How long a request to a server on the person's own computer or network may take at least: a model loaded from scratch
+/// (read from disk into memory, a first request that also warms it up) can take minutes. Hosted services keep their short
+/// limits; a call to one that takes minutes really is stuck.
+pub(crate) const LOCAL_MIN_TIMEOUT_SECS: u64 = 10 * 60;
+/// …and at most this, however slow a model has been (the same bound as a ComfyUI job's ceiling, roughly).
+const LOCAL_MAX_TIMEOUT_SECS: u64 = 60 * 60;
+/// How many times its learned estimate a local call may take before it's given up on.
+const LOCAL_TIMEOUT_ESTIMATES: f64 = 3.0;
+
+/// The time a local server gets for one call: 10 minutes, or 3 × how long this call usually takes on this computer
+/// (`expected_secs`, from the performance history) when that's longer, never more than an hour. The history only ever
+/// lengthens it: a model that is usually quick still has to be allowed a cold start.
+pub(crate) fn local_timeout_secs(expected_secs: Option<f64>) -> u64 {
+    let learned = expected_secs.filter(|seconds| seconds.is_finite() && *seconds > 0.0).map_or(0.0, |seconds| seconds * LOCAL_TIMEOUT_ESTIMATES);
+    (learned.ceil() as u64).clamp(LOCAL_MIN_TIMEOUT_SECS, LOCAL_MAX_TIMEOUT_SECS)
+}
+
 /// What the composer asks a text model for: candidate concepts as JSON matching `composer::schema`.
 #[derive(Debug, Clone)]
 pub struct ComposeRequest {
@@ -43,6 +60,9 @@ pub struct ComposeRequest {
     pub temperature: f32,
     /// The same inputs in structured form, for providers that don't read instructions (Demo).
     pub inputs: ComposeInputs,
+    /// How long this writer usually takes here (the learned estimate, seconds). Servers on the person's own computer
+    /// (Ollama, OpenAI-compatible) wait max(10 minutes, 3 × this); hosted services ignore it.
+    pub expected_secs: Option<f64>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -178,5 +198,27 @@ pub trait ImageProvider: Send + Sync {
     /// A read-only service check before any paid work. Local Demo providers need no network.
     async fn check_available(&self) -> Result<()> {
         self.list_models().await.map(|_| ())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_local_server_gets_ten_minutes_unless_its_history_says_longer() {
+        assert_eq!(local_timeout_secs(None), 600, "nothing learned yet: the cold-start allowance");
+        assert_eq!(local_timeout_secs(Some(20.0)), 600, "a quick history never shortens it");
+        assert_eq!(local_timeout_secs(Some(200.0)), 600, "3 × 200 s is exactly 10 minutes");
+        assert_eq!(local_timeout_secs(Some(400.0)), 1200, "3 × 400 s");
+        assert_eq!(local_timeout_secs(Some(400.4)), 1202, "rounded up to whole seconds");
+        assert_eq!(local_timeout_secs(Some(100_000.0)), 3600, "never more than an hour");
+    }
+
+    #[test]
+    fn nonsense_estimates_are_ignored() {
+        for odd in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 0.0, -5.0] {
+            assert_eq!(local_timeout_secs(Some(odd)), 600, "{odd}");
+        }
     }
 }

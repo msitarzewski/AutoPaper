@@ -1181,6 +1181,24 @@ async fn a_retry_tells_the_model_what_it_missed_and_the_error_names_it() {
 }
 
 #[tokio::test]
+async fn a_local_writer_is_given_ten_minutes_for_a_cold_start() {
+    let h = Harness::new();
+    healthy_services(&h.http);
+    h.keywords(&["lighthouse"], &[], &[]);
+    h.update(|s| s.text_provider = ProviderSelection { kind: ProviderKind::Ollama, model: "m".into(), base_url: None });
+    let chat = json!({
+        "model": "m",
+        "message": { "role": "assistant", "content": json!({ "candidates": [harbour()] }).to_string() },
+        "done": true, "done_reason": "stop", "prompt_eval_count": 10, "eval_count": 10
+    });
+    h.http.once("/api/chat", 200, chat.to_string());
+    h.generate().await;
+    let chats: Vec<_> = h.http.requests().into_iter().filter(|request| request.url.ends_with("/api/chat")).collect();
+    assert_eq!(chats.len(), 1);
+    assert_eq!(chats[0].timeout_secs, 600, "nothing learned yet: Ollama may take 10 minutes to load a model and answer");
+}
+
+#[tokio::test]
 async fn control_characters_from_a_provider_never_reach_the_database() {
     let h = Harness::new();
     healthy_services(&h.http);

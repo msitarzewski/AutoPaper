@@ -245,6 +245,7 @@ pub fn build_request(context: &ComposeContext, model: &str) -> ComposeRequest {
             candidates: CANDIDATES,
             echo_of: context.echo.as_ref().map(|echo| echo.original.clone()),
         },
+        expected_secs: None,
     }
 }
 

@@ -259,7 +259,7 @@ internal static class WallpaperActions
     /// <summary>One row of Show original and echoes: its thumbnail, "Original" or "Echo", title, date and echo note.</summary>
     private static ListViewItem LineageRow(HistoryItem entry)
     {
-        var grid = new Grid { Padding = new Thickness(0, 8, 0, 8), ColumnSpacing = 12 };
+        var grid = new Grid { ColumnSpacing = 12 };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(128) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         var frame = new Border
@@ -270,10 +270,10 @@ internal static class WallpaperActions
             Child = PictureOf(entry),
         };
         grid.Children.Add(frame);
-        var words = new StackPanel { Spacing = 2 };
+        var words = new StackPanel();
         Grid.SetColumn(words, 1);
         words.Children.Add(new TextBlock { Text = entry.LineageRole, Style = Style("CaptionTextBlockStyle"), Foreground = Brush("TextFillColorSecondaryBrush") });
-        words.Children.Add(new TextBlock { Text = entry.Title, Style = Style("BodyStrongTextBlockStyle"), TextWrapping = TextWrapping.Wrap });
+        words.Children.Add(new TextBlock { Text = entry.Title, TextWrapping = TextWrapping.Wrap });
         words.Children.Add(new TextBlock { Text = entry.When, Style = Style("CaptionTextBlockStyle") });
         if (entry.EchoNote.Length > 0)
         {

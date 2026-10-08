@@ -107,6 +107,23 @@ fn open(
     engine
 }
 
+/// Successful availability fixtures; generation/error responses are still scripted by each test.
+fn healthy_services(http: &StubHttp) {
+    http.always("/v1/models", 200, br#"{"data":[]}"#.to_vec());
+    http.always("/api/tags", 200, br#"{"models":[{"name":"m"}]}"#.to_vec());
+    http.always("/object_info", 200, br#"{}"#.to_vec());
+}
+
+fn work_requests(http: &StubHttp) -> Vec<HttpRequest> {
+    http.requests().into_iter().filter(|request| {
+        !request.url.ends_with("/v1/models") && !request.url.ends_with("/api/tags") && !request.url.ends_with("/object_info")
+    }).collect()
+}
+
+fn work_json(http: &StubHttp, index: usize) -> serde_json::Value {
+    serde_json::from_slice(work_requests(http)[index].body.as_deref().unwrap()).unwrap()
+}
+
 fn exists(path: &Option<String>) -> bool {
     path.as_deref().is_some_and(|path| Path::new(path).is_file())
 }
@@ -138,6 +155,7 @@ async fn keywords_to_a_stored_wallpaper_that_becomes_current() {
     assert_eq!(
         *stages.0.lock().unwrap(),
         [
+            ProgressStage::CheckingServices,
             ProgressStage::Composing,
             ProgressStage::CheckingMemory,
             ProgressStage::Generating,
@@ -308,6 +326,7 @@ fn responses_text(status: &str, text: &str) -> Vec<u8> {
 #[tokio::test]
 async fn a_repeat_is_retried_naming_what_it_was_too_close_to() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     h.update(|s| s.text_provider.kind = ProviderKind::OpenAi);
     let harbour = candidate(
@@ -340,7 +359,7 @@ async fn a_repeat_is_retried_naming_what_it_was_too_close_to() {
     let stats = h.engine.stats();
     assert_eq!((stats.compose_calls, stats.novelty_retries, stats.least_similar_fallbacks), (3, 1, 0));
 
-    let requests = h.http.requests();
+    let requests = work_requests(&h.http);
     assert_eq!(requests.len(), 3);
     let retry = String::from_utf8(requests[2].body.clone().unwrap()).unwrap();
     assert!(retry.contains("too close to these past wallpapers"), "the retry says why");
@@ -356,6 +375,7 @@ async fn a_repeat_is_retried_naming_what_it_was_too_close_to() {
 #[tokio::test]
 async fn when_nothing_novel_comes_back_the_least_similar_valid_candidate_wins() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &["people"]);
     h.update(|s| s.text_provider.kind = ProviderKind::OpenAi);
     let harbour = candidate(
@@ -385,7 +405,7 @@ async fn when_nothing_novel_comes_back_the_least_similar_valid_candidate_wins() 
         (stats.compose_calls, stats.novelty_retries, stats.retries_stopped, stats.least_similar_fallbacks),
         (3, 1, 1, 1)
     );
-    assert_eq!(h.http.requests().len(), 3);
+    assert_eq!(work_requests(&h.http).len(), 3);
     let least_similar = |id: &str| h.store().generation(id).unwrap().unwrap().least_similar;
     assert!(least_similar(&second.id), "the fallback is recorded on the generation");
     assert!(!least_similar(&first.id));
@@ -416,6 +436,7 @@ fn harbour_reworded(times: usize) -> serde_json::Value {
 #[tokio::test]
 async fn retries_go_on_while_they_come_closer_to_a_new_idea() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     h.update(|s| s.text_provider.kind = ProviderKind::OpenAi);
     h.http.once("/v1/responses", 200, responses(&[harbour()]));
@@ -443,6 +464,7 @@ async fn retries_go_on_while_they_come_closer_to_a_new_idea() {
 #[tokio::test]
 async fn keywords_are_narrow_when_most_recent_wallpapers_fell_back() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     h.update(|s| s.text_provider.kind = ProviderKind::OpenAi);
     assert!(!h.engine.keywords_are_narrow().unwrap(), "nothing made yet");
@@ -496,7 +518,7 @@ async fn keywords_are_narrow_when_most_recent_wallpapers_fell_back() {
         h.clock.advance_days(1.0);
         assert_eq!(h.engine.keywords_are_narrow().unwrap(), narrow, "after {}", made.concept.title);
     }
-    assert_eq!(h.http.requests().len(), 1 + 3 * 2 + 3, "repeats stopped after one retry each");
+    assert_eq!(work_requests(&h.http).len(), 1 + 3 * 2 + 3, "repeats stopped after one retry each");
 }
 
 // ── Long runs: novelty within the quiet period, echoes after it ────────────────────────────
@@ -636,7 +658,7 @@ async fn make_echo_names_its_original_and_lineage_follows() {
 // ── Budget and failures ─────────────────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn over_budget_revisits_a_liked_wallpaper_without_calling_anyone() {
+async fn over_budget_keeps_latest_wallpaper_and_records_why_without_calling_anyone() {
     let h = Harness::new();
     h.keywords(&["lighthouse"], &[], &[]);
     let liked = h.generate().await;
@@ -650,9 +672,15 @@ async fn over_budget_revisits_a_liked_wallpaper_without_calling_anyone() {
         s.monthly_budget_cents = Some(1);
     });
 
-    let shown = h.engine.run_if_due(None).await.unwrap().expect("a revisit");
-    assert_eq!(shown.revisit, Some(RevisitReason::OverBudget));
-    assert_eq!(shown.generation.id, liked.id);
+    assert!(matches!(h.engine.run_if_due(None).await, Err(AutoPaperError::BudgetReached { budget_cents: 1 })));
+    assert_eq!(h.engine.current().unwrap().unwrap().id, other.id, "the last generated wallpaper stays displayed");
+    let run = h.engine.runs(1, 0).unwrap().remove(0);
+    assert_eq!(run.status, RunStatus::Blocked);
+    assert!(run.events.is_empty());
+    assert!(run.detail.contains("$0.01") && run.detail.contains("No network request"));
+    let budget = h.engine.budget_status().unwrap();
+    assert!(budget.blocked && budget.next_cost_microusd > 0);
+    assert!(budget.message.contains("current wallpaper stays"));
     assert!(h.http.requests().is_empty(), "nothing was paid for");
     assert_eq!(h.engine.next_due().unwrap(), Some(h.now() + DAY), "the slot counts as filled");
     assert_eq!(h.engine.run_if_due(None).await.unwrap().map(|s| s.generation.id), None, "not due again yet");
@@ -672,6 +700,7 @@ async fn over_budget_revisits_a_liked_wallpaper_without_calling_anyone() {
 #[tokio::test]
 async fn a_failing_provider_backs_off_and_revisits_once() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     let liked = h.generate().await;
     h.engine.rate(liked.id.clone(), Rating::Liked).unwrap();
@@ -710,6 +739,7 @@ async fn a_failing_provider_backs_off_and_revisits_once() {
 #[tokio::test]
 async fn failures_without_anything_liked_are_errors_and_are_recorded() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.update(|s| s.text_provider.kind = ProviderKind::OpenAi);
     h.http.always("/v1/responses", 401, br#"{"error":{"message":"bad key sk-live-0123456789abcdefghijkl"}}"#.to_vec());
     let error = h.engine.run_if_due(None).await.unwrap_err();
@@ -734,19 +764,20 @@ async fn failures_without_anything_liked_are_errors_and_are_recorded() {
 
 #[tokio::test]
 async fn a_missing_painting_key_stops_before_an_idea_is_paid_for() {
-    // OpenAI writes (its key is there) and Google paints (no key): nothing is asked of OpenAI, no stage starts, and
-    // the error names the painter whose key is missing.
+    // Both roles are checked, but no paid work starts when the painter's key is missing.
     let h = Harness::new();
     h.keywords(&["harbour"], &[], &[]);
     h.update(|s| {
         s.text_provider.kind = ProviderKind::OpenAi;
         s.image_provider.kind = ProviderKind::Google;
     });
+    healthy_services(&h.http);
     let stages = Arc::new(Stages::default());
     let error = h.engine.generate(Trigger::Manual, Some(stages.clone())).await.unwrap_err();
     assert!(matches!(error, AutoPaperError::MissingKey { provider: ProviderKind::Google }), "{error:?}");
-    assert!(h.http.requests().is_empty(), "no call was made: {:?}", h.http.requests().len());
-    assert!(stages.0.lock().unwrap().is_empty(), "no stage started");
+    assert!(work_requests(&h.http).is_empty(), "no paid request was sent");
+    assert_eq!(h.http.requests().len(), 1, "the writer availability check still ran");
+    assert_eq!(*stages.0.lock().unwrap(), [ProgressStage::CheckingServices]);
     assert_eq!(h.engine.spend_summary().unwrap().spent_microusd, 0);
 
     // The same for the writer's key, which is checked first (it's called first).
@@ -990,6 +1021,7 @@ async fn a_database_without_a_schedule_record_counts_from_its_newest_wallpaper()
 #[tokio::test]
 async fn failed_attempts_are_forgotten_after_30_days() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     h.update(|s| s.text_provider.kind = ProviderKind::OpenAi); // nothing answers: Offline
     for day in [0.0, 20.0] {
@@ -1035,14 +1067,13 @@ async fn a_hosted_api_that_never_answers_is_a_provider_failure_not_offline() {
     engine.update_settings(settings).unwrap();
 
     let shown = engine.run_if_due(None).await.unwrap().expect("a revisit");
-    assert_eq!(shown.revisit, Some(RevisitReason::ProviderFailed), "slow, not offline");
+    assert_eq!(shown.revisit, Some(RevisitReason::ServicesUnavailable), "bounded service preflight");
     clock.set(clock.now() + 600);
-    match engine.run_if_due(None).await {
-        Err(AutoPaperError::ProviderUnavailable { provider: ProviderKind::OpenAi, reason, detail }) => {
-            assert_eq!((reason, detail.as_str()), (ProviderUnavailableReason::TimedOut, "timed out"));
-        }
-        other => panic!("{other:?}"),
-    }
+    let again = engine.run_if_due(None).await.unwrap().unwrap();
+    assert_eq!(again.revisit, Some(RevisitReason::ServicesUnavailable));
+    let run = engine.run(engine.runs(1, 0).unwrap()[0].id.clone()).unwrap();
+    assert!(run.events.iter().any(|event| event.kind == "service_check" && event.detail.contains("8 seconds")));
+
 }
 
 #[tokio::test]
@@ -1079,6 +1110,7 @@ fn harbour() -> serde_json::Value {
 #[tokio::test]
 async fn an_unreadable_answer_is_asked_again_and_its_cost_still_counts() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     h.update(|s| s.text_provider.kind = ProviderKind::OpenAi);
     let whole = json!({ "candidates": [harbour()] }).to_string();
@@ -1088,7 +1120,7 @@ async fn an_unreadable_answer_is_asked_again_and_its_cost_still_counts() {
     h.http.once("/v1/responses", 200, responses(&[harbour()]));
     let made = h.generate().await;
     assert_eq!(made.concept.title, "Harbour lighthouse at dusk");
-    assert_eq!(h.http.requests().len(), 3);
+    assert_eq!(work_requests(&h.http).len(), 3);
     let stats = h.engine.stats();
     assert_eq!((stats.compose_calls, stats.invalid_retries), (3, 2), "{stats:?}");
     // Every answer was billed, readable or not.
@@ -1105,7 +1137,7 @@ async fn an_unreadable_answer_is_asked_again_and_its_cost_still_counts() {
         matches!(&error, AutoPaperError::InvalidResponse { detail } if detail.contains("couldn't be read")),
         "{error:?}"
     );
-    assert_eq!(h.http.requests().len(), 6);
+    assert_eq!(work_requests(&h.http).len(), 6);
     assert_eq!(h.engine.spend_summary().unwrap().spent_microusd, 6 * one_call);
 }
 
@@ -1124,14 +1156,15 @@ fn no_lighthouse() -> serde_json::Value {
 #[tokio::test]
 async fn a_retry_tells_the_model_what_it_missed_and_the_error_names_it() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     h.update(|s| s.text_provider.kind = ProviderKind::OpenAi);
     h.http.once("/v1/responses", 200, responses(&[no_lighthouse(), no_lighthouse()]));
     h.http.once("/v1/responses", 200, responses(&[harbour()]));
     let made = h.generate().await;
     assert_eq!(made.concept.title, "Harbour lighthouse at dusk");
-    let first = h.http.json_body(0).to_string();
-    let second = h.http.json_body(1).to_string();
+    let first = work_json(&h.http, 0).to_string();
+    let second = work_json(&h.http, 1).to_string();
     assert!(!first.contains("couldn't be used"), "{first}");
     assert!(second.contains("The prompt left out the Must keyword \u{201c}lighthouse\u{201d}"), "{second}");
 
@@ -1150,6 +1183,7 @@ async fn a_retry_tells_the_model_what_it_missed_and_the_error_names_it() {
 #[tokio::test]
 async fn control_characters_from_a_provider_never_reach_the_database() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     h.update(|s| s.text_provider = ProviderSelection { kind: ProviderKind::Ollama, model: "m".into(), base_url: None });
     let idea = candidate(
@@ -1215,6 +1249,7 @@ async fn a_slow_failure_backs_off_from_when_it_failed() {
 #[tokio::test]
 async fn a_rate_limit_waits_at_least_as_long_as_the_provider_asks() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     h.update(|s| s.text_provider.kind = ProviderKind::OpenAi);
     let limited = |seconds: &str| HttpResponse {
@@ -1237,6 +1272,7 @@ async fn a_rate_limit_waits_at_least_as_long_as_the_provider_asks() {
 #[tokio::test]
 async fn cancelling_a_scheduled_run_isnt_a_failure() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     let liked = h.generate().await;
     h.engine.rate(liked.id.clone(), Rating::Liked).unwrap();
@@ -1389,7 +1425,7 @@ struct CancelAsItAnswers {
 #[async_trait::async_trait]
 impl HttpClient for CancelAsItAnswers {
     async fn send(&self, request: HttpRequest) -> autopaper_core::Result<HttpResponse> {
-        if let Some(engine) = &*self.engine.lock().unwrap() {
+        if request.url.ends_with("/v1/responses") && let Some(engine) = &*self.engine.lock().unwrap() {
             engine.cancel();
         }
         self.http.send(request).await
@@ -1400,6 +1436,7 @@ impl HttpClient for CancelAsItAnswers {
 async fn an_answer_that_arrives_with_the_cancel_still_counts_its_cost() {
     let dir = tempfile::tempdir().unwrap();
     let client = Arc::new(CancelAsItAnswers { http: StubHttp::new(), engine: Mutex::new(None) });
+    healthy_services(&client.http);
     client.http.once("/v1/responses", 200, responses(&[harbour()]));
     let engine = open(dir.path(), Arc::new(FixedClock::at(START)), client.clone(), Arc::new(HashingEmbedder), 7);
     engine.add_keyword("lighthouse".into(), KeywordWeight::Must).unwrap();
@@ -1419,6 +1456,7 @@ async fn an_answer_that_arrives_with_the_cancel_still_counts_its_cost() {
 #[tokio::test]
 async fn cancel_stops_a_comfyui_job_under_way() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     h.update(|s| s.image_provider.kind = ProviderKind::ComfyUi);
     let queued = include_str!("fixtures/comfyui/prompt.response.json");
@@ -1456,6 +1494,7 @@ async fn cancel_stops_a_comfyui_job_under_way() {
 #[tokio::test]
 async fn a_painting_comfyui_cant_run_isnt_retried_on_the_timer() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     let liked = h.generate().await;
     h.engine.rate(liked.id.clone(), Rating::Liked).unwrap();
@@ -1500,6 +1539,7 @@ async fn a_painting_comfyui_cant_run_isnt_retried_on_the_timer() {
 #[tokio::test]
 async fn a_model_comfyui_has_no_workflow_for_is_refused_before_an_idea_is_paid_for() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     // Chosen from Settings before it listed only models with a bundled workflow.
     h.update(|s| {
@@ -1516,7 +1556,8 @@ async fn a_model_comfyui_has_no_workflow_for_is_refused_before_an_idea_is_paid_f
             "{result:?}"
         );
     }
-    assert!(h.http.requests().is_empty(), "no idea was paid for, nothing sent to ComfyUI");
+    assert!(work_requests(&h.http).is_empty(), "no idea or painting was requested");
+    assert_eq!(h.http.requests().len(), 4, "both services checked for both attempts");
     assert!(failed_rows(&h).is_empty(), "nothing was attempted");
     assert_eq!(h.engine.spend_summary().unwrap().spent_microusd, 0);
     // The scheduled one fills its slot: no retry every 10 minutes until the person picks another model.
@@ -1531,7 +1572,7 @@ async fn a_model_comfyui_has_no_workflow_for_is_refused_before_an_idea_is_paid_f
         matches!(&rejected, Err(AutoPaperError::PaintingFailed { model, detail, .. }) if model == "Qwen-Image 2.1" && detail.starts_with("ComfyUI rejected the workflow for Qwen-Image 2.1: ")),
         "{rejected:?}"
     );
-    let sent = h.http.json_body(0);
+    let sent = work_json(&h.http, 0);
     assert_eq!(sent["prompt"]["1"]["inputs"]["unet_name"], "qwen_image_2.1_int8_convrot.safetensors");
     assert_eq!(sent["prompt"]["2"]["inputs"]["clip_name"], "qwen3vl_8b_int8_convrot.safetensors");
 }
@@ -1694,6 +1735,53 @@ async fn a_failing_secret_store_reads_as_a_missing_key() {
     assert!(matches!(error, AutoPaperError::MissingKey { provider: ProviderKind::OpenAi }), "{error:?}");
 }
 
+#[tokio::test]
+async fn a_budget_block_never_waits_for_the_keyring() {
+    struct CountingSecrets(std::sync::atomic::AtomicUsize);
+    impl SecretStore for CountingSecrets {
+        fn get(&self, _account: String) -> Option<String> {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            None
+        }
+        fn set(&self, _account: String, _value: String) {}
+        fn delete(&self, _account: String) {}
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let secrets = Arc::new(CountingSecrets(std::sync::atomic::AtomicUsize::new(0)));
+    let http = Arc::new(StubHttp::new());
+    let engine = Engine::open_with(EngineConfig {
+        data_dir: dir.path().to_string_lossy().into_owned(), model_dir: String::new(),
+        locale: "en-US".into(), client: "test".into(),
+    }, secrets.clone(), Deps {
+        clock: Arc::new(FixedClock::at(START)), http: http.clone(),
+        embedder: Arc::new(HashingEmbedder), rng_seed: 1,
+    }).unwrap();
+    let mut settings = engine.settings().unwrap();
+    settings.text_provider.kind = ProviderKind::OpenAi;
+    settings.monthly_budget_cents = Some(0);
+    engine.update_settings(settings).unwrap();
+    assert!(matches!(engine.generate(Trigger::Manual, None).await, Err(AutoPaperError::BudgetReached { budget_cents: 0 })));
+    assert_eq!(secrets.0.load(std::sync::atomic::Ordering::Relaxed), 0);
+    assert!(http.requests().is_empty());
+    assert_eq!(engine.runs(1, 0).unwrap()[0].status, RunStatus::Blocked);
+}
+
+#[test]
+fn budget_notice_preserves_the_sub_cent_arithmetic_that_blocks_a_run() {
+    let h = Harness::new();
+    h.update(|s| {
+        s.text_provider.kind = ProviderKind::OpenAi;
+        s.text_provider.model = "gpt-6.1-sol".into();
+        s.monthly_budget_cents = Some(3);
+    });
+    h.store().add_spend("2026-01", 10_401, 0).unwrap();
+    let status = h.engine.budget_status().unwrap();
+    assert_eq!(status.next_cost_microusd, 19_600);
+    assert!(status.blocked); // $0.010401 + $0.0196 = $0.030001, just over the $0.03 limit.
+    assert!(status.message.contains("$0.010401 estimated spent of a $0.03 limit"));
+    assert!(status.message.contains("next wallpaper is estimated at $0.0196"));
+}
+
 /// Wakes `1` when the generation reaches stage `0`.
 struct NotifyAt(ProgressStage, Arc<tokio::sync::Notify>);
 
@@ -1708,6 +1796,7 @@ impl ProgressObserver for NotifyAt {
 #[tokio::test]
 async fn a_call_the_host_drops_still_records_what_it_spent() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     h.update(|s| s.text_provider.kind = ProviderKind::OpenAi);
     h.http.once("/v1/responses", 200, responses(&[harbour()]));
@@ -1723,6 +1812,11 @@ async fn a_call_the_host_drops_still_records_what_it_spent() {
     let usage = autopaper_core::providers::Usage { input_tokens: 1800, output_tokens: 1500 };
     let one_call = autopaper_core::pricing::text_cost(ProviderKind::OpenAi, "gpt-6-luna-2026-09-22", &usage);
     assert_eq!(h.engine.spend_summary().unwrap().spent_microusd, one_call, "the paid text call counts");
+    let run = h.engine.run(h.engine.runs(1, 0).unwrap()[0].id.clone()).unwrap();
+    assert_eq!(run.status, RunStatus::Interrupted);
+    assert_eq!(run.cost_microusd, one_call);
+    assert_eq!(run.finished_at, Some(h.now()));
+    assert!(run.detail.contains("provider may still have billed"));
 }
 
 // ── Storage: prune and files ────────────────────────────────────────────────────────────────
@@ -1917,19 +2011,20 @@ async fn the_painting_model_chosen_in_settings_is_sent_and_recorded() {
     // Settings → Providers saves a painting model with `update_settings`; the next wallpaper asks that model and
     // records it (what the apps' "Painted by …" line shows), and the blank choice records the default by name.
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     h.update(|s| s.image_provider = ProviderSelection { kind: ProviderKind::OpenAi, model: "gpt-image-2.5-sunburst".into(), base_url: None });
     assert_eq!(h.engine.settings().unwrap().image_provider.model, "gpt-image-2.5-sunburst", "saved");
     h.http.always("/v1/images/generations", 200, include_str!("fixtures/openai/images_generations.json"));
 
     let chosen = h.engine.generate(Trigger::Manual, None).await.unwrap();
-    assert_eq!(h.http.json_body(0)["model"], "gpt-image-2.5-sunburst", "asked of OpenAI");
+    assert_eq!(work_json(&h.http, 0)["model"], "gpt-image-2.5-sunburst", "asked of OpenAI");
     assert_eq!((chosen.image_provider, chosen.image_model.as_str()), (ProviderKind::OpenAi, "gpt-image-2.5-sunburst"));
     assert_eq!(h.engine.generation(chosen.id.clone()).unwrap().image_model, "gpt-image-2.5-sunburst", "as stored");
 
     h.update(|s| s.image_provider.model = String::new());
     let default = h.engine.generate(Trigger::Manual, None).await.unwrap();
-    assert_eq!(h.http.json_body(1)["model"], "gpt-image-2.5-flare");
+    assert_eq!(work_json(&h.http, 1)["model"], "gpt-image-2.5-flare");
     assert_eq!(default.image_model, "gpt-image-2.5-flare", "the default, by name");
 }
 
@@ -2054,7 +2149,7 @@ async fn painting_reports_a_fraction_and_time_left_to_the_detail_observer() {
     h.engine.set_progress_detail_observer(Some(details.clone()));
     let stages = Arc::new(Stages::default());
     h.engine.generate(Trigger::Manual, Some(stages.clone())).await.unwrap();
-    assert_eq!(stages.0.lock().unwrap().len(), 6, "the per-call observer still hears every stage");
+    assert_eq!(stages.0.lock().unwrap().len(), 7, "the per-call observer still hears every stage");
     let first = std::mem::take(&mut *details.0.lock().unwrap());
     let painting: Vec<&ProgressDetail> = first.iter().filter(|d| d.stage == ProgressStage::Generating).collect();
     assert_eq!(painting[0].fraction, None, "no estimate yet: indeterminate until a step");
@@ -2111,6 +2206,7 @@ async fn a_scheduled_wallpaper_starts_early_by_its_estimate_and_fills_its_slot()
 #[tokio::test]
 async fn comfyuis_steps_reach_the_detail_observer() {
     let h = Harness::new();
+    healthy_services(&h.http);
     h.keywords(&["lighthouse"], &[], &[]);
     h.update(|s| s.image_provider.kind = ProviderKind::ComfyUi);
     let queued = include_str!("fixtures/comfyui/prompt.response.json");
@@ -2154,4 +2250,281 @@ async fn comfyuis_steps_reach_the_detail_observer() {
     assert_eq!((timings[0].width, timings[0].height, timings[0].steps), (144, 64, Some(8)), "the size asked for (16s)");
     let selection = ProviderSelection { kind: ProviderKind::ComfyUi, model: String::new(), base_url: None };
     assert!(h.engine.estimate(selection, ProviderJob::Images, 0, 0).unwrap().is_some(), "Settings can say how long it takes");
+}
+
+// Console uses the real engine seams, so retries and blocks are tested before the native UI reads them.
+#[tokio::test]
+async fn console_never_retains_an_opaque_key_echoed_in_a_provider_error() {
+    let h = Harness::new();
+    healthy_services(&h.http);
+    h.keywords(&["lighthouse"], &[], &[]);
+    let secrets = Arc::new(StubSecrets::with(&[("openai.api_key", "opaque-provider-key")]));
+    let engine = Engine::open_with(EngineConfig {
+        data_dir: h.dir.path().to_string_lossy().into_owned(), model_dir: String::new(),
+        locale: "en-US".into(), client: "test".into(),
+    }, secrets, Deps {
+        clock: h.clock.clone(), http: h.http.clone(), embedder: Arc::new(HashingEmbedder), rng_seed: 1,
+    }).unwrap();
+    let mut settings = engine.settings().unwrap();
+    settings.text_provider.kind = ProviderKind::OpenAi;
+    engine.update_settings(settings).unwrap();
+    h.http.once("/v1/responses", 401, br#"{"error":{"message":"Invalid opaque-provider-key"}}"#.to_vec());
+    assert!(matches!(engine.generate(Trigger::Manual, None).await, Err(AutoPaperError::InvalidKey { .. })));
+    let run = engine.runs(1, 0).unwrap().remove(0);
+    let report = engine.run_report(run.id).unwrap();
+    assert!(report.contains("[redacted]") && !report.contains("opaque-provider-key"));
+}
+
+#[tokio::test]
+async fn console_explains_a_failed_model_lookup_before_any_prompt_is_sent() {
+    let h = Harness::new();
+    h.keywords(&["lighthouse"], &[], &[]);
+    h.update(|s| s.text_provider.kind = ProviderKind::Ollama);
+    h.http.always("/api/tags", 503, br#"{"error":"Models are unavailable"}"#.to_vec());
+    assert!(h.engine.generate(Trigger::Manual, None).await.is_err());
+    let run = h.engine.run(h.engine.runs(1, 0).unwrap()[0].id.clone()).unwrap();
+    assert_eq!(run.status, RunStatus::Failed);
+    assert!(!run.detail.contains("No network request"));
+    assert!(run.events.iter().any(|event| event.kind == "request" && event.detail.contains("GET http://127.0.0.1:11434/api/tags")));
+    assert!(run.events.iter().any(|event| event.kind == "response" && event.detail.contains("HTTP 503")));
+}
+
+#[tokio::test]
+async fn console_keeps_full_requests_responses_and_rejection_reasons_for_each_retry() {
+    let h = Harness::new();
+    healthy_services(&h.http);
+    h.keywords(&["lighthouse"], &[], &[]);
+    h.update(|s| s.text_provider.kind = ProviderKind::OpenAi);
+    h.http.always("/v1/responses", 200, responses(&[no_lighthouse()]));
+    assert!(matches!(h.engine.generate(Trigger::Manual, None).await,
+        Err(AutoPaperError::KeywordNotFollowed { .. })));
+    let summary = h.engine.runs(10, 0).unwrap().remove(0);
+    assert!(summary.events.is_empty(), "lists return summaries; selecting loads the full trace");
+    let run = h.engine.run(summary.id.clone()).unwrap();
+    assert_eq!(run.status, RunStatus::Failed);
+    let requests: Vec<_> = run.events.iter().filter(|event| event.kind == "request" && event.detail.contains("responses")).collect();
+    assert_eq!(requests.len(), 3);
+    assert_eq!(run.events.iter().filter(|event| event.kind == "response").count(), 4);
+    assert!(requests[0].detail.contains("lighthouse") && requests[0].detail.contains("responses"));
+    assert!(run.events.iter().any(|event| event.kind == "evaluation" && event.detail.contains("lighthouse")));
+    assert!(run.events.iter().any(|event| event.kind == "instructions" && event.detail.contains("left out")));
+    let report = h.engine.run_report(run.id).unwrap();
+    assert!(!report.contains("sk-test-0123456789abcdefghij") && !report.contains("Authorization"));
+    assert!(h.engine.history(HistoryFilter::All, 10, 0).unwrap().is_empty());
+    let models = h.engine.console_statistics().unwrap().models;
+    assert_eq!(models.len(), 1);
+    assert_eq!(models[0].model, "gpt-6-luna-2026-09-22", "the response model, even when the request used an alias");
+    assert_eq!(models[0].calls, 3, "each real completed retry is measured");
+}
+
+#[tokio::test]
+async fn console_success_cancellation_and_missing_key_have_honest_distinct_outcomes() {
+    let h = Harness::new();
+    h.keywords(&["lighthouse"], &[], &[]);
+    let made = h.generate().await;
+    let record = h.engine.runs(1, 0).unwrap().remove(0);
+    assert_eq!(record.status, RunStatus::Succeeded);
+    assert_eq!(record.generation_id.as_deref(), Some(made.id.as_str()));
+    let record = h.engine.run(record.id).unwrap();
+    assert!(record.events.iter().any(|event| event.kind == "parameters" && event.detail.contains(&made.concept.prompt)));
+    assert!(record.events.iter().all(|event| event.kind != "request"), "Demo has no network requests");
+    let stats = h.engine.console_statistics().unwrap();
+    assert_eq!(stats.total, 1);
+    assert_eq!(stats.success_rate, Some(1.0));
+    assert!(stats.models.iter().any(|model| model.job == ProviderJob::Concepts && model.calls > 0));
+    assert!(stats.models.iter().any(|model| model.job == ProviderJob::Images && model.calls > 0));
+    h.update(|s| s.text_provider.kind = ProviderKind::Google);
+    assert!(matches!(h.engine.generate(Trigger::Manual, None).await, Err(AutoPaperError::MissingKey { .. })));
+    let blocked = h.engine.runs(1, 0).unwrap().remove(0);
+    assert_eq!(blocked.status, RunStatus::Blocked);
+    assert!(blocked.detail.contains("No network request"));
+    h.update(|s| s.text_provider.kind = ProviderKind::Demo);
+    let canceller = Arc::new(CancelWhileComposing(Mutex::new(Some(h.engine.clone()))));
+    assert!(matches!(h.engine.generate(Trigger::Manual, Some(canceller)).await, Err(AutoPaperError::Cancelled)));
+    assert_eq!(h.engine.runs(1, 0).unwrap()[0].status, RunStatus::Cancelled);
+    h.engine.clear_runs().unwrap();
+    assert!(h.engine.runs(10, 0).unwrap().is_empty());
+    assert_eq!(h.engine.console_statistics().unwrap().total, 0);
+    assert!(h.engine.console_statistics().unwrap().models.is_empty());
+    assert!(h.engine.generation(made.id).is_ok(), "clearing diagnostics preserves wallpaper memory");
+}
+
+#[tokio::test]
+async fn console_recovers_interrupted_runs_and_enforces_count_age_and_paging_limits() {
+    let mut h = Harness::new();
+    h.generate().await;
+    let mut run = h.engine.run(h.engine.runs(1, 0).unwrap()[0].id.clone()).unwrap();
+    run.status = RunStatus::Running;
+    run.finished_at = None;
+    h.store().save_run(&run).unwrap();
+    h.reopen(Arc::new(HashingEmbedder));
+    assert_eq!(h.engine.run(run.id.clone()).unwrap().status, RunStatus::Interrupted);
+    assert!(h.engine.run(run.id.clone()).unwrap().detail.contains("may be unknown"));
+    run.status = RunStatus::Succeeded;
+    for n in 0..205 {
+        run.id = format!("retained-{n}");
+        run.started_at = h.now() + n;
+        h.store().save_run(&run).unwrap();
+    }
+    assert_eq!(h.engine.runs(1000, 0).unwrap().len(), 100);
+    assert_eq!(h.engine.runs(100, 100).unwrap().len(), 100);
+    assert!(h.engine.runs(100, 200).unwrap().is_empty());
+    assert_eq!(h.engine.console_statistics().unwrap().total, 200, "statistics include every retained run, not just a visible page");
+    h.clock.advance_days(31.0);
+    assert!(h.engine.runs(100, 0).unwrap().is_empty());
+    assert_eq!(h.engine.console_statistics().unwrap().total, 0);
+}
+
+
+// ── Service preflight and selected-mood fallback ────────────────────────────────────────────
+
+fn local_services(h: &Harness) {
+    h.update(|settings| {
+        settings.text_provider = ProviderSelection { kind: ProviderKind::Ollama, model: "m".into(), base_url: None };
+        settings.image_provider = ProviderSelection { kind: ProviderKind::ComfyUi, model: String::new(), base_url: None };
+        settings.fallback = Fallback::KeepCurrent;
+    });
+}
+
+#[tokio::test]
+async fn service_preflight_checks_both_roles_and_revisits_latest_selected_mood_without_spending() {
+    for (writing_down, painting_down) in [(true, false), (false, true), (true, true)] {
+        let h = Harness::new();
+        h.keywords(&["lighthouse"], &[], &[]);
+        let mood = h.engine.active_mood().unwrap();
+        let oldest = h.generate().await;
+        h.clock.set(h.now() + 1);
+        let latest = h.generate().await;
+        let other = h.engine.create_mood("Other".into(), Some(mood.id.clone())).unwrap();
+        h.engine.set_active_mood(other.id).unwrap();
+        h.clock.set(h.now() + 1);
+        let elsewhere = h.generate().await;
+        h.engine.mark_shown(elsewhere.id.clone()).unwrap();
+        h.engine.set_active_mood(mood.id.clone()).unwrap();
+        local_services(&h);
+        if !writing_down { h.http.always("/api/tags", 200, br#"{"models":[{"name":"m"}]}"#.to_vec()); }
+        if !painting_down { h.http.always("/object_info", 200, b"{}".to_vec()); }
+        let stages = Arc::new(Stages::default());
+        let shown = h.engine.generate_or_revisit(Trigger::Manual, Some(stages.clone())).await.unwrap();
+        assert_eq!(shown.revisit, Some(RevisitReason::ServicesUnavailable));
+        assert_eq!(shown.generation.id, latest.id);
+        assert_ne!(shown.generation.id, oldest.id);
+        assert_eq!(*stages.0.lock().unwrap(), [ProgressStage::CheckingServices]);
+        let requests = h.http.requests();
+        assert_eq!(requests.len(), 2);
+        assert!(requests.iter().all(|request| request.body.is_none()));
+        assert!(requests.iter().any(|request| request.url.ends_with("/api/tags")));
+        assert!(requests.iter().any(|request| request.url.ends_with("/object_info")));
+        let run = h.engine.run(h.engine.runs(1, 0).unwrap()[0].id.clone()).unwrap();
+        assert_eq!((run.status, run.cost_microusd, run.generation_id), (RunStatus::Failed, 0, None));
+        let checks: Vec<_> = run.events.iter().filter(|event| event.kind == "service_check").collect();
+        assert_eq!(checks.len(), 2);
+        assert!(checks.iter().all(|event| event.stage == "Checking services"));
+        assert!(checks.iter().any(|event| event.detail.starts_with("Writing:")));
+        assert!(checks.iter().any(|event| event.detail.starts_with("Painting:")));
+        assert!(run.events.iter().any(|event| event.kind == "fallback" && event.detail.contains(&latest.concept.title)));
+        assert_eq!(h.engine.history(HistoryFilter::All, 10, 0).unwrap().len(), 3);
+        assert_eq!(h.engine.spend_summary().unwrap().spent_microusd, 0);
+        // Explicit echoes also preserve the selected mood rather than the source's mood.
+        let echo = h.engine.make_echo_or_revisit(elsewhere.id, None).await.unwrap();
+        assert_eq!(echo.generation.id, latest.id);
+    }
+}
+
+#[tokio::test]
+async fn service_fallback_skips_disliked_missing_and_corrupt_saved_images() {
+    let h = Harness::new();
+    h.keywords(&["lighthouse"], &[], &[]);
+    let usable = h.generate().await;
+    let corrupt = h.generate().await;
+    std::fs::write(corrupt.image_path.unwrap(), b"damaged image").unwrap();
+    let missing = h.generate().await;
+    std::fs::remove_file(missing.image_path.unwrap()).unwrap();
+    let disliked = h.generate().await;
+    h.engine.mark_shown(disliked.id.clone()).unwrap();
+    h.engine.rate(disliked.id, Rating::Disliked).unwrap();
+    local_services(&h);
+    let shown = h.engine.generate_or_revisit(Trigger::DislikeReplace, None).await.unwrap();
+    assert_eq!(shown.generation.id, usable.id);
+    assert_eq!(shown.revisit, Some(RevisitReason::ServicesUnavailable));
+}
+
+#[tokio::test]
+async fn unavailable_services_without_a_saved_image_in_selected_mood_keep_current_wallpaper() {
+    let h = Harness::new();
+    h.keywords(&["lighthouse"], &[], &[]);
+    let current = h.generate().await;
+    h.engine.mark_shown(current.id.clone()).unwrap();
+    let empty = h.engine.create_mood("Empty".into(), None).unwrap();
+    h.engine.set_active_mood(empty.id).unwrap();
+    local_services(&h);
+    assert!(h.engine.generate_or_revisit(Trigger::Manual, None).await.is_err());
+    assert_eq!(h.engine.current().unwrap().unwrap().id, current.id);
+    let run = h.engine.run(h.engine.runs(1, 0).unwrap()[0].id.clone()).unwrap();
+    assert_eq!(run.status, RunStatus::Failed);
+    assert_eq!(run.events.iter().filter(|event| event.kind == "service_check").count(), 2);
+    assert!(run.events.iter().any(|event| event.kind == "fallback" && event.detail.contains("current wallpaper stays")));
+}
+
+#[tokio::test]
+async fn repeated_scheduled_availability_failures_revisit_latest_mood_with_backoff_then_recover() {
+    let h = Harness::new();
+    h.keywords(&["lighthouse"], &[], &[]);
+    let latest = h.generate().await;
+    h.clock.advance_days(1.0);
+    local_services(&h);
+    for seconds in [600, 1200] {
+        let shown = h.engine.run_if_due(None).await.unwrap().unwrap();
+        assert_eq!(shown.generation.id, latest.id);
+        assert_eq!(shown.revisit, Some(RevisitReason::ServicesUnavailable));
+        let due = h.engine.next_due().unwrap().unwrap();
+        assert_eq!(due, h.now() + seconds);
+        h.clock.set(due);
+    }
+    h.update(|settings| { settings.text_provider.kind = ProviderKind::Demo; settings.image_provider.kind = ProviderKind::Demo; });
+    let recovered = h.engine.run_if_due(None).await.unwrap().unwrap();
+    assert!(recovered.revisit.is_none());
+    assert_eq!(h.engine.next_due().unwrap(), Some(h.now() + DAY));
+}
+
+#[tokio::test(start_paused = true)]
+async fn both_hung_services_are_checked_in_parallel_and_bounded_before_any_paid_work() {
+    let dir = tempfile::tempdir().unwrap();
+    let http = Arc::new(Hangs::default());
+    let engine = open(dir.path(), Arc::new(FixedClock::at(START)), http.clone(), Arc::new(HashingEmbedder), 7);
+    let mut settings = engine.settings().unwrap();
+    settings.text_provider = ProviderSelection { kind: ProviderKind::Ollama, model: "m".into(), base_url: None };
+    settings.image_provider.kind = ProviderKind::ComfyUi;
+    engine.update_settings(settings).unwrap();
+    let started = tokio::time::Instant::now();
+    assert!(matches!(engine.generate(Trigger::Manual, None).await, Err(AutoPaperError::ProviderUnavailable { reason: ProviderUnavailableReason::TimedOut, .. })));
+    assert_eq!(started.elapsed(), std::time::Duration::from_secs(8));
+    assert_eq!(http.requests.lock().unwrap().len(), 2);
+    let run = engine.run(engine.runs(1, 0).unwrap()[0].id.clone()).unwrap();
+    assert_eq!(run.events.iter().filter(|event| event.kind == "service_check" && event.detail.contains("8 seconds")).count(), 2);
+    assert_eq!(engine.spend_summary().unwrap().spent_microusd, 0);
+}
+
+
+#[tokio::test]
+async fn cancellation_drops_both_hung_service_checks_without_a_revisit_or_spend() {
+    let dir = tempfile::tempdir().unwrap();
+    let http = Arc::new(Hangs::default());
+    let engine = open(dir.path(), Arc::new(FixedClock::at(START)), http.clone(), Arc::new(HashingEmbedder), 7);
+    engine.add_keyword("lighthouse".into(), KeywordWeight::Must).unwrap();
+    let original = engine.generate(Trigger::Manual, None).await.unwrap();
+    engine.mark_shown(original.id.clone()).unwrap();
+    let mut settings = engine.settings().unwrap();
+    settings.text_provider = ProviderSelection { kind: ProviderKind::Ollama, model: "m".into(), base_url: None };
+    settings.image_provider.kind = ProviderKind::ComfyUi;
+    engine.update_settings(settings).unwrap();
+    let task = tokio::spawn({ let engine = engine.clone(); async move { engine.generate_or_revisit(Trigger::Manual, None).await } });
+    http.started.notified().await;
+    assert_eq!(http.requests.lock().unwrap().len(), 2);
+    engine.cancel();
+    let outcome = tokio::time::timeout(std::time::Duration::from_millis(500), task).await.unwrap().unwrap();
+    assert!(matches!(outcome, Err(AutoPaperError::Cancelled)));
+    assert_eq!(engine.current().unwrap().unwrap().id, original.id);
+    assert_eq!(engine.runs(1, 0).unwrap()[0].status, RunStatus::Cancelled);
+    assert_eq!(engine.spend_summary().unwrap().spent_microusd, 0);
 }

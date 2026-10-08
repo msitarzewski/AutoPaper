@@ -148,6 +148,96 @@ pub enum GenerationStatus {
     Refused,
 }
 
+/// The outcome of a requested or due run, including attempts stopped before a provider was contacted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
+#[serde(rename_all = "snake_case")]
+pub enum RunStatus {
+    Running,
+    Succeeded,
+    Failed,
+    Blocked,
+    Cancelled,
+    Interrupted,
+}
+
+/// One local Console entry. Request/response details exclude credentials and image bytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, uniffi::Record)]
+pub struct RunEvent {
+    pub at: i64,
+    pub stage: String,
+    pub provider: Option<ProviderKind>,
+    pub model: String,
+    pub kind: String,
+    pub detail: String,
+}
+
+/// A run's original settings and its actual outcomes, retained independently of wallpaper memory.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, uniffi::Record)]
+pub struct RunRecord {
+    pub id: String,
+    pub started_at: i64,
+    pub finished_at: Option<i64>,
+    pub trigger: Trigger,
+    pub status: RunStatus,
+    pub mood_name: String,
+    pub keywords: Vec<KeywordSnapshot>,
+    pub surprise: f32,
+    pub text_provider: ProviderKind,
+    pub text_model: String,
+    pub image_provider: ProviderKind,
+    pub image_model: String,
+    pub generation_id: Option<String>,
+    pub detail: String,
+    pub cost_microusd: u64,
+    pub events: Vec<RunEvent>,
+}
+
+/// The same prospective budget check used before a new wallpaper. Amounts are estimated USD.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, uniffi::Record)]
+pub struct BudgetStatus {
+    pub month: String,
+    pub spent_microusd: u64,
+    pub budget_cents: Option<u32>,
+    pub next_cost_microusd: u64,
+    pub blocked: bool,
+    pub message: String,
+}
+
+/// Statistics of retained Console runs. Missing rates/durations mean no completed samples yet.
+#[derive(Debug, Clone, PartialEq, Default, uniffi::Record)]
+pub struct ConsoleStatistics {
+    pub total: u64,
+    pub outcomes: Vec<ConsoleOutcome>,
+    pub days: Vec<ConsoleDay>,
+    pub models: Vec<ConsoleModel>,
+    pub average_run_secs: Option<f64>,
+    pub success_rate: Option<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct ConsoleOutcome {
+    pub status: RunStatus,
+    pub count: u64,
+}
+
+/// UTC midnight and one outcome's count on that day.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct ConsoleDay {
+    pub day_start: i64,
+    pub status: RunStatus,
+    pub count: u64,
+}
+
+/// Actual completed provider calls linked to retained runs; existing timing retention still applies.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct ConsoleModel {
+    pub provider: ProviderKind,
+    pub job: ProviderJob,
+    pub model: String,
+    pub calls: u64,
+    pub average_secs: f64,
+}
+
 /// The structured scene the text model composes from the keywords. `summary` doubles as the
 /// accessible description of the wallpaper.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, uniffi::Record)]
@@ -373,7 +463,8 @@ pub enum ImageQuality {
     High,
 }
 
-/// What to show when a new wallpaper can't be made (over budget, offline, provider down).
+/// What to show when a provider can't make a wallpaper (offline/provider down).
+/// Budget blocks always keep the current picture, whatever this preference says.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
 #[serde(rename_all = "snake_case")]
 pub enum Fallback {
@@ -429,6 +520,7 @@ impl Default for Settings {
 /// Where a generation is, for progress UI ("Composing…", "Painting…").
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
 pub enum ProgressStage {
+    CheckingServices,
     Composing,
     CheckingMemory,
     Generating,

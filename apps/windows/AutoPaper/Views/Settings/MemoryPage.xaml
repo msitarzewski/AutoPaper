@@ -67,6 +67,14 @@
                 </toolkit:SettingsCard.HeaderIcon>
                 <Button x:Uid="MemoryClearButton" AutomationProperties.AutomationId="ClearHistory" Click="OnClearHistory" />
             </toolkit:SettingsCard>
+            <Expander x:Uid="MemoryConsoleHelp" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                <StackPanel Spacing="12">
+                    <TextBlock x:Uid="MemoryConsolePrivacy" TextWrapping="Wrap" />
+                    <TextBlock x:Uid="MemoryConsoleStatistics" TextWrapping="Wrap" />
+                    <TextBlock x:Uid="MemoryConsoleLegacy" TextWrapping="Wrap" />
+                    <HyperlinkButton x:Uid="MemoryConsoleHelpLink" NavigateUri="https://msitarzewski.github.io/AutoPaper/help.html#console" />
+                </StackPanel>
+            </Expander>
             <!-- Also said by the window (AppModel.Announce). -->
             <TextBlock
                 x:Name="Result"

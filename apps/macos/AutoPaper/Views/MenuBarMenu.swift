@@ -24,6 +24,10 @@ struct MenuBarMenu: View {
                 Button("Cancel New Wallpaper") { model.cancel() }
             }
         }
+        if model.budgetProblem != nil {
+            Button("New wallpapers waiting for budget…") { model.openSettings(.budget) }
+                .help(model.budgetStatus?.message ?? "")
+        }
         Divider()
         let paused = model.settings?.paused ?? false
         Button(paused ? "Resume New Wallpapers" : "Pause New Wallpapers") { model.setPaused(!paused) }
@@ -33,6 +37,11 @@ struct MenuBarMenu: View {
             .disabled(!model.autoPaperShowing)
         Divider()
         Button("Show AutoPaper") {
+            NSApp.activate()
+            openWindow(id: WindowID.main)
+        }
+        Button("Show Console") {
+            model.section = .console
             NSApp.activate()
             openWindow(id: WindowID.main)
         }

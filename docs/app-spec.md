@@ -5,6 +5,12 @@ platform. The design behind it is `memory-bank/systemPatterns.md`; the engine AP
 Where this spec names a control, use the platform's own equivalent (HIG / Fluent / GNOME HIG) — never a custom
 control where a stock one exists. Deviations from a platform guideline are called out to the user with the reason.
 
+User preference (2026-10-07): use the platform's native list and form appearance throughout. List controls determine
+row spacing, insets, typography, selection, separators and navigation icon sizes for their native context. Keep the
+sidebar icons and use native icon/label controls. Form sections and preference/settings groups provide hierarchy
+through their own headings and spacing; remove redundant app-drawn rules and header bands. Data, editable controls,
+context actions, accessibility and functional image/list viewport geometry remain part of the app's content.
+
 ## Identity
 | | macOS | Windows | Linux |
 |---|---|---|---|
@@ -40,17 +46,26 @@ title case (HIG); Windows and GNOME in sentence case. The same wording otherwise
    needs As my wallpaper. Switching modes releases the old one. Windows/Linux (no supported desktop-layer window): keep
    setting the real wallpaper, but record the person's own per display first and put it back when AutoPaper quits or the person chooses Restore My Wallpaper (Pause keeps the current
    AutoPaper wallpaper showing on every platform — user, 2026-10-06).
+   Before composing, the core checks writing and painting independently in parallel with an 8-second limit per
+   role, after the budget gate. Progress starts at CheckingServices. Console records both service_check outcomes
+   and real GET requests; no prompts or paid calls are made if a check fails. New native actions return Shown:
+   when services are unavailable, its ServicesUnavailable revisit points to the newest usable, non-disliked image
+   in the active mood captured at run start (including explicit echoes). Missing/corrupt originals are skipped;
+   if none remain, return the service error and leave the current wallpaper. Scheduled failures back off normally,
+   with this fallback available on every failed check. A revisit must never trigger new-generation notifications.
+
 3. Showing a wallpaper (new or revisited): for each display `render_for_display(id, DisplayTarget)` → set it as that
    display's wallpaper → set the lock screen when `settings.set_lock_screen` (where the OS allows) → `mark_shown(id)`.
    On display changes, re-render the current one for the new sizes.
-4. Progress: show the stage from `ProgressObserver` (Composing an idea… · Checking memory… · Painting… · Downloading… ·
+4. Progress: show the stage from `ProgressObserver` (Checking services… · Composing an idea… · Checking memory… · Painting… · Downloading… ·
    Preparing for your displays…), with Cancel (`cancel()`: the call returns `Cancelled` promptly, even mid-request; a
    cancelled scheduled run fills its slot, so re-read `next_due()`). Observer calls arrive off the UI thread — marshal.
-5. Ratings: `rate(id, rating)`; when it returns true, start `generate(Trigger::DislikeReplace)`.
+5. Ratings: `rate(id, rating)`; when it returns true, start `generate_or_revisit(Trigger::DislikeReplace, observer)`.
 6. Errors: map each `AutoPaperError` variant to a plain sentence in the app's strings (e.g. MissingKey → "Add your
    OpenAI key in Settings to start.", RateLimited → "OpenAI asked AutoPaper to wait; it'll try again in N minutes.",
-   Refused → "OpenAI declined to paint this idea; AutoPaper tried a gentler one.", BudgetReached → "This month's budget
-   is spent. AutoPaper is bringing back wallpapers you liked."). `InvalidInput` and `ProviderUnavailable` are worded by
+   Refused → "OpenAI declined to paint this idea; AutoPaper tried a gentler one."). A budget block explains the month's
+   estimated spend, limit and next request cost, links to Budget settings, and keeps the current wallpaper.
+   `InvalidInput` and `ProviderUnavailable` are worded by
    their typed `reason` (`InvalidInputReason`, `ProviderUnavailableReason`), which also says which field to point at;
    never show or match on `detail` (English, for logs). A `Shown.revisit` reason gets its own line.
 6a. **One problem, said once, as a link to the fix** (user, 2026-10-06). A problem with a setting appears once per
@@ -82,7 +97,7 @@ macOS: a menu, not a popover (HIG); template menu bar icon of the display + spar
 the notification area. GNOME: no tray; the app runs in the background (Background portal) and the window is opened
 from the app grid; KDE gets an SNI tray (ksni) with the same menu.
 
-### 2. Main window — Now · Moods · History (macOS: sidebar; Windows: NavigationView; GNOME: AdwNavigationSplitView / AdwViewSwitcher)
+### 2. Main window — Now · Moods · History · Console (macOS: sidebar; Windows: NavigationView; GNOME: AdwNavigationSplitView / AdwViewSwitcher)
 **Now**
 - The current wallpaper large (from `thumb_path`, aspect-fit), its title, its summary (selectable text) and echo note.
   Accessible description = `describe(id)` (title, summary, echo note), plus the rating in the app's own words
@@ -92,7 +107,7 @@ from the app grid; KDE gets an SNI tray (ksni) with the same menu.
   this month (estimated)"), any error or revisit reason, the narrow-keywords note.
 **Sidebar** (macOS, user 2026-10-06): Now · **Moods** (a disclosure group, expanded by default, listing every mood in the
 person's order with the current one checkmarked — "Rainy beach, current mood" to VoiceOver; the same right-click menu as
-the mood list; selecting a mood opens its detail, selecting the Moods row itself shows list › detail) · History.
+the mood list; selecting a mood opens its detail, selecting the Moods row itself shows list › detail) · History · Console.
 **Sidebar footer** (macOS, user 2026-10-06): a stationary footer at the bottom of the sidebar (doesn't scroll with the
 list; `safeAreaInset(edge: .bottom)`), with a **Settings** gear button (`gearshape`, help "Settings (⌘,)", opens Settings
 like the menu item) at the left and a quiet one-line status beside it (e.g. "Next wallpaper at 3:00 PM", "Painting…",
@@ -109,19 +124,21 @@ Windows/GNOME equivalents: Moods as an expandable NavigationView item with child
 button in the Now page's command bar / header bar that turns into a stop button while working.
 
 **Moods** (user's layout, 2026-10-06: sidebar › list › detail, like a first-party three-column Mac app)
-- **List column** (macOS: the middle column of a three-column `NavigationSplitView`; Windows: a list pane beside the detail;
-  GNOME: the split view's sidebar list): every mood, in the person's order (drag to reorder). Each row: the mood's name
-  (bold), its keywords in short ("rain · beach · night", Avoids shown as "no people"), and the current mood marked
-  with a checkmark **and** the word "Current" (never colour alone); other rows have a **Use** button (makes it current,
-  doesn't generate). Double-click/Return also uses it. A **+** button in the list column's header/toolbar adds a mood
-  (New Mood, named "New mood", name field focused in the detail). **Right-click** (context menu; long-press/Shift-F10 on
-  other platforms) on a row: Use, Duplicate, Rename…, Delete… (Delete disabled for the last mood).
-- **Detail pane** for the selected mood: its name as an editable title; "Current mood" or a **Use This Mood** button;
-  the keywords (each row: text editable inline, Must / Maybe / Avoid segmented control, Remove; reorder by drag and by
-  keyboard Move Up/Down; accessible label "rain, Must"); "Add a keyword" (Return adds; default Must; a duplicate
-  highlights the existing row); **Surprise** (slider 0–100, ends Faithful / Wild, band in words below; spoken "35
-  percent, fresh"); a short strip of recent wallpapers made in this mood (thumbnails, accessible `describe`), and
-  **Delete Mood…** at the bottom (destructive; confirmation; disabled for the last mood).
+- **List/navigation**: every mood, in the person's order (drag to reorder). macOS uses the middle column of a
+  three-column `NavigationSplitView`; Windows and GNOME use their native navigation/list panes. macOS mood rows
+  show names only (user, 2026-10-07); the active mood stays checkmarked in the sidebar. Use the platform's own row
+  appearance. Double-click/Return uses a mood without generating. A **+** button in the list column's header/toolbar
+  adds a mood (New Mood, named "New mood", name field focused in the detail). **Right-click** (context menu;
+  long-press/Shift-F10 on other platforms) on a row: Use, Duplicate, Rename…, Delete… (Delete disabled for the last mood).
+- **Detail pane** for the selected mood: its editable name. On macOS the name is in the detail header above its
+  Surprise summary and statistics (user, 2026-10-07); the toolbar holds New Wallpaper Now / Stop at the trailing edge.
+  Use is available from the context menu/Return; the repeated current labels and decorative mood icon are removed.
+  Other platforms retain their own native mood activation controls. The form contains keywords (each row: text
+  editable inline, Must / Maybe / Avoid choices, Remove; reorder by drag and keyboard Move Up/Down; accessible label
+  "rain, Must"); "Add a keyword" (Return adds; default Must; a duplicate highlights the existing row); **Surprise**
+  (slider 0–100, ends Faithful / Wild, band in words below; spoken "35 percent, fresh"); a short strip of recent
+  wallpapers made in this mood (thumbnails, accessible `describe`); and **Delete Mood…** (destructive; native
+  confirmation; disabled for the last mood). Group these using each platform's form/preference sections.
 - "What AutoPaper has learned" (taste: global, not per mood) moves to Settings → Memory, with Reset….
 - Keyboard: ⌘N in Moods = New Mood (the menu bar's New Wallpaper Now keeps ⌥⌘N or its own shortcut — no clash);
   Delete key on a selected row = Delete… (confirmation).

@@ -54,11 +54,11 @@ internal static class Notifications
         Show(builder, "new-wallpaper");
     }
 
-    public static void BudgetSpent(Fallback fallback)
+    public static void BudgetSpent(string message)
     {
         var builder = new AppNotificationBuilder()
             .AddArgument("action", "budget")
-            .AddText(Loc.Get(fallback == Fallback.RevisitLiked ? "Error_BudgetReached" : "Error_BudgetReachedKeep"))
+            .AddText(message)
             .AddButton(new AppNotificationButton(Loc.Get("Notification_OpenBudget")).AddArgument("action", "budget"));
         Show(builder, "budget");
     }

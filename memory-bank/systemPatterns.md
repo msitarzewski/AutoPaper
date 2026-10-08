@@ -1,7 +1,8 @@
 # System Patterns
 
 Status: **core built (2026-10-05)** — `autopaper-core` (every module, no `todo!()`), the `autopaper` CLI and the
-macOS XCFramework/Swift bindings; the native apps are not built yet. Phase 2 core changes (2026-10-05, user
+macOS XCFramework/Swift bindings. All native apps shipped v0.1.0; local 0.1.1 Console/Moods/native form
+follow-ups are built/verified, with Mac build 5 installed and public release deferred. Phase 2 core changes (2026-10-05, user
 decisions): narrow keywords (retries stop when they don't help; `keywords_are_narrow`), every new wallpaper
 restarts the schedule, old failed rows pruned, hosted timeouts as `ProviderUnavailable`, `describe` without
 the rating, and the build scripts (`scripts/build-xcframework.sh`, `scripts/build-core-windows.ps1`). Core
@@ -60,9 +61,9 @@ deletes renders that no wallpaper in history owns.
 
 ## Storage (SQLite, `PRAGMA user_version` migrations)
 All tables STRICT; WAL, `foreign_keys = ON`, `busy_timeout` 5 s; multi-statement writes take an IMMEDIATE
-transaction. Migrations only add and are never edited once shipped (v1 is unshipped); a database from a newer
+transaction. Migrations only add and are never edited once shipped; a database from a newer
 build opens without migrating. The engine holds the one connection behind a std `Mutex`. Version 2 (phase 2)
-adds `generations.least_similar`; version 3 (round 4) moods; version 4 timings. A migration may carry a data step
+adds `generations.least_similar`; version 3 (round 4) moods; version 4 timings; version 5 Console runs; version 6 exact timing/run links; version 7 actual response models. A migration may carry a data step
 (Rust, same transaction): version 3's makes the first mood.
 - `moods(id, name UNIQUE NOCASE, position, surprise REAL, created_at)` (v3) — names unique case-insensitively in
   Rust (Unicode), NOCASE the ASCII backstop; positions 0..n. Always at least one (the store makes "My mood" if a
@@ -75,6 +76,9 @@ adds `generations.least_similar`; version 3 (round 4) moods; version 4 timings. 
 - `timings(id, job 'concepts'|'images', provider, origin, model, width, height, steps NULL, seconds REAL,
   finished_at)` (v4) — one row per finished provider call, newest 50 kept per (job, provider, origin, model);
   index `timings_by_key`.
+- `timings.run_id` (v6), `timings.answered_model` (v7) — new exact run association and actual response-model
+  identifier; legacy values stay NULL. Estimate lookup retains the requested `model` key.
+- `runs(id, started_at, status, record JSON text)` (v5) — full Console run record, time index; independently cleared/pruned without changing generations, taste or spend.
 - `generations(id, created_at, trigger 'scheduled'|'manual'|'dislike_replace'|'echo_request', status
   'ok'|'failed'|'refused', title, summary, concept_json, prompt, text_provider, text_model,
   image_provider, image_model, width, height, image_path NULL, thumb_path, phash, embedding BLOB(f32 LE),
@@ -104,6 +108,28 @@ adds `generations.least_similar`; version 3 (round 4) moods; version 4 timings. 
   generations and taste. Spend (money already spent) and keywords/settings stay either way. Either way the
   desktop's renders stay (see Data directory) and `current()` is `None` afterwards: hosts show an empty Now view
   while the desktop keeps its picture.
+
+## Console run records
+- Extend Engine/Store, not system logs or a second database. `RunRecord` includes original mood/keywords/
+  Surprise, provider/model selections, finish state, generation ID, timing, known estimated cost and events.
+  Start before preflight; success, failure, budget block, cancellation and interruption are distinct.
+  Restart recovery and a dropped host future mark unfinished work interrupted, preserving known cost.
+- Wrap only actual wallpaper-run provider dependencies at the existing HTTP boundary. Capture writer
+  instructions/schema and actual POST payloads, model answers/usage, candidate checks/corrections,
+  retries and painting parameters; GET model/history/download outcomes are also recorded.
+- Omit authentication headers and image/base64 data; redact known credentials and sensitive JSON keys.
+  Strip URL credentials/query/fragment. Non-JSON responses become byte-count summaries; truncation is
+  labelled. Traces are bounded (about 512 KiB per run, 65,536 bytes per event, 255 events).
+- Keep at most 200 runs / 30 days; preserve active runs while pruning. Summary pages omit events; selected
+  run/report retrieves full already-sanitized JSON. Clear requires idle and never clears wallpapers/spend.
+- Native date → runs → outcomes surfaces use existing navigation/model bridges. Copy/export is explicit
+  and local; nothing is uploaded automatically. Older requests cannot be reconstructed.
+- Real statistics (`core/src/engine.rs:342`, `core/src/store.rs:722`) use retained run outcomes/UTC days.
+  Success/(success + failure) excludes blocked/cancelled/interrupted; average run duration includes finished
+  successes/failures. Provider-call averages group exact linked timings by provider/job/actual response model;
+  older samples are not inferred or backfilled. The 200-run/30-day and 50-timing-per-estimate-key limits remain.
+- Integration: `core/src/engine.rs:318`, `core/src/engine.rs:1139`, `core/src/store.rs:678`,
+  `core/src/model.rs:176`; task `tasks/2026-10/261007_console-budget-transparency.md`.
 
 ## Concept (LLM structured output, JSON Schema enforced)
 `title` (≤ 60 chars, shown in menus), `summary` (1–2 sentences: memory, echoes **and the accessible
@@ -248,8 +274,11 @@ order in the serialized schema.
   call is added to spend as soon as it answers, so failed, cancelled and dropped attempts count (an answer the
   composer can't read too: providers pass it on as text with its usage, and the engine asks again). Shown in
   Settings, labelled "estimated".
-- Over budget: the slot counts as filled and a liked wallpaper is revisited (`OverBudget`), or
-  `BudgetReached` with Keep current / nothing liked. Any failure backs off 10 → 20 → 40 → 60 min from when it
+- Over budget: the slot counts as filled and returns `BudgetReached`; the current wallpaper stays in
+  place regardless of provider-failure fallback. The prospective gate runs before key lookup or network
+  requests. `budget_status()` exposes exact microUSD spending/next estimate and a notice linking to Budget.
+  Native hosts refresh it after settings/runs and at the UTC month boundary, including while paused/manual.
+  Any failure backs off 10 → 20 → 40 → 60 min from when it
   failed, or longer when a rate limit's `Retry-After` asks (a missing or rejected key too, so hosts never spin).
   A cancel isn't a failure (no backoff), but **a cancelled scheduled run fills its slot** (2026-10-06), like one
   skipped over budget, so a host timer doesn't restart it at once; that holds when it was cancelled while waiting
@@ -366,11 +395,32 @@ thumbnails and embeddings run on the runtime's blocking pool.
   HTTP 408/504 are `TimedOut`, 500/502/503 `ServerError`, a ComfyUI job stopped on the server `Stopped`.
 - PRIVACY.md and NETWORK.md list every host, request and stored item, and change with the code.
 
+## Service availability before wallpaper generation
+
+- Extend the existing provider traits with read-only `check_available`: model-list requests by default,
+  ComfyUI `GET /object_info` even for custom workflows without a recognized loader. Demo stays local.
+  Engine checks both roles independently in parallel, with an 8-second timeout and prompt cancellation,
+  after the budget gate and before composing. Validate the chosen local workflow after both checks,
+  still before paid work. Console records both `service_check` outcomes and actual GET requests.
+- Native manual, dislike replacement and explicit echo actions use `generate_or_revisit` /
+  `make_echo_or_revisit` returning `Shown`; scheduled actions already return `Shown`. Strict generation
+  APIs retain their error contract. Progress begins at `CheckingServices`.
+- An availability failure returns `ServicesUnavailable` with the latest successfully stored usable image
+  in the active mood captured at run start. This applies even when an explicit echo's source belongs
+  elsewhere, and independently of the other scheduled-failure preference. Reuse mood history in newest
+  order, skip disliked/missing/corrupt originals, decode under existing image limits on a blocking thread.
+  If none remain, return the original service error and preserve the current wallpaper.
+- A saved image is a revisit: Console remains Failed, spending stays zero, no new generation is stored,
+  and native new-image announcements/notifications are suppressed. Repeated scheduled failures retain
+  normal backoff and can revisit on every failed check; recovery resets it normally.
+- Integration: `core/src/engine.rs:500`, `core/src/engine.rs:2021`, `core/src/providers/mod.rs:151`,
+  `core/src/providers/comfyui.rs:540`, `core/tests/engine.rs:2393`.
+
 ## FFI surface (UniFFI 0.31.2, proc-macros, async on tokio; C# via uniffi-bindgen-cs v0.11.0+v0.31.0)
 `Engine::open(EngineConfig{data_dir, model_dir, locale}, SecretStore)`; keywords (list/add/set weight/
 reorder/remove); `settings()` / `update_settings()`; `current()`, `history(filter, limit, offset)`,
-`generation(id)`; `async generate(trigger, ProgressObserver?)`; `async run_if_due(observer)`; `next_due()`;
-`rate(id, rating)`; `async make_echo(id)`; `render_for_display(id, w, h) -> path`; `revisit_liked()`;
+`generation(id)`; `async generate(trigger, ProgressObserver?)`; `async generate_or_revisit(trigger, observer)`; `async run_if_due(observer)`; `next_due()`;
+`rate(id, rating)`; `async make_echo(id)`; `async make_echo_or_revisit(id, observer)`; `render_for_display(id, w, h) -> path`; `revisit_liked()`;
 `spend_summary()`; `taste_summary()`; `async test_provider(kind)`; `async list_models(kind)`;
 `storage_usage()`; `prune()`; `clear_history(keep_memory)`; `describe(id) -> spoken description`;
 `set_display_hint(w, h)`; `memory_status()` (embedding model, `reduced` when on the hashing fallback, why);
@@ -393,6 +443,9 @@ seconds_left?}`; error `PaintingFailed { provider, model, detail }`; `InvalidInp
 method on `ProgressObserver` because UniFFI 0.31 exported traits can't have default methods (`uniffi_macros`
 refuses them): a new method would break every host's observer, while this is opt-in. Rust-only:
 `Engine::set_demo_delay`.
+**Console (2026-10-07):** `runs(limit, offset)`, `run(id)`, `run_report(id)`, `clear_runs()`,
+`console_statistics()` and `budget_status()` expose local bounded diagnostics/statistics and prospective
+monthly budget status through the same bridges. See Console run records above; not a second logging service.
 Errors are typed enums (hosts localise). **Typed reasons (2026-10-06):** `InvalidInput { reason:
 InvalidInputReason, detail }` (KeywordEmpty, KeywordTooLong, TooManyKeywords, DuplicateKeyword, AddressMissing,
 AddressNotAllowed, AddressInvalid, DisplaySizeInvalid, NoModels, WorkflowNeedsPrompt, WorkflowNotApiFormat,
@@ -417,6 +470,13 @@ include the rating (phase 2: hosts say "Liked" / "Disliked" in their own languag
 run), `stats`.
 
 ## Native surfaces (per platform HIG)
+
+User preference (2026-10-07): native list/form defaults throughout. Use the toolkit's appropriate sidebar, list,
+outline and form/preference controls to determine row spacing, typography, selection, separators and icon sizing.
+Left-panel icons remain; native icon/label controls supply their geometry. Native form sections/settings groups
+provide headings and spacing, replacing redundant app-drawn rules/header bands. Preserve semantic row data,
+editing/actions/keyboard/AX and functional list viewport/image geometry. See `docs/app-spec.md`.
+
 | | macOS | Windows 11 | Linux (GNOME HIG; KDE works) |
 |---|---|---|---|
 | Always-on | Menu bar extra, **menu** style | Notification-area icon + context menu | Background portal + window; SNI tray on KDE only |
@@ -528,8 +588,9 @@ will perform though over time. Will we keep that info?"
   mood's last 5 new wallpapers. `update_settings` writes Surprise to the active mood: hosts read-modify-write
   promptly (a Settings copy held across a switch would carry the old mood's Surprise over).
 - Hosts: macOS menu bar menu **Mood ▸** submenu (checkmarked, plus "Edit Moods…"); the main window's **Moods** section
-  replaces Keywords: sidebar › mood list (+ in the list header, right-click Use/Duplicate/Rename/Delete) › detail (keywords,
-  Surprise, recent wallpapers, Delete Mood…) — user's layout 2026-10-06, see app-spec; App Intent "Switch Mood" (AppEnum of moods; Siri "Switch AutoPaper to
+  replaces Keywords: sidebar › name-only mood list (+ in the list header, right-click Use/Duplicate/Rename/Delete) ›
+  detail (editable name above Surprise/stats, native form with keywords/Surprise/recent wallpapers/Delete Mood…) —
+  user's layout 2026-10-06, simplified 2026-10-07; trailing Make/Stop toolbar action, see app-spec; App Intent "Switch Mood" (AppEnum of moods; Siri "Switch AutoPaper to
   Rainy beach"). Windows: Moods group in the NavigationView (each mood under it) + tray menu Mood submenu. GNOME: the sidebar is the mood
   list (AdwNavigationSplitView; Moods summary, then each mood; no separate list column, no per-row Use button: Use is in the mood's header,
   its context menu and the summary cards) and a KDE tray submenu. History filter by mood. All with spoken names/states ("Rainy beach, current mood").

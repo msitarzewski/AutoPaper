@@ -69,12 +69,32 @@ struct MemorySettings: View {
                     Text("Keep up to")
                     Text("The oldest images are removed first; liked ones and what's on your desktop are kept. Memory of every wallpaper stays.")
                 }
+            }
+
+            Section("History") {
                 LabeledContent {
                     Button("Clear History…") { confirmingClear = true }
                 } label: {
                     Text("History")
                     Text(historyCount)
                 }
+                LabeledContent {
+                    Text("Up to 200 runs, kept for 30 days on this Mac. Requests made before Console was added were not recorded.")
+                        .fixedSize(horizontal: false, vertical: true)
+                } label: { Text("Console") }
+                LabeledContent {
+                    Text("Copy Details and Export JSON include a run's prompts, models, responses and outcomes. Clear Console deletes these records while keeping wallpapers and budget spending.")
+                        .fixedSize(horizontal: false, vertical: true)
+                } label: { Text("Run reports") }
+                LabeledContent {
+                    Text("Outcomes cover retained runs. Average call time uses recorded model calls; older runs may lack model timings.")
+                        .fixedSize(horizontal: false, vertical: true)
+                } label: { Text("Charts") }
+                LabeledContent {
+                    Text("Run records stay on this Mac. Reports can contain your keywords and private content; review them before sharing.")
+                        .fixedSize(horizontal: false, vertical: true)
+                } label: { Text("Privacy") }
+                Link("Console help", destination: Website.console)
             }
         }
         .task(id: model.historyRevision) { await measure() }

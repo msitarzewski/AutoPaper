@@ -169,7 +169,7 @@ public sealed class MoodsContractTests
         await engine.Generate(Trigger.Manual, null);
 
         var seen = details.ToList();
-        Assert.AreEqual(ProgressStage.Composing, seen[0].Stage);
+        Assert.AreEqual(ProgressStage.CheckingServices, seen[0].Stage);
         var done = seen[^1];
         Assert.AreEqual(ProgressStage.Done, done.Stage);
         Assert.AreEqual(1f, done.Fraction);
@@ -181,7 +181,7 @@ public sealed class MoodsContractTests
             Assert.IsGreaterThanOrEqualTo(painting[i - 1], painting[i], "the fraction never goes back");
         }
         Assert.IsLessThanOrEqualTo(0.99f, painting.Max());
-        foreach (var stage in seen.Where(detail => detail.Stage is ProgressStage.Composing or ProgressStage.CheckingMemory))
+        foreach (var stage in seen.Where(detail => detail.Stage is ProgressStage.CheckingServices or ProgressStage.Composing or ProgressStage.CheckingMemory))
         {
             Assert.IsNull(stage.Fraction);
         }

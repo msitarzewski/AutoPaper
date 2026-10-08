@@ -5,7 +5,7 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
 <article class="doc">
   <h1>Help</h1>
   <p class="intro">Everything AutoPaper does, where to find it, and what to try when it doesn’t do what you expected. You don’t need to read it in order.</p>
-  <p>This page describes AutoPaper 0.1.0 on macOS, Windows and Linux; where they differ, it says so. Names are as each app shows them: Mac menus use title case (<strong>New Wallpaper Now</strong>), Windows and Linux sentence case (<strong>New wallpaper now</strong>).</p>
+  <p>This page describes AutoPaper 0.1.1 on macOS, Windows and Linux; where they differ, it says so. Names are as each app shows them: Mac menus use title case (<strong>New Wallpaper Now</strong>), Windows and Linux sentence case (<strong>New wallpaper now</strong>).</p>
 
   <nav class="toc" aria-label="On this page">
     <strong>On this page</strong>
@@ -20,6 +20,7 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
       <li><a href="#your-wallpaper">Your own wallpaper</a></li>
       <li><a href="#progress">Progress and time left</a></li>
       <li><a href="#history">History and memory</a></li>
+      <li><a href="#console">Console and run statistics</a></li>
       <li><a href="#budget">The budget</a></li>
       <li><a href="#notifications">Notifications</a></li>
       <li><a href="#siri">Siri and Shortcuts</a></li>
@@ -39,7 +40,7 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
   <p>And one of: an <strong>OpenAI</strong> API key, a <strong>Google Gemini</strong> API key, or models running on your own computer or network (see <a href="#local">Local models</a>). Without any of them, <strong>Demo</strong> lets you try the app: it writes simple ideas from your keywords and paints soft gradients, without AI, a network or a cost.</p>
 
   <h2 id="install">Install</h2>
-  <p>Available from version 0.1.0, the first release, which is on its way. On <a href="https://github.com/msitarzewski/AutoPaper">GitHub</a>, choose <strong>Watch › Custom › Releases</strong> to hear when it’s out.</p>
+  <p>Download AutoPaper from the <a href="https://github.com/msitarzewski/AutoPaper/releases/latest">latest release</a>. On <a href="https://github.com/msitarzewski/AutoPaper">GitHub</a>, choose <strong>Watch › Custom › Releases</strong> to hear about new releases.</p>
   <h3 id="install-mac">macOS</h3>
   <ol>
     <li>Download the <code>.dmg</code> from the <a href="https://github.com/msitarzewski/AutoPaper/releases/latest">latest release</a>. It is signed with a Developer ID and notarized by Apple, so it opens without warnings.</li>
@@ -76,14 +77,15 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
     <li><strong>Windows:</strong> an icon in the notification area, with the same menu. Closing the window keeps AutoPaper there; <strong>Quit AutoPaper</strong> in its menu quits.</li>
     <li><strong>Linux:</strong> on GNOME, AutoPaper runs in the background with no icon; open its window from the app grid. On KDE and other desktops it has a tray icon with the same menu. Closing the window (<kbd>Ctrl</kbd> <kbd>W</kbd>) keeps it running; <strong>Quit AutoPaper</strong> in the main menu (<kbd>Ctrl</kbd> <kbd>Q</kbd>) quits.</li>
   </ul>
-  <p>The window has three parts: <strong>Now</strong> (the wallpaper on your desktop, what it is, and what happens next), <strong>Moods</strong> and <strong>History</strong>. Settings are in <strong>Settings…</strong> on a Mac (also the gear at the bottom of the sidebar), in the navigation pane on Windows, and in <strong>Preferences</strong> in the main menu on Linux.</p>
+  <p>The window has four parts: <strong>Now</strong> (the wallpaper on your desktop, what it is, and what happens next), <strong>Moods</strong>, <strong>History</strong> and <strong>Console</strong> (wallpaper attempts and their results). Settings are in <strong>Settings…</strong> on a Mac (also the gear at the bottom of the sidebar), in the navigation pane on Windows, and in <strong>Preferences</strong> in the main menu on Linux.</p>
 
   <h2 id="moods">Moods and keywords</h2>
   <p>A mood is a name, its keywords and its own <strong>Surprise</strong>. One mood is current, and new wallpapers come from it; your first one is made from the keywords you added in the welcome. Everything else (the schedule, providers, budget, memory and taste) is shared between moods.</p>
   <ul>
     <li><strong>Make a mood</strong> with <strong>+</strong> in Moods (<kbd>⌘</kbd> <kbd>N</kbd> on a Mac, <kbd>Ctrl</kbd> <kbd>N</kbd> on Windows and Linux). It starts empty, named “New mood”, ready to rename. <strong>Duplicate</strong> copies a mood’s keywords and Surprise.</li>
-    <li><strong>Switch moods</strong> with <strong>Use</strong> (or <strong>Use This Mood</strong>), by pressing <kbd>Return</kbd> on a mood, or from the <strong>Mood</strong> submenu in the menu bar, notification-area or tray menu. Switching never makes a wallpaper by itself; the next one comes from the new mood.</li>
+    <li><strong>Switch moods</strong> with <strong>Use</strong> in a mood’s context menu (right-click on a Mac), <strong>Use This Mood</strong> where that button is shown, by pressing <kbd>Return</kbd> on a mood, or from the <strong>Mood</strong> submenu in the menu bar, notification-area or tray menu. Switching never makes a wallpaper by itself; the next one comes from the new mood.</li>
     <li><strong>Right-click a mood</strong> (or <kbd>Shift</kbd> <kbd>F10</kbd> on Windows and Linux) for Use, Duplicate, Rename… and Delete…. The last mood can’t be deleted. Deleting a mood keeps its wallpapers in History.</li>
+    <li><strong>On a Mac</strong>, the mood list shows names only. The selected mood’s editable name is at the top of its detail panel. <strong>Delete…</strong> asks you to confirm before removing the mood.</li>
     <li><strong>Reorder</strong> moods and keywords by dragging, or from the keyboard (see <a href="shortcuts.html">Keyboard shortcuts</a>).</li>
   </ul>
   <p><strong>Keywords</strong> are words or short phrases, up to 40 characters each and 64 per mood, each marked:</p>
@@ -155,7 +157,7 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
   <p>AutoPaper sets the real wallpaper, after keeping a copy of your own for each monitor (on Windows, including a slideshow or Windows Spotlight), and puts yours back when it quits or you choose <strong>Restore my wallpaper</strong>. Windows Spotlight comes back as the last picture it showed, with <strong>Turn Windows Spotlight back on</strong> to restart it. <strong>Also set the lock screen</strong> (on unless you turn it off) sets Windows’ lock screen too; AutoPaper doesn’t yet put your own lock screen picture back. On Linux, one picture covers every monitor; GNOME’s lock screen always shows the desktop wallpaper, and on KDE the lock screen setting decides. Putting your own wallpaper back works on GNOME, not yet on KDE or other desktops or in a Flatpak; there, Preferences says so.</p>
   <h3 id="pause">Pausing and restoring</h3>
   <ul>
-    <li><strong>Pause New Wallpapers</strong> (menu, or Settings → General) stops new ones on the schedule. <strong>New Wallpaper Now</strong> still works. On a Mac the wallpaper you have stays up; on Windows and Linux, pausing currently puts your own wallpaper back.</li>
+    <li><strong>Pause New Wallpapers</strong> (menu, or Settings → General) stops new ones on the schedule. <strong>New Wallpaper Now</strong> still works. The wallpaper you have stays up.</li>
     <li><strong>Restore My Wallpaper</strong> shows your own wallpaper again until AutoPaper’s next new one.</li>
     <li><strong>New wallpaper</strong> in Settings → General sets how often: every hour, every 3, 6 or 12 hours, every day (unless you change it), every week, or <strong>Only when I ask</strong>. Every new wallpaper, including one you ask for, restarts the count.</li>
   </ul>
@@ -168,10 +170,20 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
   <p><strong>History</strong> has every wallpaper, newest first. Filter it: <strong>All</strong>, <strong>Liked</strong>, <strong>Disliked</strong>, <strong>Echoes</strong>, and by mood. Each wallpaper’s actions are on its context menu, which the keyboard opens too (on a Mac, also an <strong>Actions</strong> button): <strong>Show on Desktop</strong>, <strong>Like</strong>, <strong>Dislike</strong>, <strong>Make an Echo</strong>, <strong>Show Original and Echoes</strong> (when there are some), <strong>Show in Finder</strong> (File Explorer, Files) and <strong>Delete…</strong>. Deleting one removes its image and AutoPaper forgets it, so a similar idea may come back; echoes of it stay.</p>
   <p>On a Mac, History has a <strong>Grid</strong> and a <strong>Gallery</strong> (switch in the toolbar; it remembers). The gallery shows the selected wallpaper large, a filmstrip, and its details: description, echo note with <strong>Show Original</strong>, when it was made, its mood and keywords, and a line saying what made it, such as <em>Written by Gemini 3.5 Flash-Lite (Google Gemini) · Painted by Nano Banana 2 (Google Gemini) · 3840×2160 · about $0.04</em>. <strong>Painted by</strong> opens Settings → Providers. <kbd>Space</kbd> opens Quick Look.</p>
   <p><strong>Settings → Memory</strong> has the rest: <strong>What AutoPaper has learned</strong> (the things you’ve tended to like and dislike, across every mood) with <strong>Reset What It Learned…</strong>; the <strong>Quiet period</strong> and how often <strong>Echoes</strong> come; whether memory is <em>Full</em> or <em>Reduced</em>; how much space images use, <strong>Keep up to</strong>, and <strong>Clear History…</strong>, which can keep memory (so AutoPaper still avoids repeats) or clear it too. Clearing never changes what’s on your desktop.</p>
+  <p>The <strong>History</strong> section of those settings also explains <strong>Console</strong>: what it records, how long it is kept, and what copying, exporting or clearing a run does.</p>
+
+  <p>Before making a wallpaper, AutoPaper checks both the writing and painting services. If either is unavailable, it shows the latest usable saved wallpaper from the selected mood and records both check results in Console. Disliked, missing or damaged images are skipped. If that mood has no usable image yet, the current wallpaper stays. These checks send no prompts or images and cost no generation credits.</p>
+
+  <h2 id="console">Console and run statistics</h2>
+  <p><strong>Console</strong> groups wallpaper attempts by date, newest first. Select a run to see its outcome, the prompts sent to each provider and model, the responses, retries, checks, errors, elapsed time and estimated cost. A failed attempt or a budget block appears even when no new wallpaper was made. Requests made before Console was added were not recorded.</p>
+  <p>Once there are runs, the overview shows counts by outcome, runs by day, the success rate, average completed-run time, and average measured call time for each provider, model and job (writing or painting). Budget blocks, cancellations, interrupted runs and runs still in progress have their own outcomes. Success rate compares successful and failed attempts only; the average run time uses those finished attempts. Daily charts use UTC. <strong>Show as Table</strong> gives the chart values as numbers.</p>
+  <p>Model times come from completed provider calls recorded after this update. Older runs still contribute to outcome charts, but their model times cannot be reconstructed. A model’s call time covers its writing or painting request; the whole run may also include retries, memory checks, downloads and preparation for your displays.</p>
+  <p>Up to <strong>200 runs</strong> are kept for <strong>30 days</strong> on this computer. Console omits credentials and image bytes; unusually large details are shortened and marked. Prompts and responses can contain your keywords and provider answers. They stay on this computer unless you choose <strong>Copy Details</strong> or <strong>Export JSON…</strong> to share a selected run.</p>
+  <p><strong>Clear Console…</strong> removes the recorded runs and their charts. Your wallpapers, memory, settings and budget spending stay. The separate time estimates used for progress are kept too.</p>
 
   <h2 id="budget">The budget</h2>
   <p>Settings → <strong>Budget</strong> sets a monthly limit for hosted providers: No limit, $1, $2, $5 (unless you change it), $10, $20, or an amount of your own. It shows what this month has cost, what each wallpaper costs and what a month costs at your schedule, all estimated from the providers’ published prices as of October 5, 2026. Months follow UTC. Local providers, OpenAI-compatible servers and Demo cost nothing and are never stopped by the budget.</p>
-  <p>When the budget is spent, AutoPaper brings back a wallpaper you liked (or keeps the current one, if you chose that under <strong>When a new one can’t be made</strong>), and starts again next month. The provider bills you directly; AutoPaper’s numbers are estimates, so check the provider’s own usage page for the real amount.</p>
+  <p>If the next paid request would exceed the limit, AutoPaper keeps the current wallpaper and shows the month’s estimated spend, your limit and the estimated next request cost. Console records the attempt as <strong>Blocked</strong>. The notice opens Budget settings; raising the limit or waiting for the next UTC month allows paid requests again. The provider bills you directly; AutoPaper’s numbers are estimates, so check the provider’s own usage page for the real amount.</p>
 
   <h2 id="notifications">Notifications</h2>
   <p><strong>Notify me about new wallpapers</strong> in Settings → General: off unless you turn it on on a Mac, on unless you turn it off on Windows and Linux. A notification names the new wallpaper, with <strong>Like</strong>, <strong>Dislike</strong> and <strong>Show</strong>. On a Mac it comes for scheduled wallpapers; on Windows for scheduled ones, or any while the window isn’t in front; on Linux while the window isn’t in front. There’s also one notification when the month’s budget runs out and one when a key stops working, each with a button that goes to the fix; routine problems never notify.</p>
@@ -215,13 +227,14 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
   <h3>“AutoPaper can’t reach the internet. It’ll try again soon.”</h3>
   <p>You’re offline, or the provider couldn’t be reached. If you’re back online, it tries again within the hour; <strong>New Wallpaper Now</strong> tries straight away. The first time, it may bring back a wallpaper you liked instead.</p>
 
-  <h3>“This month’s budget is spent.” · “Raise the budget”</h3>
-  <p>The month’s estimated spend has reached your limit. The link opens Settings → Budget. Otherwise new wallpapers start again next month (UTC).</p>
+  <h3>The next request would exceed this month’s budget</h3>
+  <p>The notice shows your estimated spend, limit and next request cost, including amounts smaller than a cent. A request can be blocked before the limit is fully spent if it would cost more than what remains. The link opens Settings → Budget. Your current wallpaper stays; paid requests can start again next month (UTC).</p>
 
   <h3>The wallpaper doesn’t change</h3>
   <ul>
     <li>Check that new wallpapers aren’t paused (the menu says <strong>Resume New Wallpapers</strong> if they are), and that <strong>New wallpaper</strong> isn’t set to <strong>Only when I ask</strong>.</li>
     <li>Now says when the next one is due, or what’s wrong.</li>
+    <li>Open <strong>Console</strong> and select the latest attempt to see which model was used, what was sent, and where it stopped. See <a href="#console">Console and run statistics</a> for what is recorded.</li>
     <li>On a Mac with <strong>Over my wallpaper</strong>, Mission Control and the lock screen show your own wallpaper; that’s expected. Choose <strong>As my wallpaper</strong> to change that.</li>
     <li>On Linux, AutoPaper needs permission to set the wallpaper, and to run in the background for wallpapers to come while its window is closed; it says how to allow each if they were refused.</li>
   </ul>

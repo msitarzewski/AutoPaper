@@ -103,3 +103,47 @@ file that isn't there yet.
 **Context**: The repo scan noted the Qwen Research License (non-commercial = "research or evaluation purposes only"; outputs'
 ownership isn't addressed). The user says the Qwen team clarified it. Defaults stay permissive (Z-Image Turbo, Apache-2.0). Link the
 clarification in the Credits page if the user provides it.
+
+### 2026-10-07: Console run capture and budget preserves the current wallpaper
+**Status**: Approved implementation; user requested installation after QA
+**Decision**: Extend Engine/Store with local run records and capture actual provider POST payloads at
+the existing HTTP boundary. Native app views group dates and runs. Keep 200 runs / 30 days with bounded,
+labelled traces; omit authentication headers and image bytes; clear independently of wallpaper memory.
+**User requirement**: A prospective monthly budget block explains spent/limit/next estimate and leaves
+the latest displayed wallpaper in place, including when provider-failure fallback is RevisitLiked.
+**References**: `tasks/2026-10/261007_console-budget-transparency.md`; `systemPatterns.md#Console run records`
+
+### 2026-10-07: Console statistics retain exact run/model provenance
+**Status**: Implemented and verified within the authorized Console refinement
+**Decision**: Keep request-estimate keys unchanged, link only new timings to their exact run IDs (migration 6),
+and store actual response models separately (migration 7). Aggregate retained outcomes/UTC days and exact
+linked provider/job/model call times. Do not invent old run/timing associations. Blocks/cancellation/interruption
+stay separate from success/failure rate and average finished-run duration.
+**References**: `core/src/engine.rs:342`, `core/src/store.rs:722`; follow-up task record and systemPatterns.
+
+### 2026-10-07: Native list/form defaults and clean Mac Moods
+**Status**: User-requested requirements implemented/verified; earlier Moods cleanup approved, latest UI feedback pending
+**Decision**: Use each toolkit's contextual native list/control/icon sizing, typography, selection and form grouping;
+remove redundant app-drawn rules/header bands. Keep meaningful content/actions/AX and functional photo/pane geometry.
+Mac mood list shows names only; editable name lives in detail; Use/Delete are context actions with native confirmation.
+**References**: `docs/app-spec.md:8`, `apps/macos/AutoPaper/Views/MoodsView.swift:140`, follow-up task record.
+
+### 2026-10-07: Substantial release batches; local builds are separate
+**Status**: Explicit user decision
+**Decision**: Gather meaningful changes before publishing/signing a public release. Local builds/installations continue;
+0.1.1 build 5 is installed on Mac, while public feeds remain v0.1.0. Windows signing readiness persists for the final
+batch, but no cached/stale 0.1.1 package may be reused. Reboot documentation does not authorize commit/push/publication.
+**References**: `tasks/2026-10/261007_console-budget-transparency.md`, `activeContext.md#Reboot checkpoint`.
+
+### 2026-10-07: Check both services before generation; revisit the selected mood
+**Status**: User-requested behavior implemented and verified; Mac build 6 installed
+**Decision**: Perform independent read-only writing/painting availability checks in parallel after the budget gate,
+with an 8-second limit and cancellation. Record both results in Console. Validate the local workflow afterward,
+before any paid call. Use existing model-list endpoints and ComfyUI `/object_info`, including custom workflows.
+If a check fails, use the newest usable, non-disliked saved image from the active mood captured at run start,
+regardless of generic scheduled fallback preference or echo source's mood. Skip missing/corrupt originals;
+when none remain, keep current and return the error. A saved fallback stays a failed Console attempt and
+never produces a new-wallpaper notification. Preserve ordinary scheduled backoff and strict core APIs;
+native manual/echo actions consume the new Shown-returning APIs.
+**References**: `systemPatterns.md#Service availability before wallpaper generation`, `core/src/engine.rs:2021`;
+`core/tests/engine.rs:2393`.

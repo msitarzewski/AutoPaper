@@ -18,9 +18,9 @@ use std::sync::Arc;
 
 use adw::prelude::*;
 use autopaper_core::{
-    AutoPaperError, DisplayTarget, Engine, EngineConfig, Fallback, Generation, InvalidInputReason, Mood, MoodStats,
+    AutoPaperError, BudgetStatus, DisplayTarget, Engine, EngineConfig, Fallback, Generation, InvalidInputReason, Mood, MoodStats,
     ProgressDetail, ProgressDetailObserver, ProgressObserver, ProgressStage, ProviderJob, ProviderKind,
-    ProviderUnavailableReason, Rating, RevisitReason, SecretStore, Settings, SpendSummary, Trigger,
+    ProviderUnavailableReason, Rating, RevisitReason, SecretStore, Settings, Shown, SpendSummary, Trigger,
     secret_account_for,
 };
 use gtk::{gio, glib};
@@ -105,6 +105,8 @@ pub struct State {
     /// When the next scheduled wallpaper starts so it's ready by `next_due` (the core's `next_start`).
     pub next_start: Option<i64>,
     pub spend: Option<SpendSummary>,
+    /// The current cap, estimated next-run cost and exact reason new wallpapers are blocked.
+    pub budget: Option<BudgetStatus>,
     pub narrow: bool,
     /// The Background portal said no: new wallpapers only come while the window is open.
     pub background_denied: bool,
@@ -465,11 +467,14 @@ impl App {
         };
         // With a link to the fix, the sentence says what to do ("Add your OpenAI key"), not where.
         let text = match fix {
+            Some(Fix::Budget) => self.state.borrow().budget.as_ref().filter(|budget| budget.blocked)
+                .map(|budget| budget.message.clone()).unwrap_or_else(|| strings::error_sentence(error, fallback)),
             Some(_) => strings::linked_sentence(error, fallback),
             None => strings::error_sentence(error, fallback),
         };
         // A painting failure says what happened; the link under it goes to the painting settings.
         let link = match error {
+            AutoPaperError::BudgetReached { .. } => Some("Change budget".to_string()),
             AutoPaperError::PaintingFailed { provider, .. } if fix.is_some() => Some(strings::painting_link(*provider)),
             _ => None,
         };
@@ -521,17 +526,30 @@ impl App {
             let next_due = engine.next_due()?;
             let next_start = engine.next_start()?;
             let spend = engine.spend_summary().ok();
+            let budget = engine.budget_status()?;
             let narrow = engine.keywords_are_narrow().unwrap_or(false);
-            Ok((next_due, next_start, spend, narrow))
+            Ok((next_due, next_start, spend, budget, narrow))
         })
         .await;
         match read {
-            Ok((next_due, next_start, spend, narrow)) => {
+            Ok((next_due, next_start, spend, budget, narrow)) => {
                 {
                     let mut state = self.state.borrow_mut();
                     state.next_due = next_due;
                     state.next_start = next_start;
                     state.spend = spend;
+                    // Refresh a previous budget failure when settings change; keep other errors alongside the global
+                    // budget notice. A higher limit or a new month clears only the budget error.
+                    if state.notice.as_ref().is_some_and(|notice| notice.fix == Some(Fix::Budget)) {
+                        if budget.blocked {
+                            if let Some(notice) = &mut state.notice {
+                                notice.text = budget.message.clone();
+                            }
+                        } else {
+                            state.notice = None;
+                        }
+                    }
+                    state.budget = Some(budget);
                     state.narrow = narrow;
                 }
                 self.emit(Event::Status);
@@ -808,26 +826,19 @@ impl App {
         if !matches!(&self.state.borrow().notice, Some(Notice { kind: NoticeKind::Revisit, .. }) | None) {
             self.set_notice(None);
         }
-        let Some((engine, observer)) = self.begin(Some(ProgressStage::Composing)) else { return };
+        let Some((engine, observer)) = self.begin(Some(ProgressStage::CheckingServices)) else { return };
         let app = self.clone();
         glib::spawn_future_local(async move {
             let result = spawn(async move {
                 match job {
-                    Job::New(trigger) => engine.generate(trigger, Some(observer)).await,
-                    Job::Echo(id) => engine.make_echo(id, Some(observer)).await,
+                    Job::New(trigger) => engine.generate_or_revisit(trigger, Some(observer)).await,
+                    Job::Echo(id) => engine.make_echo_or_revisit(id, Some(observer)).await,
                 }
             })
             .await;
             let mut outcome = None;
             match result {
-                Ok(generation) => {
-                    app.made_new();
-                    if app.show(&generation, true).await {
-                        app.set_notice(None);
-                        app.notify_new(&generation);
-                        outcome = Some(strings::new_wallpaper(&generation.concept.title));
-                    }
-                }
+                Ok(shown) => outcome = app.show_result(shown).await,
                 Err(error) => {
                     if matches!(error, AutoPaperError::Cancelled) {
                         outcome = Some(strings::error_sentence(&error, Fallback::KeepCurrent));
@@ -846,32 +857,13 @@ impl App {
         if !due || self.busy.get() || self.state.borrow().settings.paused || crate::welcome::Welcome::wanted(self) {
             return;
         }
-        let Some((engine, observer)) = self.begin(None) else { return };
+        let Some((engine, observer)) = self.begin(Some(ProgressStage::CheckingServices)) else { return };
         let app = self.clone();
         glib::spawn_future_local(async move {
             let mut outcome = None;
             match spawn(async move { engine.run_if_due(Some(observer)).await }).await {
                 Ok(None) => {}
-                Ok(Some(shown)) => {
-                    let revisit = shown.revisit;
-                    if revisit.is_none() {
-                        app.made_new();
-                    }
-                    if app.show(&shown.generation, true).await {
-                        // A revisit's reason is the notice (announced as it appears); a new one is the outcome.
-                        match revisit.and_then(strings::revisit_sentence) {
-                            Some(text) => app.set_notice(Some(Notice::plain(text, NoticeKind::Revisit))),
-                            None => app.set_notice(None),
-                        }
-                        if revisit.is_none() {
-                            app.notify_new(&shown.generation);
-                            outcome = Some(strings::new_wallpaper(&shown.generation.concept.title));
-                        }
-                    }
-                    if revisit == Some(RevisitReason::OverBudget) {
-                        app.notify_budget_spent();
-                    }
-                }
+                Ok(Some(shown)) => outcome = app.show_result(shown).await,
                 Err(error) => {
                     if matches!(error, AutoPaperError::Cancelled) {
                         outcome = Some(strings::error_sentence(&error, Fallback::KeepCurrent));
@@ -887,6 +879,30 @@ impl App {
             }
             app.finish(outcome).await;
         });
+    }
+
+    /// Manual, echo and scheduled results share the same presentation. A saved wallpaper's reason is the notice,
+    /// while only a newly generated wallpaper clears key problems and gets a new-wallpaper announcement.
+    async fn show_result(self: &Rc<Self>, shown: Shown) -> Option<String> {
+        let revisit = shown.revisit;
+        if revisit.is_none() {
+            self.made_new();
+        }
+        let mut outcome = None;
+        if self.show(&shown.generation, true).await {
+            match revisit.and_then(strings::revisit_sentence) {
+                Some(text) => self.set_notice(Some(Notice::plain(text, NoticeKind::Revisit))),
+                None => self.set_notice(None),
+            }
+            if revisit.is_none() {
+                self.notify_new(&shown.generation);
+                outcome = Some(strings::new_wallpaper(&shown.generation.concept.title));
+            }
+        }
+        if revisit == Some(RevisitReason::OverBudget) {
+            self.notify_budget_spent();
+        }
+        outcome
     }
 
     /// A new wallpaper was made: the providers and keys work again.
@@ -1398,6 +1414,9 @@ impl App {
     }
 
     fn watch_wake(self: &Rc<Self>) {
+        // One clock watcher on every desktop: budget resets also matter when logind is available and scheduling is
+        // paused or manual. It doubles as resume detection where the system bus is unavailable.
+        self.watch_clock_jumps();
         let app = self.clone();
         glib::spawn_future_local(async move {
             match gio::bus_get_future(gio::BusType::System).await {
@@ -1424,7 +1443,6 @@ impl App {
                 // instead by the wall clock jumping ahead of the monotonic one, which stops while suspended.
                 Err(error) => {
                     tracing::info!(%error, "no system bus: resume is noticed by the clocks and unlock");
-                    app.watch_clock_jumps();
                 }
             }
             match gio::bus_get_future(gio::BusType::Session).await {
@@ -1456,7 +1474,8 @@ impl App {
     }
 
     /// Resume without logind: every 30 s, whether the wall clock moved on further than the monotonic clock, which
-    /// doesn't count time asleep (`slept_between`). Needs no permission.
+    /// doesn't count time asleep (`slept_between`). Also refreshes the UTC monthly budget boundary, even when
+    /// scheduling is manual or paused. Needs no permission.
     fn watch_clock_jumps(self: &Rc<Self>) {
         let last = Cell::new((glib::real_time(), glib::monotonic_time()));
         let weak = Rc::downgrade(self);
@@ -1465,6 +1484,10 @@ impl App {
             let now = (glib::real_time(), glib::monotonic_time());
             if slept_between(last.replace(now), now) {
                 app.woke("resume");
+            } else if app.state.borrow().budget.as_ref().is_some_and(|budget| {
+                budget.month != autopaper_core::schedule::month_key(now.0 / 1_000_000)
+            }) {
+                app.woke("budget month changed");
             }
             glib::ControlFlow::Continue
         });
@@ -1581,12 +1604,10 @@ impl App {
         if self.prefs.string("budget-notified-month") == month.as_str() {
             return;
         }
-        let fallback = self.state.borrow().settings.fallback;
-        let notification = gio::Notification::new("This month's budget is spent");
-        notification.set_body(Some(match fallback {
-            Fallback::RevisitLiked => "AutoPaper is bringing back wallpapers you liked until next month.",
-            Fallback::KeepCurrent => "New wallpapers start again next month, or when you raise the budget.",
-        }));
+        let notification = gio::Notification::new("New wallpapers paused by monthly budget");
+        let message = self.state.borrow().budget.as_ref().map(|budget| budget.message.clone())
+            .unwrap_or_else(|| "The next wallpaper would exceed this month's budget. Your current wallpaper is kept. Raise the budget in Preferences, or wait for the monthly reset.".into());
+        notification.set_body(Some(&message));
         notification.add_button_with_target_value("Change budget", "app.preferences-page", Some(&"budget".to_variant()));
         notification.set_default_action("app.show-window");
         self.gtk.send_notification(Some("budget"), &notification);
@@ -1671,7 +1692,7 @@ impl App {
         let Some(window) = self.main_window() else { return };
         match &fix {
             Fix::Mood(id) => window.show_mood(id),
-            Fix::Key(_) | Fix::Provider(..) => window.open_fix(&fix),
+            Fix::Key(_) | Fix::Provider(..) | Fix::Budget => window.open_fix(&fix),
         }
     }
 
@@ -1864,6 +1885,7 @@ impl App {
         self.gtk.set_accels_for_action("win.view::now", &["<Alt>1"]);
         self.gtk.set_accels_for_action("win.view::moods", &["<Alt>2"]);
         self.gtk.set_accels_for_action("win.view::history", &["<Alt>3"]);
+        self.gtk.set_accels_for_action("win.view::console", &["<Alt>4"]);
         self.update_busy_actions();
     }
 
@@ -1933,6 +1955,7 @@ fn fix_for(settings: &Settings, moods: &[Mood], error: &AutoPaperError) -> Optio
         matches!(kind, ProviderKind::Ollama | ProviderKind::OpenAiCompatible | ProviderKind::ComfyUi)
     };
     match error {
+        AutoPaperError::BudgetReached { .. } => Some(Fix::Budget),
         AutoPaperError::MissingKey { provider } | AutoPaperError::InvalidKey { provider } => {
             key_account(settings, *provider).map(Fix::Key)
         }
@@ -2017,6 +2040,14 @@ fn load_prefs() -> Result<gio::Settings, String> {
 mod tests {
     use super::*;
     use autopaper_core::ProviderSelection;
+
+    #[test]
+    fn budget_blocks_link_to_the_monthly_limit() {
+        assert_eq!(
+            fix_for(&Settings::default(), &[], &AutoPaperError::BudgetReached { budget_cents: 500 }),
+            Some(Fix::Budget)
+        );
+    }
 
     fn comfy_painting(workflow: Option<&str>) -> Settings {
         Settings {

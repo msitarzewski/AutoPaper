@@ -39,6 +39,7 @@ struct AppCommands: Commands {
 enum Website {
     static let home = URL(string: "https://msitarzewski.github.io/AutoPaper/")!
     static let help = home.appending(path: "help.html")
+    static let console = URL(string: "\(help.absoluteString)#console")!
     static let privacy = home.appending(path: "privacy.html")
 }
 

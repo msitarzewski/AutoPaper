@@ -495,6 +495,8 @@ public sealed partial class HistoryPage : Page, IWallpaperHost
         var generation = item.Generation;
         GalleryTitle.Text = item.Title;
         GallerySummary.Text = generation.Concept.Summary;
+        GalleryImagePrompt.Text = string.IsNullOrEmpty(generation.Concept.Prompt)
+            ? Loc.Get("Console_NotRecorded") : generation.Concept.Prompt;
         GalleryEcho.Visibility = item.EchoNote.Length > 0 || item.HasEchoes ? Visibility.Visible : Visibility.Collapsed;
         GalleryEchoNote.Text = item.EchoNote;
         GalleryEchoNote.Visibility = item.EchoNote.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -609,6 +611,8 @@ public sealed partial class HistoryPage : Page, IWallpaperHost
             await WallpaperActions.ShowOnDesktopAsync(item, this);
         }
     }
+
+    private void OnGalleryOpenConsole(object sender, RoutedEventArgs e) => App.Window.ShowPage("Console");
 
     private async void OnGalleryLike(object sender, RoutedEventArgs e) => await RateGalleryAsync(Rating.Liked);
 

@@ -629,7 +629,11 @@ impl NowPage {
             }
             None => self.budget_row.set_visible(false),
         }
-        let notice = state.notice.clone();
+        // The persistent window banner already explains a prospective budget block. Keep independent provider or
+        // key errors here; showing the same budget failure twice would obscure the useful status lines.
+        let notice = state.notice.as_ref().filter(|notice| {
+            notice.fix != Some(Fix::Budget) || !state.budget.as_ref().is_some_and(|budget| budget.blocked)
+        }).cloned();
         self.narrow_row.set_visible(state.narrow);
         self.background_row.set_visible(state.background_denied);
         let paused = settings.paused;
@@ -681,6 +685,7 @@ impl NowPage {
                 }
                 let goes_to = match &notice.fix {
                     Some(Fix::Key(_)) => "Opens Preferences on the Keys page".to_string(),
+                    Some(Fix::Budget) => "Opens Preferences on the Budget page".to_string(),
                     Some(Fix::Mood(id)) => match mood_names.iter().find(|(mood, _)| mood == id) {
                         Some((_, name)) => format!("Opens the mood “{name}”, to change its keywords"),
                         None => "Opens the mood, to change its keywords".to_string(),

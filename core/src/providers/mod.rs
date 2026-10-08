@@ -147,6 +147,10 @@ pub trait TextProvider: Send + Sync {
     }
     async fn compose(&self, request: ComposeRequest) -> Result<ComposeResponse>;
     async fn list_models(&self) -> Result<Vec<ModelInfo>>;
+    /// A read-only service check before any paid work. Local Demo providers need no network.
+    async fn check_available(&self) -> Result<()> {
+        self.list_models().await.map(|_| ())
+    }
 }
 
 #[async_trait]
@@ -171,4 +175,8 @@ pub trait ImageProvider: Send + Sync {
     }
     async fn generate(&self, request: ImageRequest) -> Result<ImageResponse>;
     async fn list_models(&self) -> Result<Vec<ModelInfo>>;
+    /// A read-only service check before any paid work. Local Demo providers need no network.
+    async fn check_available(&self) -> Result<()> {
+        self.list_models().await.map(|_| ())
+    }
 }

@@ -145,6 +145,8 @@ pub struct ChartData {
     pub stacks: Vec<Vec<Segment>>,
     /// Each day's start (`stacks`' days), for the axis and the tooltip.
     pub starts: Vec<i64>,
+    /// Console groups runs by UTC day; wallpaper activity uses local calendar days.
+    pub utc: bool,
 }
 
 mod imp {
@@ -253,7 +255,7 @@ impl ActivityChart {
     /// "Monday 5 October: Rainy beach 2, Night city 1".
     fn day_line(&self, day: usize) -> String {
         let data = self.data();
-        let date = data.starts.get(day).and_then(|start| glib::DateTime::from_unix_local(*start).ok());
+        let date = data.starts.get(day).and_then(|start| chart_date(*start, data.utc).ok());
         let date = date.and_then(|date| date.format("%A %-e %B").ok()).map(|text| text.to_string()).unwrap_or_default();
         let stack = data.stacks.get(day).cloned().unwrap_or_default();
         format!("{date}: {}", day_parts(&stack))
@@ -317,9 +319,14 @@ impl ActivityChart {
         }
 
         // The day axis: a label a week apart.
-        for day in week_labels(data.stacks.len()) {
+        let labels = if data.utc && data.stacks.len() < 7 {
+            if data.stacks.len() > 1 { vec![0, data.stacks.len() - 1] } else { vec![0] }
+        } else {
+            week_labels(data.stacks.len())
+        };
+        for day in labels {
             let Some(start) = data.starts.get(day) else { continue };
-            let Ok(date) = glib::DateTime::from_unix_local(*start) else { continue };
+            let Ok(date) = chart_date(*start, data.utc) else { continue };
             let Ok(text) = date.format("%-e %b") else { continue };
             let layout = self.create_pango_layout(Some(text.as_str()));
             let (text_width, _) = layout.pixel_size();
@@ -337,6 +344,10 @@ impl Default for ActivityChart {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn chart_date(unix: i64, utc: bool) -> Result<glib::DateTime, glib::BoolError> {
+    if utc { glib::DateTime::from_unix_utc(unix) } else { glib::DateTime::from_unix_local(unix) }
 }
 
 /// One day's segments in words: "Rainy beach 2, Night city 1" (or "no wallpapers").
@@ -651,7 +662,7 @@ impl SummaryPage {
         };
         self.chart.update_property(&[gtk::accessible::Property::Description(&summary)]);
         self.fill_table(&stacks, &starts);
-        self.chart.set_data(ChartData { stacks, starts });
+        self.chart.set_data(ChartData { stacks, starts, utc: false });
     }
 
     /// The chart's numbers as a table: a row per day with wallpapers (Day · Moods · Wallpapers).

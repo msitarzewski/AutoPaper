@@ -100,6 +100,78 @@ public sealed class WordingTests
         Assert.AreEqual("google.api_key", problem.KeyAccount);
     }
 
+    [TestMethod]
+    public void BudgetBlocksAlwaysKeepTheCurrentWallpaperAndLinkToBudget()
+    {
+        foreach (var fallback in new[] { Fallback.RevisitLiked, Fallback.KeepCurrent })
+        {
+            foreach (var scheduled in new[] { false, true })
+            {
+                var settings = Defaults with { Fallback = fallback };
+                var error = new AutoPaperException.BudgetReached(500);
+                var problem = Text.Problem(error, settings, scheduled);
+                Assert.AreEqual(Fix.Budget, problem.Fix);
+                Assert.AreEqual("Raise the budget", problem.Link);
+                StringAssert.Contains(problem.Sentence, "estimated next wallpaper");
+                StringAssert.Contains(Text.Error(error, settings, scheduled), "keeping the current wallpaper");
+                Assert.DoesNotContain("bringing back", Text.Error(error, settings, scheduled));
+            }
+        }
+    }
+
+    [TestMethod]
+    public void ServicePreflightNamesBothChecksAndDescribesASavedWallpaper()
+    {
+        Assert.AreEqual("Checking services…", Text.Stage(ProgressStage.CheckingServices));
+        var sentence = Text.Revisit(RevisitReason.ServicesUnavailable, Defaults);
+        StringAssert.Contains(sentence, "writing or painting service");
+        StringAssert.Contains(sentence, "latest saved wallpaper from this mood");
+        StringAssert.Contains(sentence, "Console");
+        Assert.DoesNotContain("one you liked", sentence);
+        Assert.DoesNotContain("New wallpaper", sentence);
+    }
+
+    [TestMethod]
+    public void ConsoleNamesEveryRunOutcomeAndTriggerAndKeepsExactModelIds()
+    {
+        foreach (var status in Enum.GetValues<RunStatus>())
+        {
+            Assert.DoesNotContain("ConsoleStatus_", Text.RunOutcome(status));
+            Assert.IsFalse(string.IsNullOrWhiteSpace(Text.RunOutcome(status)));
+        }
+        Assert.AreEqual("Blocked", Text.RunOutcome(RunStatus.Blocked));
+        Assert.AreEqual("Completed", Text.RunOutcome(RunStatus.Succeeded));
+        foreach (var trigger in Enum.GetValues<Trigger>())
+        {
+            Assert.DoesNotContain("ConsoleTrigger_", Text.RunTrigger(trigger));
+        }
+        Assert.AreEqual("Google Gemini · gemini-3.1-flash-image", Text.RunProvider(ProviderKind.Google, "gemini-3.1-flash-image"));
+        Assert.AreEqual("Demo", Text.RunProvider(ProviderKind.Demo, ""));
+    }
+
+    [TestMethod]
+    public void ConsolePreservesRecordedCostPrecision()
+    {
+        Assert.AreEqual("$0.003564", Text.RunMoney(3_564));
+        Assert.AreEqual("$0.000001", Text.RunMoney(1));
+        Assert.AreEqual("$0.00", Text.RunMoney(0));
+        Assert.AreEqual("$1.20", Text.RunMoney(1_200_000));
+        Assert.AreEqual("$10.0125", Text.RunMoney(10_012_500));
+    }
+
+    [TestMethod]
+    public void ConsoleStatisticsKeepMissingValuesAndPreciseMeasuredTimes()
+    {
+        Assert.AreEqual("—", Text.RunRate(null));
+        Assert.AreEqual("0%", Text.RunRate(0));
+        Assert.AreEqual("33%", Text.RunRate(1d / 3));
+        Assert.AreEqual("100%", Text.RunRate(1));
+        Assert.AreEqual("—", Text.RunSeconds(null));
+        Assert.AreEqual("0 s", Text.RunSeconds(0));
+        Assert.AreEqual("2.124 s", Text.RunSeconds(2.124));
+        Assert.AreEqual("0.000001 s", Text.RunSeconds(0.000001));
+    }
+
     /// <summary>An OpenAI-compatible server's key is the one for the address in Settings (secret_account_for).</summary>
     [TestMethod]
     public void AServersKeyLinksToThatServersField()

@@ -32,6 +32,11 @@ public sealed partial class ActivityChart : StackPanel
 
     private IReadOnlyList<Mood> moods = [];
     private IReadOnlyList<DayCount> counts = [];
+    private IReadOnlyList<ConsoleDay>? consoleCounts;
+    private bool IsConsole => consoleCounts is not null;
+    private string Title => Loc.Get(IsConsole ? "Console_DailyRuns" : "Activity_Title");
+
+    private sealed record Part(long DayStart, string? Key, int Count, int Base, bool IsTop);
 
     public ActivityChart()
     {
@@ -44,6 +49,15 @@ public sealed partial class ActivityChart : StackPanel
     {
         this.moods = moods;
         this.counts = counts;
+        consoleCounts = null;
+        Build();
+    }
+
+    /// <summary>The same native chart and accessible table, with real retained run counts stacked by outcome.
+    /// Console days use UTC midnight; they must not be shifted into the previous local calendar date.</summary>
+    internal void ShowOutcomes(IReadOnlyList<ConsoleDay> counts)
+    {
+        consoleCounts = counts;
         Build();
     }
 
@@ -53,22 +67,73 @@ public sealed partial class ActivityChart : StackPanel
 
     internal static Color Rgb(uint rgb) => Color.FromArgb(255, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);
 
-    private string NameOf(string? moodId) => moods.FirstOrDefault(mood => mood.Id == moodId)?.Name ?? Loc.Get("Activity_Other");
+    private string NameOf(string? key) => IsConsole
+        ? Text.RunOutcome(Enum.Parse<RunStatus>(key!))
+        : moods.FirstOrDefault(mood => mood.Id == key)?.Name ?? Loc.Get("Activity_Other");
+
+    private Color SeriesColor(string? key, IReadOnlyDictionary<string, int> slots)
+    {
+        if (!IsConsole) return ColorOf(key, slots);
+        var slot = Enum.Parse<RunStatus>(key!) switch
+        {
+            RunStatus.Running => 0,
+            RunStatus.Succeeded => 2,
+            RunStatus.Failed => 7,
+            RunStatus.Blocked => 3,
+            RunStatus.Interrupted => 1,
+            _ => -1,
+        };
+        return slot < 0 ? Rgb(Other) : Rgb((ActualTheme == ElementTheme.Dark ? Dark : Light)[slot]);
+    }
+
+    private List<Part> Parts(IReadOnlyDictionary<string, int> slots)
+    {
+        if (consoleCounts is null)
+            return MoodActivity.Segments(counts, moods.Select(mood => mood.Id).ToList(), slots)
+                .Select(part => new Part(part.DayStart, part.MoodId, part.Count, part.Base, part.IsTop)).ToList();
+        var parts = new List<Part>();
+        foreach (var day in consoleCounts.GroupBy(count => count.DayStart).OrderBy(day => day.Key))
+        {
+            var stack = day.Where(count => count.Count > 0).OrderBy(count => count.Status).ToList();
+            var below = 0;
+            for (var index = 0; index < stack.Count; index++)
+            {
+                var part = stack[index];
+                var count = checked((int)part.Count);
+                parts.Add(new Part(day.Key, part.Status.ToString(), count, below, index == stack.Count - 1));
+                below += count;
+            }
+        }
+        return parts;
+    }
 
     private void Build()
     {
         Children.Clear();
-        var title = new TextBlock { Text = Loc.Get("Activity_Title"), Style = TextStyle("SubtitleTextBlockStyle") };
+        var title = new TextBlock { Text = Title, Style = TextStyle("SubtitleTextBlockStyle") };
         AutomationProperties.SetHeadingLevel(title, AutomationHeadingLevel.Level2);
         Children.Add(title);
 
-        var bounds = MoodActivity.DayBounds();
+        var bounds = IsConsole ? MoodActivity.DayBounds(zone: TimeZoneInfo.Utc) : MoodActivity.DayBounds();
+        // Retention is a rolling 30 days, which can span 31 UTC calendar dates. Include its first partial day.
+        if (consoleCounts is { Count: > 0 } && consoleCounts.Min(day => day.DayStart) is var earliest && earliest < bounds[0])
+            bounds = MoodActivity.DayBounds(days: checked((int)((bounds[^1] - earliest) / 86_400)), zone: TimeZoneInfo.Utc);
         var slots = MoodActivity.ColorSlots(moods);
-        var segments = MoodActivity.Segments(counts, moods.Select(mood => mood.Id).ToList(), slots);
+        var segments = Parts(slots);
         var total = segments.Sum(segment => segment.Count);
         if (total == 0)
         {
-            Children.Add(new TextBlock { Text = Loc.Format("Activity_None", MoodActivity.Days), Style = TextStyle("BodyTextBlockStyle"), Foreground = Brush("TextFillColorSecondaryBrush") });
+            var empty = new TextBlock { Text = IsConsole ? Loc.Get("Console_NoChartData") : Loc.Format("Activity_None", MoodActivity.Days),
+                Style = TextStyle("BodyTextBlockStyle"), Foreground = Brush("TextFillColorSecondaryBrush") };
+            if (IsConsole)
+            {
+                empty.HorizontalAlignment = HorizontalAlignment.Center;
+                empty.VerticalAlignment = VerticalAlignment.Center;
+                var area = new Grid { MinHeight = PlotHeight };
+                area.Children.Add(empty);
+                Children.Add(area);
+            }
+            else Children.Add(empty);
             return;
         }
         var days = segments.GroupBy(segment => segment.DayStart).ToDictionary(group => group.Key, group => group.ToList());
@@ -128,7 +193,7 @@ public sealed partial class ActivityChart : StackPanel
             foreach (var segment in Enumerable.Reverse(stack))
             {
                 var height = segment.Count * PlotHeight / top;
-                var color = contrast ? null : new SolidColorBrush(ColorOf(segment.MoodId, slots));
+                var color = contrast ? null : new SolidColorBrush(SeriesColor(segment.Key, slots));
                 bar.Children.Add(new Border
                 {
                     Height = Math.Max(1, height - (segment.Base > 0 ? 2 : 0)),
@@ -149,7 +214,8 @@ public sealed partial class ActivityChart : StackPanel
             var index = Array.IndexOf(bounds, label);
             var text = new TextBlock
             {
-                Text = Text.Clean(new Windows.Globalization.DateTimeFormatting.DateTimeFormatter("month.abbreviated day").Format(DateTimeOffset.FromUnixTimeSeconds(label).ToLocalTime())),
+                Text = IsConsole ? DateTimeOffset.FromUnixTimeSeconds(label).UtcDateTime.ToString("MMM d", System.Globalization.CultureInfo.CurrentCulture)
+                    : Text.Clean(new Windows.Globalization.DateTimeFormatting.DateTimeFormatter("month.abbreviated day").Format(DateTimeOffset.FromUnixTimeSeconds(label).ToLocalTime())),
                 Style = TextStyle("CaptionTextBlockStyle"),
                 Foreground = Brush("TextFillColorSecondaryBrush"),
                 TextAlignment = TextAlignment.Center,
@@ -163,10 +229,10 @@ public sealed partial class ActivityChart : StackPanel
         Children.Add(plot);
 
         // The legend (two series or more): a dot of each colour and its name, wrapping as text does.
-        var series = segments.Select(segment => segment.MoodId).Distinct()
-            .OrderBy(id => id is null ? int.MaxValue : moods.ToList().FindIndex(mood => mood.Id == id))
+        var series = segments.Select(segment => segment.Key).Distinct()
+            .OrderBy(id => IsConsole ? (int)Enum.Parse<RunStatus>(id!) : id is null ? int.MaxValue : moods.ToList().FindIndex(mood => mood.Id == id))
             .ToList();
-        if (series.Count > 1)
+        if (IsConsole || series.Count > 1)
         {
             var legend = new TextBlock { Style = TextStyle("BodyTextBlockStyle"), TextWrapping = TextWrapping.Wrap };
             foreach (var id in series)
@@ -175,13 +241,15 @@ public sealed partial class ActivityChart : StackPanel
                 {
                     legend.Inlines.Add(new Run { Text = "    " });
                 }
-                legend.Inlines.Add(new Run { Text = "\u25CF ", Foreground = contrast ? Brush("TextFillColorPrimaryBrush") : new SolidColorBrush(ColorOf(id, slots)) });
-                legend.Inlines.Add(new Run { Text = NameOf(id) });
+                legend.Inlines.Add(new Run { Text = "\u25CF ", Foreground = contrast ? Brush("TextFillColorPrimaryBrush") : new SolidColorBrush(SeriesColor(id, slots)) });
+                legend.Inlines.Add(new Run { Text = IsConsole ? Loc.Format("Activity_DayPart", NameOf(id), segments.Where(part => part.Key == id).Sum(part => part.Count)) : NameOf(id) });
             }
-            AutomationProperties.SetName(legend, Loc.Format("Activity_Legend", string.Join(", ", series.Select(NameOf))));
+            AutomationProperties.SetName(legend, Loc.Format("Activity_Legend", string.Join(", ", series.Select(id => IsConsole
+                ? Loc.Format("Activity_DayPart", NameOf(id), segments.Where(part => part.Key == id).Sum(part => part.Count)) : NameOf(id)))));
             Children.Add(legend);
         }
-        Children.Add(new TextBlock { Text = MoodActivity.Footnote(total), Style = TextStyle("BodyTextBlockStyle"), Foreground = Brush("TextFillColorSecondaryBrush") });
+        if (!IsConsole)
+            Children.Add(new TextBlock { Text = MoodActivity.Footnote(total), Style = TextStyle("BodyTextBlockStyle"), Foreground = Brush("TextFillColorSecondaryBrush") });
 
         // The numbers as a table: each day with wallpapers, newest first.
         Children.Add(new Expander
@@ -193,15 +261,17 @@ public sealed partial class ActivityChart : StackPanel
         });
     }
 
-    private string DayTip(long dayStart, List<MoodActivity.Segment> stack) =>
-        $"{DayName(dayStart)}\n" + string.Join("\n", Enumerable.Reverse(stack).Select(segment => Loc.Format("Activity_DayPart", NameOf(segment.MoodId), segment.Count)));
+    private string DayTip(long dayStart, List<Part> stack) =>
+        $"{DayName(dayStart)}\n" + string.Join("\n", Enumerable.Reverse(stack).Select(segment => Loc.Format("Activity_DayPart", NameOf(segment.Key), segment.Count)));
 
-    private static string DayName(long dayStart) =>
-        Text.Clean(new Windows.Globalization.DateTimeFormatting.DateTimeFormatter("dayofweek.abbreviated month.abbreviated day").Format(DateTimeOffset.FromUnixTimeSeconds(dayStart).ToLocalTime()));
+    private string DayName(long dayStart) => IsConsole
+        ? DateTimeOffset.FromUnixTimeSeconds(dayStart).UtcDateTime.ToString("ddd, MMM d", System.Globalization.CultureInfo.CurrentCulture)
+        : Text.Clean(new Windows.Globalization.DateTimeFormatting.DateTimeFormatter("dayofweek.abbreviated month.abbreviated day").Format(DateTimeOffset.FromUnixTimeSeconds(dayStart).ToLocalTime()));
 
-    private string Summary(int total) => $"{Loc.Get("Activity_Title")}. {MoodActivity.Footnote(total)} {Loc.Get("Activity_TableHint")}";
+    private string Summary(int total) => IsConsole ? Loc.Format("Console_ChartSummary", total)
+        : $"{Title}. {MoodActivity.Footnote(total)} {Loc.Get("Activity_TableHint")}";
 
-    private Grid Table(Dictionary<long, List<MoodActivity.Segment>> days)
+    private Grid Table(Dictionary<long, List<Part>> days)
     {
         var table = new Grid { ColumnSpacing = 24, RowSpacing = 6 };
         table.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -227,10 +297,10 @@ public sealed partial class ActivityChart : StackPanel
             }
             row++;
         }
-        Add(Loc.Get("Activity_TableDay"), Loc.Get("Activity_TableMoods"), Loc.Get("Activity_TableWallpapers"), header: true);
+        Add(Loc.Get("Activity_TableDay"), Loc.Get(IsConsole ? "Console_Outcomes" : "Activity_TableMoods"), Loc.Get(IsConsole ? "Console_Runs" : "Activity_TableWallpapers"), header: true);
         foreach (var (day, stack) in days.OrderByDescending(entry => entry.Key))
         {
-            Add(DayName(day), MoodActivity.DayLine(stack, NameOf), stack.Sum(segment => segment.Count).ToString(System.Globalization.CultureInfo.CurrentCulture), header: false);
+            Add(DayName(day), string.Join(", ", stack.Select(part => Loc.Format("Activity_DayPart", NameOf(part.Key), part.Count))), stack.Sum(segment => segment.Count).ToString(System.Globalization.CultureInfo.CurrentCulture), header: false);
         }
         return table;
     }

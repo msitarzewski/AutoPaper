@@ -71,8 +71,31 @@
                         <FontIcon Glyph="&#xE81C;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem x:Name="ConsoleItem" x:Uid="NavConsole" Tag="Console">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE756;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
             </NavigationView.MenuItems>
-            <Frame x:Name="ContentFrame" Navigated="OnNavigated" />
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <InfoBar
+                    x:Name="BudgetNoticeBar"
+                    x:Uid="BudgetBlockedNotice"
+                    Margin="16,12,16,0"
+                    AutomationProperties.AutomationId="BudgetBlockedNotice"
+                    IsClosable="False"
+                    Severity="Warning"
+                    Visibility="Collapsed">
+                    <InfoBar.ActionButton>
+                        <HyperlinkButton x:Uid="BudgetNoticeLink" Click="OnBudgetNoticeLink" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+                <Frame x:Name="ContentFrame" Grid.Row="1" Navigated="OnNavigated" />
+            </Grid>
         </NavigationView>
 
         <!-- First run: a page of its own, in place of the navigation (spec "First run": Windows, a first-run page). -->

@@ -23,7 +23,7 @@ struct BudgetSettings: View {
                     Text("Custom").tag(Self.customTag)
                 } label: {
                     Text("Monthly budget")
-                    Text("When a new wallpaper would go over it, AutoPaper waits for next month (or brings back one you liked).")
+                    Text("When a new wallpaper would go over it, AutoPaper keeps your current wallpaper and waits for next month.")
                 }
                 if custom || isCustom(settings) {
                     TextField("Custom budget", value: $customDollars, format: .currency(code: "USD").locale(Locale(identifier: "en_US")))
@@ -31,6 +31,13 @@ struct BudgetSettings: View {
                         .onSubmit(saveCustom)
                         .onChange(of: customFocused) { _, focused in if !focused { saveCustom() } }
                         .onAppear { if let cents = settings.monthlyBudgetCents { customDollars = Double(cents) / 100 } }
+                }
+            }
+            if let problem = model.budgetProblem {
+                Section("New wallpapers are waiting") {
+                    Text(problem.sentence)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             if let spend = model.spend {

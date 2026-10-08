@@ -8,17 +8,6 @@
     xmlns:views="using:AutoPaper.Views">
 
     <Page.Resources>
-        <!-- Must · Maybe · Avoid: compact radio buttons in a row (the stock control's 120 px minimum is for forms).
-             Deviation from the spec's "segmented control", on purpose (memory-bank/systemPatterns.md, Native surfaces):
-             WinUI has no stock segmented control, and in this app's first build the Community Toolkit's Segmented
-             (8.2.251219) exposed its items to UI Automation without selection state or position, so a screen reader
-             couldn't tell which weight a row had. RadioButtons is the stock Fluent control for one choice of a few,
-             with SelectionItem state, "2 of 3" and arrow keys built in. -->
-        <Style x:Key="WeightRadioStyle" BasedOn="{StaticResource DefaultRadioButtonStyle}" TargetType="RadioButton">
-            <Setter Property="MinWidth" Value="0" />
-            <Setter Property="Padding" Value="6,6,0,0" />
-        </Style>
-
         <!-- A mood's actions (right-click, Shift+F10, the Menu key). -->
         <MenuFlyout x:Key="MoodMenu" Opening="OnMoodMenuOpening">
             <MenuFlyoutItem x:Name="MoodUseItem" x:Uid="MoodMenuUse" Click="OnUseFromMenu">
@@ -89,8 +78,6 @@
         <Grid
             x:Name="ListPane"
             Padding="24,24,16,0"
-            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-            BorderThickness="0,0,1,0"
             RowSpacing="8">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -130,8 +117,6 @@
                 x:Name="MoodList"
                 x:Uid="MoodList"
                 Grid.Row="2"
-                Margin="-12,0,-8,0"
-                Padding="0,0,0,24"
                 AllowDrop="True"
                 AutomationProperties.AutomationId="MoodList"
                 CanDragItems="True"
@@ -150,14 +135,13 @@
                 </ListView.KeyboardAccelerators>
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="models:MoodItem">
-                        <Grid Padding="0,10" ColumnSpacing="12">
+                        <Grid ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center" Spacing="2">
+                            <StackPanel VerticalAlignment="Center">
                                 <TextBlock
-                                    Style="{StaticResource BodyStrongTextBlockStyle}"
                                     Text="{x:Bind Name, Mode=OneWay}"
                                     TextTrimming="CharacterEllipsis"
                                     TextWrapping="NoWrap" />
@@ -176,7 +160,7 @@
                                 Orientation="Horizontal"
                                 Spacing="6"
                                 Visibility="{x:Bind CurrentVisibility, Mode=OneWay}">
-                                <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="14" Glyph="&#xE73E;" />
+                                <FontIcon AutomationProperties.AccessibilityView="Raw" Glyph="&#xE73E;" />
                                 <TextBlock x:Uid="MoodCurrentBadge" Style="{StaticResource CaptionTextBlockStyle}" />
                             </StackPanel>
                             <Button
@@ -235,14 +219,12 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <!-- The mood's title bar: its name in the title position, renamed in place (Enter saves, Esc puts it
-                     back), then its commands: "Current mood" or Use this mood, and Now's reload/stop (for another mood,
+                <!-- The mood's name field (Enter saves, Esc puts it back), then its commands:
+                     "Current mood" or Use this mood, and Now's reload/stop (for another mood,
                      it makes that mood current first). -->
                 <Grid
                     x:Name="TitleBar"
                     Padding="24,16,16,12"
-                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                    BorderThickness="0,0,0,1"
                     ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -251,21 +233,11 @@
                     <TextBox
                         x:Name="MoodName"
                         x:Uid="MoodNameBox"
-                        Margin="-11,0,0,0"
                         VerticalAlignment="Center"
                         AutomationProperties.AutomationId="MoodName"
-                        FontSize="24"
-                        FontWeight="SemiBold"
                         KeyDown="OnMoodNameKeyDown"
                         LostFocus="OnMoodNameLostFocus"
-                        MaxLength="40">
-                        <!-- A title until it's pointed at or focused (then a text field, as Windows apps rename in
-                             place). -->
-                        <TextBox.Resources>
-                            <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
-                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
-                        </TextBox.Resources>
-                    </TextBox>
+                        MaxLength="40" />
                     <CommandBar
                         x:Name="MoodCommands"
                         x:Uid="MoodCommands"
@@ -277,7 +249,7 @@
                         OverflowButtonVisibility="Collapsed">
                         <AppBarElementContainer x:Name="CurrentLine" VerticalAlignment="Center" IsTabStop="False" Visibility="Collapsed">
                             <StackPanel Margin="8,0,12,0" Orientation="Horizontal" Spacing="8">
-                                <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="16" Glyph="&#xE73E;" />
+                                <FontIcon AutomationProperties.AccessibilityView="Raw" Glyph="&#xE73E;" />
                                 <TextBlock x:Uid="MoodCurrentLine" VerticalAlignment="Center" Style="{StaticResource BodyStrongTextBlockStyle}" />
                             </StackPanel>
                         </AppBarElementContainer>
@@ -384,7 +356,6 @@
                         <ListView
                             x:Name="List"
                             x:Uid="KeywordList"
-                            Margin="-12,0,0,0"
                             AllowDrop="True"
                             AutomationProperties.AutomationId="KeywordList"
                             CanDragItems="True"
@@ -402,7 +373,6 @@
                                     <!-- Text, Must · Maybe · Avoid, Remove in a row; on a narrow pane the choice goes under the
                                          text (OnKeywordRowSizeChanged), so nothing is cut off. -->
                                     <Grid
-                                        Padding="0,6"
                                         ColumnSpacing="12"
                                         RowSpacing="2"
                                         SizeChanged="OnKeywordRowSizeChanged">
@@ -432,9 +402,9 @@
                                             AutomationProperties.Name="{x:Bind WeightName, Mode=OneWay}"
                                             MaxColumns="3"
                                             SelectionChanged="OnWeightChanged">
-                                            <RadioButton x:Uid="WeightMustItem" Style="{StaticResource WeightRadioStyle}" />
-                                            <RadioButton x:Uid="WeightMaybeItem" Style="{StaticResource WeightRadioStyle}" />
-                                            <RadioButton x:Uid="WeightAvoidItem" Style="{StaticResource WeightRadioStyle}" />
+                                            <RadioButton x:Uid="WeightMustItem" />
+                                            <RadioButton x:Uid="WeightMaybeItem" />
+                                            <RadioButton x:Uid="WeightAvoidItem" />
                                         </RadioButtons>
                                         <Button
                                             x:Uid="KeywordRemoveButton"
@@ -442,7 +412,7 @@
                                             VerticalAlignment="Center"
                                             AutomationProperties.Name="{x:Bind RemoveName, Mode=OneWay}"
                                             Click="OnRemove">
-                                            <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="16" Glyph="&#xE74D;" />
+                                            <FontIcon AutomationProperties.AccessibilityView="Raw" Glyph="&#xE74D;" />
                                         </Button>
                                     </Grid>
                                 </DataTemplate>
@@ -518,7 +488,7 @@
                                 AutomationProperties.AutomationId="DeleteMood"
                                 Click="OnDeleteThis">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="16" Glyph="&#xE74D;" />
+                                    <FontIcon AutomationProperties.AccessibilityView="Raw" Glyph="&#xE74D;" />
                                     <TextBlock x:Uid="MoodDeleteText" />
                                 </StackPanel>
                             </Button>

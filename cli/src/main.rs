@@ -481,6 +481,7 @@ struct PrintStages;
 impl ProgressObserver for PrintStages {
     fn on_progress(&self, stage: ProgressStage) {
         let label = match stage {
+            ProgressStage::CheckingServices => "Checking services…",
             ProgressStage::Composing => "Composing…",
             ProgressStage::CheckingMemory => "Checking memory…",
             ProgressStage::Generating => "Painting…",
@@ -584,8 +585,9 @@ fn print_generation(generation: &Generation) {
 }
 
 async fn generate(engine: &Engine) -> CliResult {
-    let generation = engine.generate(Trigger::Manual, observer()).await.map_err(err)?;
-    print_generation(&generation);
+    let shown = engine.generate_or_revisit(Trigger::Manual, observer()).await.map_err(err)?;
+    if let Some(reason) = shown.revisit { say!("Revisiting a saved wallpaper ({reason:?}):"); }
+    print_generation(&shown.generation);
     if engine.keywords_are_narrow().map_err(err)? {
         say!("{NARROW_NOTE}");
     }
@@ -606,7 +608,7 @@ async fn run_if_due(engine: &Engine) -> CliResult {
         }
         Some(Shown { generation, revisit }) => {
             if let Some(reason) = revisit {
-                say!("Revisiting a liked wallpaper ({reason:?}):");
+                say!("Revisiting a saved wallpaper ({reason:?}):");
             }
             print_generation(&generation);
             Ok(())
@@ -616,8 +618,9 @@ async fn run_if_due(engine: &Engine) -> CliResult {
 
 async fn echo(engine: &Engine, args: Vec<String>) -> CliResult {
     let id = resolve(engine, args.first().ok_or("echo <id>")?)?;
-    let generation = engine.make_echo(id, observer()).await.map_err(err)?;
-    print_generation(&generation);
+    let shown = engine.make_echo_or_revisit(id, observer()).await.map_err(err)?;
+    if let Some(reason) = shown.revisit { say!("Revisiting a saved wallpaper ({reason:?}):"); }
+    print_generation(&shown.generation);
     Ok(())
 }
 

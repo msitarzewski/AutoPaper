@@ -562,20 +562,18 @@ private struct LineageRow: View {
     let show: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack {
             WallpaperImage(generation, contentMode: .fill, maxPixelSize: 320, preferThumbnail: true)
                 .frame(width: 112, height: 70)
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(generation.concept.title).font(.headline)
+            VStack(alignment: .leading) {
+                Text(generation.concept.title)
                 Text(isOriginal ? "Original · \(Formatting.day(generation.createdAt))" : "Echo · \(Formatting.day(generation.createdAt))")
-                    .font(.callout)
                 if let note = generation.echoNote, !note.isEmpty {
-                    Text(note).font(.callout).lineLimit(2)
+                    Text(note).lineLimit(2)
                 }
                 Text(Provenance.line(generation, listed: names).text)
-                    .font(.callout)
                     .quietText()
                     .lineLimit(2)
                     .accessibilityRepresentation { Text(Provenance.line(generation, listed: names).spoken) }
@@ -586,7 +584,6 @@ private struct LineageRow: View {
                 // Starts with the visible title (WCAG 2.5.3 Label in Name), so "Click Show on Desktop" finds it.
                 .accessibilityLabel("Show on Desktop: \(generation.concept.title)")
         }
-        .padding(.vertical, 4)
     }
 }
 
@@ -829,6 +826,15 @@ private struct GalleryDetails: View {
                 }
                 .font(.callout)
                 ProvenanceLine(generation: generation)
+                if !generation.concept.prompt.isEmpty {
+                    DisclosureGroup("Image prompt") {
+                        Text(verbatim: generation.concept.prompt)
+                            .font(.callout.monospaced())
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
                 HStack(spacing: 8) {
                     RatingToggle(generation: generation, rating: .liked)
                     RatingToggle(generation: generation, rating: .disliked)

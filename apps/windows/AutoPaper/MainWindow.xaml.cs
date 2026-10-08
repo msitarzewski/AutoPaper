@@ -20,7 +20,7 @@ using TitleBar = Microsoft.UI.Xaml.Controls.TitleBar;
 namespace AutoPaper;
 
 /// <summary>
-/// The main window: Now · Moods (a group with each mood under it) · History in a NavigationView, Settings in its
+/// The main window: Now · Moods (a group with each mood under it) · History · Console in a NavigationView, Settings in its
 /// footer (Windows' own place for it; Ctrl+,), Mica behind, the Windows App SDK TitleBar (back and pane buttons) on
 /// top. Closing it hides it; AutoPaper keeps running in the notification area (spec "Always there"). Also listens for
 /// display changes and session unlock.
@@ -39,6 +39,7 @@ public sealed partial class MainWindow : Window
 
     private readonly WindowMessageMonitor messages;
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer displayDebounce;
+    private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer statusRefresh;
     private bool active;
     private bool activatedOnce;
     /// <summary>Set while navigating: keyboard focus was in the page being left (a Settings card, a breadcrumb, an
@@ -86,6 +87,10 @@ public sealed partial class MainWindow : Window
         Activated += (_, args) =>
         {
             active = args.WindowActivationState != WindowActivationState.Deactivated;
+            if (active)
+            {
+                _ = App.Model.RefreshStatusAsync();
+            }
             if (active && !activatedOnce)
             {
                 // Launch: start in the page (its primary action), not on the title bar.
@@ -99,6 +104,18 @@ public sealed partial class MainWindow : Window
         displayDebounce.Interval = TimeSpan.FromSeconds(2);
         displayDebounce.IsRepeating = false;
         displayDebounce.Tick += async (_, _) => await App.Model.DisplaysChangedAsync();
+        // A manual or paused schedule has no generation timer. Keep the budget notice current across the month
+        // boundary while the window is visible, too.
+        statusRefresh = DispatcherQueue.CreateTimer();
+        statusRefresh.Interval = TimeSpan.FromMinutes(1);
+        statusRefresh.Tick += async (_, _) =>
+        {
+            if (AppWindow.IsVisible)
+            {
+                await App.Model.RefreshStatusAsync();
+            }
+        };
+        statusRefresh.Start();
         messages = new WindowMessageMonitor(this);
         messages.WindowMessageReceived += OnWindowMessage;
         PInvoke.WTSRegisterSessionNotification(new HWND(this.GetWindowHandle()), 0);
@@ -106,6 +123,10 @@ public sealed partial class MainWindow : Window
         App.Model.Announced += (_, announcement) => Announce(announcement);
         App.Model.PropertyChanged += (_, changed) =>
         {
+            if (changed.PropertyName == nameof(AppModel.BudgetStatus))
+            {
+                ShowBudgetNotice();
+            }
             if (changed.PropertyName == nameof(AppModel.IsReady) && App.Model.IsReady)
             {
                 OnEngineReady();
@@ -150,7 +171,7 @@ public sealed partial class MainWindow : Window
         Activate();
     }
 
-    /// <summary>Opens a main section: "Now", "Moods" (the summary of every mood) or "History".</summary>
+    /// <summary>Opens a main section: Now, Moods, History or Console.</summary>
     public void ShowPage(string tag)
     {
         if (tag == "Moods")
@@ -166,6 +187,7 @@ public sealed partial class MainWindow : Window
         Navigate(tag switch
         {
             "History" => typeof(HistoryPage),
+            "Console" => typeof(ConsolePage),
             _ => typeof(NowPage),
         });
         FocusPageIfLost();
@@ -342,10 +364,24 @@ public sealed partial class MainWindow : Window
         {
             var type when type == typeof(MoodsPage) => MoodItemFor(moodsPage?.ShownMoodId ?? args.Parameter as string),
             var type when type == typeof(HistoryPage) => HistoryItem,
+            var type when type == typeof(ConsolePage) => ConsoleItem,
             var type when type == typeof(NowPage) => NowItem,
             _ => Nav.SettingsItem,
         };
     }
+
+    private void ShowBudgetNotice()
+    {
+        if (BudgetNoticeBar.Message == App.Model.BudgetNotice && BudgetNoticeBar.IsOpen == App.Model.BudgetBlocked)
+        {
+            return;
+        }
+        BudgetNoticeBar.Message = App.Model.BudgetNotice;
+        BudgetNoticeBar.Visibility = App.Model.BudgetBlocked ? Visibility.Visible : Visibility.Collapsed;
+        BudgetNoticeBar.IsOpen = App.Model.BudgetBlocked;
+    }
+
+    private void OnBudgetNoticeLink(object sender, RoutedEventArgs e) => ShowSettings("Budget");
 
     // ── Moods in the navigation ─────────────────────────────────────────────────────────────────
 
@@ -390,7 +426,7 @@ public sealed partial class MainWindow : Window
             content.Children.Add(new TextBlock { Text = mood.Name, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center });
             if (mood.Active)
             {
-                var check = new FontIcon { Glyph = "\uE73E", FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+                var check = new FontIcon { Glyph = "\uE73E", VerticalAlignment = VerticalAlignment.Center };
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(check, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
                 Grid.SetColumn(check, 1);
                 content.Children.Add(check);

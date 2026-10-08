@@ -31,7 +31,9 @@ try
 
     var observer = new PrintingObserver();
     clock.Restart();
-    var generation = await engine.Generate(Trigger.Manual, observer);
+    var shown = await engine.GenerateOrRevisit(Trigger.Manual, observer);
+    if (shown.Revisit is not null) throw new InvalidOperationException("Demo generation unexpectedly revisited a saved image.");
+    var generation = shown.Generation;
     Console.WriteLine($"generated in {clock.ElapsedMilliseconds} ms; stages: {string.Join(" > ", observer.Stages)} (on threads {string.Join(",", observer.Threads.Distinct())}; main thread {Environment.CurrentManagedThreadId})");
     Console.WriteLine($"title: {generation.Concept.Title}");
     Console.WriteLine($"image: {generation.ImagePath} ({generation.Width}x{generation.Height})");
@@ -61,7 +63,9 @@ try
     var mood = engine.CreateMood("Smoke test", engine.ActiveMood().Id);
     engine.SetActiveMood(mood.Id);
     engine.AddMoodKeyword(mood.Id, "harbour", KeywordWeight.Maybe);
-    var second = await engine.Generate(Trigger.Manual, null);
+    var secondShown = await engine.GenerateOrRevisit(Trigger.Manual, null);
+    if (secondShown.Revisit is not null) throw new InvalidOperationException("Demo mood generation unexpectedly revisited a saved image.");
+    var second = secondShown.Generation;
     Console.WriteLine($"moods: {string.Join(", ", engine.Moods().Select(m => m.Active ? m.Name + " (current)" : m.Name))}; second wallpaper filed under {second.MoodName}");
     Console.WriteLine($"progress detail: {detail.Count} reports, last {detail.Last}");
     Console.WriteLine($"in this mood: {engine.HistoryByMood(HistoryFilter.All, mood.Id, 10, 0).Length}; estimate (images): {engine.Estimate(settings.ImageProvider, ProviderJob.Images, 0, 0)} s; next start {engine.NextStart()} <= next due {engine.NextDue()}");
@@ -74,6 +78,24 @@ try
 
     var models = await engine.ListModels(settings.TextProvider, ProviderJob.Concepts);
     Console.WriteLine($"demo models: {string.Join(", ", models.Select(m => m.DisplayName))}");
+
+    // Both new display APIs and a real refused local connection cross the bindings on each DLL architecture.
+    var echo = await engine.MakeEchoOrRevisit(second.Id, null);
+    if (echo.Revisit is not null || echo.Generation.EchoOf != second.Id)
+        throw new InvalidOperationException("A new echo wasn't identified as newly generated.");
+    engine.UpdateSettings(engine.Settings() with
+    {
+        TextProvider = new ProviderSelection(ProviderKind.Ollama, "offline", "http://127.0.0.1:1"),
+        Fallback = Fallback.KeepCurrent,
+    });
+    var fallback = await engine.GenerateOrRevisit(Trigger.Manual, null);
+    var fallbackEcho = await engine.MakeEchoOrRevisit(generation.Id, null);
+    var checks = engine.Run(engine.Runs(1, 0).Single().Id).Events.Where(entry => entry.Kind == "service_check").ToArray();
+    if (fallback.Revisit != RevisitReason.ServicesUnavailable || fallbackEcho.Revisit != RevisitReason.ServicesUnavailable
+        || fallback.Generation.Id != echo.Generation.Id || fallbackEcho.Generation.Id != echo.Generation.Id
+        || engine.History(HistoryFilter.All, 10, 0).Length != 3 || checks.Length != 2)
+        throw new InvalidOperationException("Service fallback didn't preserve the latest active-mood image and both Console checks.");
+    Console.WriteLine($"service fallback: {fallback.Revisit}; latest active-mood image retained; both Console checks: {string.Join("; ", checks.Select(entry => entry.Detail))}");
     Console.WriteLine($"secret store calls: {secrets.Calls}");
     Console.WriteLine("SMOKE OK");
     return 0;

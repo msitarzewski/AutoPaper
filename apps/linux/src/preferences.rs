@@ -23,12 +23,15 @@ const GEMINI_KEYS: &str = "https://aistudio.google.com/apikey";
 const BREW_BROWSER: &str = "https://brew-browser.zerologic.com";
 const BREW_BROWSER_LOCAL_LLM: &str = "brewbrowser://bundle/local-llm";
 const COMFYUI_INSTALL: &str = "https://docs.comfy.org/installation";
+const CONSOLE_HELP: &str = "https://msitarzewski.github.io/AutoPaper/help.html#console";
 const GEMINI_PRIVACY: &str = "A free Gemini key may let Google use what you send to improve its products; a paid project doesn't.";
 
 /// Where a problem with a setting is fixed. The problem shows as a link (docs/app-spec.md 6a: "Add your OpenAI
 /// key"), which opens Preferences on that page with the field focused.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Fix {
+    /// The monthly limit that prevents a new wallpaper.
+    Budget,
     /// A key field on the Keys page, by its keyring account (`secret_account_for`).
     Key(String),
     /// A field of the Writing ideas or Painting group on the Providers page.
@@ -60,6 +63,7 @@ impl Pages {
     pub fn show_fix(&self, dialog: &adw::PreferencesDialog, fix: &Fix) {
         let page = match fix {
             Fix::Key(_) => "keys",
+            Fix::Budget => "budget",
             Fix::Provider(..) => "providers",
             Fix::Mood(_) => return,
         };
@@ -70,7 +74,7 @@ impl Pages {
             let target = match &fix {
                 Fix::Key(account) => keys.upgrade().and_then(|keys| keys.focus(account)),
                 Fix::Provider(job, field) => providers.upgrade().and_then(|providers| providers.focus(*job, *field)),
-                Fix::Mood(_) => None,
+                Fix::Mood(_) | Fix::Budget => None,
             };
             if let Some(target) = target {
                 show_fix_target(&target);
@@ -197,7 +201,7 @@ impl General {
         let fallback_labels: Vec<&str> = strings::FALLBACKS.iter().map(|(_, label)| *label).collect();
         let fallback = combo(
             "When a new one can't be made",
-            Some("Over budget, offline, or the provider is down."),
+            Some("When offline or a provider is down. A budget limit always keeps the current wallpaper."),
             &fallback_labels,
         );
         let making = adw::PreferencesGroup::builder().title("New wallpapers").build();
@@ -1370,8 +1374,8 @@ fn model_list_factory(estimates: Rc<ModelEstimates>) -> gtk::SignalListItemFacto
     factory.connect_setup(|_, item| {
         let Some(item) = item.downcast_ref::<gtk::ListItem>() else { return };
         let name = gtk::Label::builder().xalign(0.0).build();
-        let estimate = gtk::Label::builder().xalign(0.0).css_classes(["caption", "secondary-text"]).visible(false).build();
-        let lines = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(2).hexpand(true).build();
+        let estimate = gtk::Label::builder().xalign(0.0).css_classes(["secondary-text"]).visible(false).build();
+        let lines = gtk::Box::builder().orientation(gtk::Orientation::Vertical).hexpand(true).build();
         lines.append(&name);
         lines.append(&estimate);
         let check = gtk::Image::builder()
@@ -1379,7 +1383,7 @@ fn model_list_factory(estimates: Rc<ModelEstimates>) -> gtk::SignalListItemFacto
             .accessible_role(gtk::AccessibleRole::Presentation)
             .opacity(0.0)
             .build();
-        let row = gtk::Box::builder().spacing(12).build();
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         row.append(&lines);
         row.append(&check);
         item.set_child(Some(&row));
@@ -1638,6 +1642,26 @@ impl Memory {
         storage.add(&limit);
         storage.add(&clear);
 
+        let console = adw::PreferencesGroup::builder()
+            .title("Console history")
+            .description("The Console records generation attempts on this device, including failed and blocked runs. It keeps the newest 200 runs for up to 30 days; active runs are kept until they finish.")
+            .build();
+        let privacy = adw::ActionRow::builder()
+            .title("Local run details")
+            .subtitle("Prompts, models, requests, responses and retries stay on this device. Credentials and image data are omitted. Copying or exporting is your choice.")
+            .subtitle_selectable(true)
+            .use_markup(false)
+            .build();
+        let earlier = adw::ActionRow::builder()
+            .title("Earlier wallpapers")
+            .subtitle("Requests from before Console recording began cannot be reconstructed. Earlier runs may have no model timings. Their previously saved details remain in History.")
+            .subtitle_selectable(true)
+            .use_markup(false)
+            .build();
+        console.add(&privacy);
+        console.add(&earlier);
+        console.add(&link_row("Console help", CONSOLE_HELP, "How run outcomes, charts and exports work"));
+
         let page = adw::PreferencesPage::builder()
             .name("memory")
             .title("Memory")
@@ -1646,6 +1670,7 @@ impl Memory {
         page.add(&learned);
         page.add(&memory);
         page.add(&storage);
+        page.add(&console);
         let this = Rc::new(Self {
             page,
             app: Rc::downgrade(app),

@@ -64,7 +64,7 @@ impl Welcome {
         let add_row = adw::EntryRow::builder().title("Add a keyword").show_apply_button(true).build();
         let keyword_list = gtk::ListBox::builder()
             .selection_mode(gtk::SelectionMode::None)
-            .css_classes(["boxed-list"])
+            .css_classes(["boxed-list-separate"])
             .build();
         keyword_list.update_property(&[gtk::accessible::Property::Label("Keywords")]);
         keyword_list.append(&add_row);

@@ -47,7 +47,7 @@ pub fn key_link(kind: ProviderKind, refused: bool) -> String {
     if refused { format!("Check your {name} key") } else { format!("Add your {name} key") }
 }
 
-fn sentence(error: &AutoPaperError, fallback: Fallback, context: Context) -> String {
+fn sentence(error: &AutoPaperError, _fallback: Fallback, context: Context) -> String {
     match error {
         AutoPaperError::MissingKey { provider } if context == Context::Linked => key_link(*provider, false),
         AutoPaperError::MissingKey { provider } => {
@@ -76,15 +76,7 @@ fn sentence(error: &AutoPaperError, fallback: Fallback, context: Context) -> Str
             capitalized(&provider_in_sentence(*provider)),
             if context == Context::Linked { "" } else { " in Preferences" }
         ),
-        AutoPaperError::BudgetReached { .. } => match fallback {
-            Fallback::RevisitLiked => {
-                "This month's budget is spent. AutoPaper is bringing back wallpapers you liked.".into()
-            }
-            Fallback::KeepCurrent => {
-                "This month's budget is spent. New wallpapers start again next month, or when you raise the budget."
-                    .into()
-            }
-        },
+        AutoPaperError::BudgetReached { .. } => "The next wallpaper would exceed this month's budget. Your current wallpaper is kept. Raise the budget in Preferences, or wait for the monthly reset.".into(),
         AutoPaperError::Offline => "You're offline. AutoPaper will try again later.".into(),
         AutoPaperError::InvalidResponse { .. } => {
             "The provider's answer couldn't be used. AutoPaper will try again later.".into()
@@ -302,13 +294,16 @@ fn provider_key_name(kind: ProviderKind) -> &'static str {
     }
 }
 
-/// Why a liked wallpaper came back instead of a new one (`None` when the person asked).
+/// Why a saved wallpaper came back instead of a new one (`None` when the person asked).
 pub fn revisit_sentence(reason: RevisitReason) -> Option<&'static str> {
     match reason {
         RevisitReason::Requested => None,
         RevisitReason::OverBudget => Some("This month's budget is spent, so AutoPaper brought back one you liked."),
         RevisitReason::Offline => Some("You're offline, so AutoPaper brought back one you liked."),
         RevisitReason::ProviderFailed => Some("A new one couldn't be made, so AutoPaper brought back one you liked."),
+        RevisitReason::ServicesUnavailable => Some(
+            "A service is unavailable, so AutoPaper is showing the latest saved wallpaper from this mood. See Console for details.",
+        ),
     }
 }
 
@@ -422,6 +417,7 @@ pub fn mood_in_use(name: &str) -> String {
 /// The progress line while a wallpaper is being made (`None` once it's done).
 pub fn stage_label(stage: ProgressStage) -> Option<&'static str> {
     match stage {
+        ProgressStage::CheckingServices => Some("Checking services…"),
         ProgressStage::Composing => Some("Composing an idea…"),
         ProgressStage::CheckingMemory => Some("Checking memory…"),
         ProgressStage::Generating => Some("Painting…"),
@@ -725,6 +721,15 @@ pub fn money(microusd: u64) -> String {
     format!("${}.{:02}", cents / 100, cents % 100)
 }
 
+/// Console costs keep every stored micro-dollar, so small paid requests never look free.
+pub fn console_money(microusd: u64) -> String {
+    let mut fraction = format!("{:06}", microusd % 1_000_000);
+    while fraction.len() > 2 && fraction.ends_with('0') {
+        fraction.pop();
+    }
+    format!("${}.{}", microusd / 1_000_000, fraction)
+}
+
 pub fn cents(cents: u32) -> String {
     if cents.is_multiple_of(100) { format!("${}", cents / 100) } else { format!("${}.{:02}", cents / 100, cents % 100) }
 }
@@ -818,6 +823,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn unavailable_services_explain_the_latest_saved_mood_wallpaper() {
+        assert_eq!(stage_label(ProgressStage::CheckingServices), Some("Checking services…"));
+        assert_eq!(
+            revisit_sentence(RevisitReason::ServicesUnavailable),
+            Some("A service is unavailable, so AutoPaper is showing the latest saved wallpaper from this mood. See Console for details.")
+        );
+        assert_eq!(revisit_sentence(RevisitReason::Requested), None);
+    }
+
+    #[test]
+    fn console_costs_preserve_paid_subcent_requests() {
+        assert_eq!(console_money(3_564), "$0.003564");
+        assert_eq!(console_money(1), "$0.000001");
+        assert_eq!(console_money(0), "$0.00");
+        assert_eq!(console_money(1_250_000), "$1.25");
+    }
+
+    #[test]
     fn money_rounds_to_cents() {
         assert_eq!(money(0), "$0.00");
         assert_eq!(money(1_200_000), "$1.20");
@@ -846,7 +869,7 @@ mod tests {
             "OpenAI asked AutoPaper to wait; it'll try again in 10 minutes."
         );
         let budget = AutoPaperError::BudgetReached { budget_cents: 500 };
-        assert!(error_sentence(&budget, Fallback::RevisitLiked).contains("bringing back wallpapers you liked"));
+        assert!(error_sentence(&budget, Fallback::RevisitLiked).contains("Your current wallpaper is kept"));
         let compatible = AutoPaperError::Refused { provider: ProviderKind::OpenAiCompatible };
         assert!(error_sentence(&compatible, Fallback::KeepCurrent).starts_with("Your OpenAI-compatible server"));
     }

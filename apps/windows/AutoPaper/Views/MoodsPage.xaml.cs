@@ -272,7 +272,6 @@ public sealed partial class MoodsPage : Page, IDefaultFocus, IInnerBack, IWallpa
             Grid.SetColumnSpan(DetailPane, 1);
             Grid.SetColumnSpan(ListPane, 1);
             ListPane.Visibility = Visibility.Visible;
-            ListPane.BorderThickness = new Thickness(0, 0, 1, 0);
             DetailPane.Visibility = Visibility.Visible;
         }
         else
@@ -282,7 +281,6 @@ public sealed partial class MoodsPage : Page, IDefaultFocus, IInnerBack, IWallpa
             Grid.SetColumn(DetailPane, 0);
             Grid.SetColumnSpan(ListPane, 2);
             Grid.SetColumnSpan(DetailPane, 2);
-            ListPane.BorderThickness = new Thickness(0);
             ListPane.Visibility = showingDetail ? Visibility.Collapsed : Visibility.Visible;
             DetailPane.Visibility = showingDetail ? Visibility.Visible : Visibility.Collapsed;
         }

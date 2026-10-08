@@ -13,6 +13,9 @@ struct MoodKeywords: View {
     @Environment(AppModel.self) private var model
     @Environment(\.undoManager) private var undoManager
     let mood: Mood
+    let viewportLimit: CGFloat
+    /// Measured native list content, independent of row typography or control sizes.
+    @State private var contentHeight: CGFloat = 160
     @State private var newKeyword = ""
     /// Why the last keyword typed in "Add a keyword" wasn't added; cleared on the next edit.
     @State private var addProblem: String?
@@ -24,28 +27,22 @@ struct MoodKeywords: View {
     @FocusState private var listFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
+        Section("Keywords") {
             addBar
-            Divider()
             keywordList
-            // Under the list rather than its last row, so it's always whole however far the list is scrolled. The
+            // In the form rather than the list's last row, so it's always whole however far the list is scrolled. The
             // keyboard's ways to move and weigh keywords are in the Edit menu (with their shortcuts) and the list's
-            // VoiceOver hint. No `fixedSize`, as for the add bar's problem line.
+            // VoiceOver hint.
             Text("Must: always in the scene. Maybe: some of the time. Avoid: never. Drag to reorder.")
-                .font(.callout)
                 .quietText()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .layoutPriority(1)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
     private var addBar: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading) {
+            HStack {
                 TextField("Add a keyword", text: $newKeyword)
-                    .textFieldStyle(.roundedBorder)
                     .focused($addFieldFocused)
                     .onSubmit(add)
                     .onChange(of: newKeyword) { addProblem = nil }
@@ -59,47 +56,47 @@ struct MoodKeywords: View {
                 // No `fixedSize` here, outside the list's scrolling: the split view would measure it at almost no
                 // width and make the window's content taller than the window.
                 Label(addProblem, systemImage: "exclamationmark.triangle")
-                    .font(.callout)
                     .layoutPriority(1)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
     }
 
     private var keywordList: some View {
         ScrollViewReader { proxy in
             List(selection: $selection) {
-                Section {
-                    if mood.keywords.isEmpty {
-                        Text("No keywords yet. Add a few words for what you'd like to see, like “rain”, “lighthouse” or “autumn”.")
-                            .fixedSize(horizontal: false, vertical: true)
-                            .selectionDisabled()
+                if mood.keywords.isEmpty {
+                    Text("No keywords yet. Add a few words for what you'd like to see, like “rain”, “lighthouse” or “autumn”.")
+                        .fixedSize(horizontal: false, vertical: true)
+                        .selectionDisabled()
+                }
+                ForEach(mood.keywords) { keyword in
+                    KeywordRow(keyword: keyword, moodID: mood.id, index: index(of: keyword), count: mood.keywords.count, editing: $editing) {
+                        // Esc: the rename ends and the keyboard is back on the row, as in Finder.
+                        selection = keyword.id
+                        editing = nil
+                        listFocused = true
                     }
-                    ForEach(mood.keywords) { keyword in
-                        KeywordRow(keyword: keyword, moodID: mood.id, index: index(of: keyword), count: mood.keywords.count, editing: $editing) {
-                            // Esc: the rename ends and the keyboard is back on the row, as in Finder.
-                            selection = keyword.id
-                            editing = nil
-                            listFocused = true
-                        }
-                            .tag(keyword.id)
-                            .id(keyword.id)
-                    }
-                    .onMove(perform: move)
-                    if mood.active && model.narrow {
-                        // `keywords_are_narrow` looks at the current mood's last wallpapers.
-                        Label(Sentences.narrowKeywords, systemImage: "lightbulb")
-                            .fixedSize(horizontal: false, vertical: true)
-                            .selectionDisabled()
-                    }
-                } header: {
-                    Text("Keywords")
+                        .tag(keyword.id)
+                        .id(keyword.id)
+                }
+                .onMove(perform: move)
+                if mood.active && model.narrow {
+                    // `keywords_are_narrow` looks at the current mood's last wallpapers.
+                    Label(Sentences.narrowKeywords, systemImage: "lightbulb")
+                        .fixedSize(horizontal: false, vertical: true)
+                        .selectionDisabled()
                 }
             }
             .listStyle(.inset)
+            .scrollContentBackground(.hidden)
             .focused($listFocused)
-            .frame(minHeight: 120)
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentSize.height + geometry.contentInsets.top + geometry.contentInsets.bottom
+            } action: { _, height in
+                contentHeight = height
+            }
+            // This bounds the editing viewport, not native rows. Long keyword sets and the outer form scroll.
+            .frame(height: min(contentHeight, viewportLimit))
             // Named for VoiceOver, as the mood list ("Moods") and History's grid ("Wallpapers") are.
             .accessibilityLabel("Keywords of \(mood.name)")
             .accessibilityHint("Return renames the selected keyword; Delete removes it. Edit ▸ Move Keyword Up or Down (⌥⌘↑ ⌥⌘↓) moves it, and Edit ▸ Keyword Weight (⌃⌘1–3) sets its weight.")
@@ -212,8 +209,8 @@ private struct KeywordRow: View {
     private var isEditing: Bool { editing.wrappedValue == keyword.id }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 12) {
+        VStack(alignment: .leading) {
+            HStack {
                 TextField("Keyword", text: $text)
                     .textFieldStyle(.plain)
                     .focused(editing, equals: keyword.id)
@@ -243,10 +240,8 @@ private struct KeywordRow: View {
                 Button {
                     model.removeKeyword(keyword, from: moodID, undoManager: undoManager)
                 } label: {
-                    // At least 22 × 22 points to hit (HIG's minimum for macOS controls is 20 × 20).
-                    Image(systemName: "minus.circle")
-                        .frame(width: 22, height: 22)
-                        .contentShape(Rectangle())
+                    Label("Remove", systemImage: "minus.circle")
+                        .labelStyle(.iconOnly)
                 }
                 .buttonStyle(.borderless)
                 .help("Remove")
@@ -254,11 +249,9 @@ private struct KeywordRow: View {
             }
             if let problem {
                 Label(problem, systemImage: "exclamationmark.triangle")
-                    .font(.callout)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(.vertical, 2)
         .onAppear { text = keyword.text }
         .onChange(of: keyword.text) { _, newValue in
             if !isEditing { text = newValue }

@@ -70,13 +70,13 @@ use uuid::Uuid;
 use crate::composer::{self, ComposeContext, Composed, EchoBrief, Problem};
 use crate::echo::{self, EchoAxis};
 use crate::embed::{self, CandleEmbedder, HashingEmbedder};
-use crate::error::{AutoPaperError, InvalidInputReason, Result};
+use crate::error::{AutoPaperError, InvalidInputReason, ProviderUnavailableReason, Result};
 use crate::imaging::{self, DecodeLimits};
 use crate::model::*;
 use crate::net::{self, HostPolicy, ReqwestClient};
 use crate::novelty::{self, Calibration, NoveltyPolicy, NoveltyReport};
 use crate::perf::{self, PaintTracker, Timing};
-use crate::ports::{Clock, Embedder, HttpClient, ProgressDetailObserver, ProgressObserver, SecretStore, SystemClock};
+use crate::ports::{Clock, Embedder, HttpClient, HttpMethod, HttpRequest, HttpResponse, Socket, ProgressDetailObserver, ProgressObserver, SecretStore, SystemClock};
 use crate::pricing;
 use crate::providers::demo::{self, Demo};
 use crate::providers::registry::{self, ProviderDeps};
@@ -105,6 +105,7 @@ pub enum RevisitReason {
     OverBudget,
     Offline,
     ProviderFailed,
+    ServicesUnavailable,
 }
 
 /// What to put on the desktop.
@@ -255,7 +256,8 @@ pub struct Engine {
 struct Inner {
     config: EngineConfig,
     dirs: Dirs,
-    store: Mutex<Store>,
+    store: Arc<Mutex<Store>>,
+    console: Arc<RunCapture>,
     secrets: Arc<dyn SecretStore>,
     clock: Arc<dyn Clock>,
     http: Arc<dyn HttpClient>,
@@ -311,6 +313,37 @@ impl Engine {
             engine.set_demo_delay(delay);
         }
         Ok(engine)
+    }
+
+    /// Local Console runs, newest first. At most 100 per page, 200 retained for 30 days.
+    pub fn runs(&self, limit: u32, offset: u32) -> Result<Vec<RunRecord>> {
+        self.inner.store().prune_runs(self.inner.now())?;
+        self.inner.store().runs(limit, offset)
+    }
+
+    pub fn run(&self, id: String) -> Result<RunRecord> {
+        self.inner.store().run(&id)?.ok_or(AutoPaperError::NotFound)
+    }
+
+    /// Export only the already sanitized local Console record.
+    pub fn run_report(&self, id: String) -> Result<String> {
+        serde_json::to_string_pretty(&self.run(id)?).map_err(|error| internal(error.to_string()))
+    }
+
+    pub fn clear_runs(&self) -> Result<()> {
+        let _idle = self.inner.making.try_lock().map_err(|_| invalid(InvalidInputReason::Other, "Stop the run before clearing the Console."))?;
+        self.inner.store().clear_runs()
+    }
+
+    pub fn budget_status(&self) -> Result<BudgetStatus> {
+        self.inner.budget_status()
+    }
+
+    /// Real outcomes and provider-call timings for retained Console runs, independent of list pagination.
+    pub fn console_statistics(&self) -> Result<ConsoleStatistics> {
+        let mut store = self.inner.store();
+        store.prune_runs(self.inner.now())?;
+        store.console_statistics()
     }
 
     // ── Moods ───────────────────────────────────────────────────────────────────────────────
@@ -459,23 +492,22 @@ impl Engine {
     /// original the agent picks (one past its quiet period if any, else any); `make_echo` names one.
     /// `BudgetReached` when a paid provider's estimated cost would pass the monthly cap.
     pub async fn generate(&self, trigger: Trigger, observer: Option<Arc<dyn ProgressObserver>>) -> Result<Generation> {
-        let inner = &self.inner;
-        let ticket = inner.cancel_ticket();
-        let _making = inner.turn(ticket).await?;
-        inner.begin(ticket)?;
-        let echo = match trigger {
-            Trigger::EchoRequest => Some(inner.any_echo_original()?),
-            _ => None,
-        };
-        inner.make(trigger, echo, observer.as_ref()).await
+        self.make_request(trigger, None, observer, false).await.map(|shown| shown.generation)
+    }
+
+    /// Makes a wallpaper, or returns the newest usable saved image from the selected mood when
+    /// either selected service fails its availability check. A revisit is not a new generation.
+    pub async fn generate_or_revisit(&self, trigger: Trigger, observer: Option<Arc<dyn ProgressObserver>>) -> Result<Shown> {
+        self.make_request(trigger, None, observer, true).await
     }
 
     /// Called on the host's timer and on wake. Makes a wallpaper if one is due (an echo, by chance,
-    /// when eligible). If it can't (budget, offline, provider failure) and the fallback is
-    /// `RevisitLiked`, returns a liked past wallpaper instead. `None` when nothing is due or paused.
+    /// when eligible). If a service fails its preflight check, returns the newest usable saved image from
+    /// the selected mood, independent of fallback preference. Later failures, with fallback
+    /// `RevisitLiked`, return a liked past wallpaper instead. `None` when nothing is due or paused.
     ///
-    /// Over budget, the slot counts as filled (the next try is one interval later) and a liked wallpaper is
-    /// revisited, or `BudgetReached` is returned when there is none or the fallback is `KeepCurrent`. Any
+    /// Over budget, the slot counts as filled (the next try is one interval later), `BudgetReached` is
+    /// returned and the current wallpaper stays in place regardless of the fallback preference. Any
     /// failure backs off (10 min, doubling, at most 1 h; see `next_due`). The first failure in a row of a
     /// transient kind, a refusal or an unusable answer revisits a liked wallpaper (`Offline` or
     /// `ProviderFailed`); later ones, and failures the person has to fix (a missing or rejected key, a bad
@@ -500,7 +532,13 @@ impl Engine {
             return Ok(None);
         }
         let result = match making {
-            Ok(_making) => inner.run_due(ticket, &settings, now, due, observer.as_ref()).await,
+            Ok(_making) => {
+                inner.start_run(Trigger::Scheduled)?;
+                let _run = RunGuard::new(inner.console.clone());
+                let result = inner.run_due(ticket, &settings, now, due, observer.as_ref()).await;
+                inner.finish_run(result.as_ref().map(|shown| shown.as_ref().map(|shown| &shown.generation)))?;
+                result
+            }
             Err(cancelled) => Err(cancelled),
         };
         if matches!(result, Err(AutoPaperError::Cancelled)) {
@@ -532,12 +570,12 @@ impl Engine {
     /// Makes an echo of a past wallpaper now (ignores the quiet period). `NotFound` for an unknown id;
     /// `InvalidInput` for a generation that failed.
     pub async fn make_echo(&self, id: String, observer: Option<Arc<dyn ProgressObserver>>) -> Result<Generation> {
-        let inner = &self.inner;
-        let ticket = inner.cancel_ticket();
-        let _making = inner.turn(ticket).await?;
-        inner.begin(ticket)?;
-        let original = inner.echo_original(&id)?;
-        inner.make(Trigger::EchoRequest, Some(original), observer.as_ref()).await
+        self.make_request(Trigger::EchoRequest, Some(id), observer, false).await.map(|shown| shown.generation)
+    }
+
+    /// Makes an explicit echo, with the same selected-mood availability fallback as generate_or_revisit.
+    pub async fn make_echo_or_revisit(&self, id: String, observer: Option<Arc<dyn ProgressObserver>>) -> Result<Shown> {
+        self.make_request(Trigger::EchoRequest, Some(id), observer, true).await
     }
 
     /// A liked past wallpaper, least recently shown first (not the one showing, when there's another).
@@ -844,6 +882,31 @@ impl Engine {
 
 /// Rust-only API: construction with injected dependencies, and tools for the CLI and tests.
 impl Engine {
+    async fn make_request(
+        &self, trigger: Trigger, echo_id: Option<String>, observer: Option<Arc<dyn ProgressObserver>>, allow_revisit: bool,
+    ) -> Result<Shown> {
+        let inner = &self.inner;
+        let ticket = inner.cancel_ticket();
+        let _making = inner.turn(ticket).await?;
+        inner.begin(ticket)?;
+        inner.start_run(trigger)?;
+        let _run = RunGuard::new(inner.console.clone());
+        let result = async {
+            let original = match (trigger, echo_id) {
+                (Trigger::EchoRequest, Some(id)) => Some(inner.echo_original(&id)?),
+                (Trigger::EchoRequest, None) => Some(inner.any_echo_original()?),
+                _ => None,
+            };
+            match inner.attempt(trigger, original, observer.as_ref()).await {
+                Ok(generation) => Ok(Shown { generation, revisit: None }),
+                Err(Failed { error, service_mood: Some(mood), .. }) if allow_revisit => inner.service_fallback(mood, error).await,
+                Err(failed) => Err(failed.error),
+            }
+        }.await;
+        inner.finish_run(result.as_ref().map(|shown| Some(&shown.generation)))?;
+        result
+    }
+
     /// `open` with its dependencies supplied: a clock, an HTTP client, an embedder and an RNG seed.
     pub fn open_with(config: EngineConfig, secrets: Arc<dyn SecretStore>, deps: Deps) -> Result<Arc<Self>> {
         Self::open_inner(config, secrets, deps, None)
@@ -864,12 +927,17 @@ impl Engine {
         for dir in [&dirs.root, &dirs.images, &dirs.thumbs, &dirs.renders] {
             fs::create_dir_all(dir)?;
         }
-        let store = Store::open(&dirs.root.join(DATABASE_FILE))?;
+        let mut store = Store::open(&dirs.root.join(DATABASE_FILE))?;
+        store.interrupt_runs(deps.clock.now())?;
+        store.prune_runs(deps.clock.now())?;
+        let store = Arc::new(Mutex::new(store));
+        let console = Arc::new(RunCapture { active: Mutex::new(None), secrets: Mutex::new(Vec::new()), store: store.clone(), clock: deps.clock.clone() });
         Ok(Arc::new(Self {
             inner: Arc::new(Inner {
                 config,
                 dirs,
-                store: Mutex::new(store),
+                store,
+                console,
                 secrets: Arc::new(GuardedSecrets(secrets)),
                 clock: deps.clock,
                 http: deps.http,
@@ -1043,12 +1111,13 @@ struct Job {
 struct Failed {
     error: AutoPaperError,
     needs_setup: bool,
+    service_mood: Option<String>,
 }
 
 impl From<AutoPaperError> for Failed {
     fn from(error: AutoPaperError) -> Self {
         let needs_setup = matches!(error, AutoPaperError::PaintingFailed { .. });
-        Self { error, needs_setup }
+        Self { error, needs_setup, service_mood: None }
     }
 }
 
@@ -1086,7 +1155,300 @@ struct Basis {
     surprise: f32,
 }
 
+/// The active run is serialized by `making`. HTTP clients carry its id so a late cancellation response
+/// can never attach to the next run. Console writes contain no authentication headers.
+struct RunCapture {
+    active: Mutex<Option<RunRecord>>,
+    // Kept in memory only, so even a provider echoing an opaque credential cannot persist it.
+    secrets: Mutex<Vec<String>>,
+    store: Arc<Mutex<Store>>,
+    clock: Arc<dyn Clock>,
+}
+
+/// A host dropping the future is an interruption too, even if the app itself stays open.
+struct RunGuard {
+    console: Arc<RunCapture>,
+    id: Option<String>,
+}
+
+impl RunGuard {
+    fn new(console: Arc<RunCapture>) -> Self { Self { id: console.id(), console } }
+}
+
+impl Drop for RunGuard {
+    fn drop(&mut self) {
+        let mut active = lock(&self.console.active);
+        if active.as_ref().map(|run| &run.id) != self.id.as_ref() { return }
+        if let Some(mut run) = active.take() {
+            run.status = RunStatus::Interrupted;
+            run.finished_at = Some(self.console.clock.now());
+            run.detail = "This run was interrupted before its final outcome was recorded. A provider may still have billed an unfinished request.".into();
+            if let Err(error) = lock(&self.console.store).save_run(&run) {
+                tracing::warn!(%error, "couldn't record the interrupted run");
+            }
+        }
+    }
+}
+
+impl RunCapture {
+    fn id(&self) -> Option<String> {
+        lock(&self.active).as_ref().map(|run| run.id.clone())
+    }
+
+    fn text(&self, detail: &str) -> String {
+        console_text_with_secrets(detail, &lock(&self.secrets))
+    }
+
+    fn remember_secrets(&self, id: Option<&str>, values: &[String]) {
+        let active = lock(&self.active);
+        if active.as_ref().map(|run| run.id.as_str()) != id { return }
+        let mut secrets = lock(&self.secrets);
+        for value in values {
+            if !secrets.contains(value) { secrets.push(value.clone()); }
+        }
+    }
+
+    fn event(&self, id: Option<&str>, stage: &str, provider: Option<ProviderKind>, model: &str, kind: &str, detail: &str) {
+        let mut active = lock(&self.active);
+        let Some(run) = active.as_mut() else { return };
+        if id.is_some_and(|id| run.id != id) { return }
+        // A bound on a single run as well as the age/count retention bound. Normal runs are far smaller.
+        let size: usize = run.events.iter().map(|event| event.detail.len()).sum();
+        if run.events.last().is_some_and(|event| event.kind == "truncated") { return }
+        if run.events.len() >= 255 || size >= 448 * 1024 {
+            run.events.push(RunEvent { at: self.clock.now(), stage: stage.into(), provider: None,
+                model: String::new(), kind: "truncated".into(),
+                detail: "Further details were omitted because this run reached the Console's trace size limit.".into() });
+            if let Err(error) = lock(&self.store).save_run(run) {
+                tracing::warn!(%error, "couldn't record Console truncation");
+            }
+            return;
+        }
+        run.events.push(RunEvent {
+            at: self.clock.now(), stage: stage.into(), provider,
+            model: self.text(model), kind: kind.into(), detail: self.text(detail),
+        });
+        if kind == "stage" {
+            run.detail = match stage {
+                "CheckingServices" => "Checking services…",
+                "Composing" => "Writing ideas…",
+                "CheckingMemory" => "Checking ideas against memory…",
+                "Generating" => "Painting…",
+                "Downloading" => "Reading the image…",
+                "Rendering" => "Preparing the wallpaper…",
+                "Done" => "Wallpaper ready.",
+                _ => "Working…",
+            }.into();
+        }
+        if let Err(error) = lock(&self.store).save_run(run) {
+            tracing::warn!(%error, "couldn't update the Console run");
+        }
+    }
+}
+
+/// Capture actual mapped API payloads, including provider-internal retries, without credentials or pixels.
+struct ConsoleHttp {
+    http: Arc<dyn HttpClient>,
+    console: Arc<RunCapture>,
+    run_id: Option<String>,
+    provider: ProviderKind,
+    stage: &'static str,
+    model: String,
+    seen_gets: Mutex<HashSet<String>>,
+}
+
+#[async_trait::async_trait]
+impl HttpClient for ConsoleHttp {
+    async fn send(&self, request: HttpRequest) -> Result<HttpResponse> {
+        let secrets: Vec<String> = request.headers.iter()
+            .filter(|(name, _)| net::CREDENTIAL_HEADERS.iter().any(|header| header.eq_ignore_ascii_case(name)))
+            .flat_map(|(_, value)| [value.clone(), value.strip_prefix("Bearer ").unwrap_or(value).to_string()])
+            .filter(|value| !value.is_empty()).collect();
+        let capture = self.run_id.is_some();
+        let first = request.method != HttpMethod::Get || lock(&self.seen_gets).insert(request.url.clone());
+        let address = url::Url::parse(&request.url).map(|url| format!("{}{}", url.origin().ascii_serialization(), url.path())).unwrap_or_default();
+        let method = if request.method == HttpMethod::Post { "POST" } else { "GET" };
+        if capture {
+            self.console.remember_secrets(self.run_id.as_deref(), &secrets);
+        }
+        if capture && first {
+            // Strip URL credentials and query strings; no headers enter the record at all.
+            let body = request.body.as_deref().map(|body| console_body_with_secrets(body, &secrets)).unwrap_or_default();
+            self.console.event(self.run_id.as_deref(), self.stage, Some(self.provider), &self.model, "request",
+                &format!("{method} {address}\nTimeout: {} s\n{body}", request.timeout_secs));
+        }
+        let started = tokio::time::Instant::now();
+        let response = self.http.send(request).await;
+        // Repeated empty ComfyUI history polls carry no new outcome. Retain the first poll and every result/error.
+        let empty_poll = !first && response.as_ref().is_ok_and(|response| response.status == 200 && response.body == b"{}");
+        if capture && !empty_poll {
+            let detail = match &response {
+                Ok(response) => format!("{method} {address}\nHTTP {} · {:.2} s\n{}", response.status, started.elapsed().as_secs_f64(), console_body_with_secrets(&response.body, &secrets)),
+                Err(error) => format!("{method} {address}\n{error} · {:.2} s", started.elapsed().as_secs_f64()),
+            };
+            self.console.event(self.run_id.as_deref(), self.stage, Some(self.provider), &self.model, "response", &detail);
+        }
+        response
+    }
+
+    async fn open_socket(&self, request: HttpRequest) -> Result<Box<dyn Socket>> {
+        self.http.open_socket(request).await
+    }
+}
+
+fn console_text(text: &str) -> String {
+    let text = net::redact(text);
+    let mut bounded: String = text.chars().filter(|ch| !ch.is_control() || matches!(ch, '\n' | '\t')).collect();
+    if let Some((index, _)) = bounded.char_indices().find(|(index, ch)| index + ch.len_utf8() > 65_536) {
+        bounded.truncate(index);
+        bounded.push_str("\n[Console detail truncated at 65,536 bytes]");
+    }
+    bounded
+}
+
+fn console_text_with_secrets(text: &str, secrets: &[String]) -> String {
+    let mut text = text.to_owned();
+    for secret in secrets { text = text.replace(secret, "[redacted]"); }
+    console_text(&text)
+}
+
+/// Preserve sub-cent estimates: rounding either term to cents can make a valid budget block look wrong.
+fn console_money(microusd: u64) -> String {
+    let mut fraction = format!("{:06}", microusd % 1_000_000);
+    while fraction.len() > 2 && fraction.ends_with('0') { fraction.pop(); }
+    format!("${}.{}", microusd / 1_000_000, fraction)
+}
+
+fn console_body_with_secrets(bytes: &[u8], secrets: &[String]) -> String {
+    fn sanitize(value: &mut Value, secrets: &[String]) {
+        match value {
+            Value::Object(fields) => {
+                for (key, value) in fields {
+                    let key = key.to_ascii_lowercase().replace(['-', '_'], "");
+                    if matches!(key.as_str(), "authorization" | "xgoogapikey" | "apikey" | "password" | "secret" | "token" | "accesstoken" | "refreshtoken" | "cookie" | "thoughtsignature") {
+                        *value = Value::String("[redacted]".into());
+                    } else if matches!(key.as_str(), "b64json" | "inlinedata" | "imagedata") {
+                        *value = Value::String("[image bytes omitted]".into());
+                    } else { sanitize(value, secrets); }
+                }
+            }
+            Value::Array(values) => values.iter_mut().for_each(|value| sanitize(value, secrets)),
+            Value::String(text) if text.starts_with("data:") => *text = "[data bytes omitted]".into(),
+            Value::String(text) => {
+                if let Ok(mut address) = url::Url::parse(text)
+                    && matches!(address.scheme(), "http" | "https")
+                {
+                    let _ = address.set_username("");
+                    let _ = address.set_password(None);
+                    address.set_query(None);
+                    address.set_fragment(None);
+                    *text = address.to_string();
+                }
+                *text = net::redact(text);
+                for secret in secrets { *text = text.replace(secret, "[redacted]"); }
+            }
+            _ => {}
+        }
+    }
+    match serde_json::from_slice::<Value>(bytes) {
+        Ok(mut value) => {
+            sanitize(&mut value, secrets);
+            console_text(&serde_json::to_string_pretty(&value).unwrap_or_default())
+        }
+        Err(_) => format!("[non-JSON response: {} bytes]", bytes.len()),
+    }
+}
+
 impl Inner {
+    fn budget_status(&self) -> Result<BudgetStatus> {
+        let settings = self.store().settings()?;
+        let month = schedule::month_key(self.now());
+        let (spent, _) = self.store().spend(&month)?;
+        let next = self.estimate_cost(&settings);
+        let blocked = next > 0 && !schedule::budget_allows(settings.monthly_budget_cents, spent, next);
+        let message = if blocked {
+            format!("New wallpapers are paused by your monthly budget: {} estimated spent of a ${:.2} limit; the next wallpaper is estimated at {}. Your current wallpaper stays in place. The budget resets next month, or you can change it in Budget settings.",
+                console_money(spent), settings.monthly_budget_cents.unwrap_or(0) as f64 / 100.0, console_money(next))
+        } else { String::new() };
+        Ok(BudgetStatus { month, spent_microusd: spent, budget_cents: settings.monthly_budget_cents, next_cost_microusd: next, blocked, message })
+    }
+
+    fn start_run(&self, trigger: Trigger) -> Result<()> {
+        let settings = self.store().settings()?;
+        let mood = self.store().active_mood()?;
+        let mut keywords = snapshot(&mood.keywords);
+        for keyword in &mut keywords { keyword.text = console_text(&keyword.text); }
+        let run = RunRecord {
+            id: Uuid::now_v7().to_string(), started_at: self.now(), finished_at: None, trigger,
+            status: RunStatus::Running, mood_name: console_text(&mood.name), keywords,
+            surprise: settings.surprise, text_provider: settings.text_provider.kind,
+            text_model: console_text(model_or(&settings.text_provider.model, &registry::default_model(settings.text_provider.kind, ProviderJob::Concepts))),
+            image_provider: settings.image_provider.kind,
+            image_model: console_text(model_or(&settings.image_provider.model, &registry::default_model(settings.image_provider.kind, ProviderJob::Images))),
+            generation_id: None, detail: "Preparing this run.".into(), cost_microusd: 0, events: Vec::new(),
+        };
+        self.store().save_run(&run)?;
+        self.store().prune_runs(self.now())?;
+        lock(&self.console.secrets).clear();
+        *lock(&self.console.active) = Some(run);
+        Ok(())
+    }
+
+    fn finish_run(&self, outcome: std::result::Result<Option<&Generation>, &AutoPaperError>) -> Result<()> {
+        let mut active = lock(&self.console.active);
+        let Some(mut run) = active.take() else { return Ok(()) };
+        run.finished_at = Some(self.now());
+        match outcome {
+            Ok(Some(generation)) => {
+                // A scheduled fallback may have returned an older image after this run failed.
+                if run.status == RunStatus::Running {
+                    run.status = RunStatus::Succeeded;
+                    run.detail = self.console.text(&format!("Generated “{}”.", generation.concept.title));
+                    run.generation_id = Some(generation.id.clone());
+                } else {
+                    run.detail.push_str(" A saved wallpaper was shown instead.");
+                }
+            }
+            Ok(None) => { run.status = RunStatus::Blocked; run.detail = "No wallpaper was generated.".into(); }
+            Err(error) => {
+                run.status = match error {
+                    AutoPaperError::Cancelled => RunStatus::Cancelled,
+                    AutoPaperError::MissingKey { .. } | AutoPaperError::BudgetReached { .. } | AutoPaperError::InvalidInput { .. } | AutoPaperError::Unsupported { .. } => RunStatus::Blocked,
+                    _ => RunStatus::Failed,
+                };
+                run.detail = if matches!(error, AutoPaperError::BudgetReached { .. }) {
+                    self.budget_status()?.message
+                } else { self.console.text(&error.to_string()) };
+                if !run.events.iter().any(|event| event.kind == "request") {
+                    run.detail.push_str(" No network request was sent.");
+                }
+            }
+        }
+        self.store().save_run(&run)?;
+        self.store().prune_runs(self.now())?;
+        Ok(())
+    }
+
+    fn run_deps(&self, settings: &Settings, selection: &ProviderSelection, stage: &'static str) -> ProviderDeps {
+        let mut deps = self.deps(settings);
+        deps.http = Arc::new(ConsoleHttp {
+            http: self.http.clone(), console: self.console.clone(), run_id: self.console.id(),
+            provider: selection.kind, stage, model: model_or(&selection.model, &registry::default_model(selection.kind, if stage == "Writing" { ProviderJob::Concepts } else { ProviderJob::Images })).to_string(),
+            seen_gets: Mutex::new(HashSet::new()),
+        });
+        deps
+    }
+
+    fn run_cost(&self, job: &Job) {
+        let mut active = lock(&self.console.active);
+        if let Some(run) = active.as_mut() {
+            run.cost_microusd = job.spent;
+            if let Some(chosen) = &job.chosen { run.text_model = self.console.text(&chosen.model); }
+            run.image_model = self.console.text(&job.image_model);
+            if let Err(error) = self.store().save_run(run) { tracing::warn!(%error, "couldn't record run cost"); }
+        }
+    }
+
     fn store(&self) -> MutexGuard<'_, Store> {
         lock(&self.store)
     }
@@ -1203,8 +1565,11 @@ impl Inner {
     // ── Timings ─────────────────────────────────────────────────────────────────────────────
 
     /// Stores one finished call's timing (logged if it can't be: it's only history).
-    fn record_timing(&self, timing: Timing) {
-        if let Err(error) = self.store().add_timing(&timing) {
+    fn record_timing(&self, mut timing: Timing, response_model: &str) {
+        let run_id = self.console.id();
+        let actual_model = self.console.text(&answered_model(response_model, &timing.model));
+        if run_id.is_some() { timing.model = self.console.text(&timing.model); }
+        if let Err(error) = self.store().add_timing_for_run(&timing, run_id.as_deref(), Some(&actual_model)) {
             tracing::warn!(%error, "couldn't record how long a call took");
         }
     }
@@ -1247,6 +1612,7 @@ impl Inner {
 
     /// Reports a stage to the call's observer and the detail observer (`Done` as complete).
     fn stage(&self, observer: Option<&Arc<dyn ProgressObserver>>, stage: ProgressStage) {
+        self.console.event(None, &format!("{stage:?}"), None, "", "stage", "");
         progress(observer, stage);
         let (fraction, seconds_left) = if stage == ProgressStage::Done { (Some(1.0), Some(0)) } else { (None, None) };
         self.detail(ProgressDetail { stage, fraction, seconds_left });
@@ -1428,7 +1794,7 @@ impl Inner {
         self.begin(ticket)?;
         if !self.budget_allows(settings, now, self.estimate_cost(settings))? {
             self.fill_slot(now, due)?;
-            return self.fallback(settings, RevisitReason::OverBudget, budget_reached(settings)).map(Some);
+            return Err(budget_reached(settings));
         }
         let original = self.scheduled_echo_original(settings, now)?;
         match self.attempt(Trigger::Scheduled, original, observer).await {
@@ -1439,7 +1805,11 @@ impl Inner {
                 Ok(Some(Shown { generation, revisit: None }))
             }
             Err(Failed { error: AutoPaperError::Cancelled, .. }) => Err(AutoPaperError::Cancelled),
-            Err(Failed { error, needs_setup: true }) => {
+            Err(Failed { error, service_mood: Some(mood), .. }) => {
+                self.record_scheduled_failure(&error)?;
+                self.service_fallback(mood, error).await.map(Some)
+            }
+            Err(Failed { error, needs_setup: true, .. }) => {
                 // ComfyUI couldn't run its workflow: trying again on the timer would only pay for another idea and
                 // load the models again to fail the same way. No liked wallpaper stands in (the host shows the
                 // problem and its fix), and the slot counts as filled: the next try is one interval later, or when
@@ -1460,6 +1830,10 @@ impl Inner {
 
     /// A liked wallpaper instead of `error`, when the settings ask for one and there is one.
     fn fallback(&self, settings: &Settings, reason: RevisitReason, error: AutoPaperError) -> Result<Shown> {
+        if let Some(run) = lock(&self.console.active).as_mut() {
+            run.status = RunStatus::Failed;
+            run.detail = self.console.text(&error.to_string());
+        }
         if settings.fallback != Fallback::RevisitLiked {
             return Err(error);
         }
@@ -1554,15 +1928,6 @@ impl Inner {
 
     // ── Making ──────────────────────────────────────────────────────────────────────────────
 
-    async fn make(
-        self: &Arc<Self>,
-        trigger: Trigger,
-        echo: Option<EchoOriginal>,
-        observer: Option<&Arc<dyn ProgressObserver>>,
-    ) -> Result<Generation> {
-        self.attempt(trigger, echo, observer).await.map_err(|failed| failed.error)
-    }
-
     /// `make`, saying when it failed whether how painting is set up must change first (`Failed::needs_setup`).
     async fn attempt(
         self: &Arc<Self>,
@@ -1571,6 +1936,14 @@ impl Inner {
         observer: Option<&Arc<dyn ProgressObserver>>,
     ) -> std::result::Result<Generation, Failed> {
         let (mut job, text, image) = self.prepare(trigger, echo)?;
+        self.stage(observer, ProgressStage::CheckingServices);
+        if let Err(error) = self.check_services(&job, text.as_ref(), image.as_ref()).await {
+            let service_mood = if matches!(error, AutoPaperError::Cancelled) { None } else { Some(job.mood_id.clone()) };
+            return Err(Failed { error, needs_setup: false, service_mood });
+        }
+        // Availability is checked for both roles even when the chosen local workflow needs fixing.
+        // Unsupported workflows still stop before paid work and keep their normal setup-error behavior.
+        image.check_model(&job.settings.image_provider.model)?;
         match self.run(&mut job, text.as_ref(), image.as_ref(), observer).await {
             Ok(generation) => {
                 // Every new wallpaper restarts the schedule, whatever asked for it ("New Wallpaper Now" too); a
@@ -1582,25 +1955,27 @@ impl Inner {
             }
             Err(error) => {
                 self.record_failure(&job, &error);
-                Err(Failed { error, needs_setup: job.needs_setup })
+                Err(Failed { error, needs_setup: job.needs_setup, service_mood: None })
             }
         }
     }
 
-    /// Settings, keywords, providers, the size to request and the budget check. Nothing is attempted (or
-    /// recorded) when this fails.
+    /// Settings, keywords, providers, the size to request and the budget check. No provider is contacted
+    /// when this fails; the Console still records the block and its original settings.
     fn prepare(&self, trigger: Trigger, echo: Option<EchoOriginal>) -> Result<Prepared> {
         let started = self.now();
         let (settings, keywords, mood) = {
             let store = self.store();
             (store.settings()?, store.keywords()?, store.active_mood()?)
         };
-        let text = self.text_provider(&settings.text_provider, &settings)?;
-        let image = self.image_provider(&settings.image_provider, &settings)?;
-        // A missing key or a model the painting provider can't be asked for fails here, before an idea is paid for.
-        text.check_ready()?;
-        image.check_ready()?;
-        image.check_model(&settings.image_provider.model)?;
+        let text = match settings.text_provider.kind {
+            ProviderKind::Demo => self.text_provider(&settings.text_provider, &settings)?,
+            _ => registry::text_provider(&settings.text_provider, &self.run_deps(&settings, &settings.text_provider, "Writing"))?,
+        };
+        let image = match settings.image_provider.kind {
+            ProviderKind::Demo => self.image_provider(&settings.image_provider, &settings)?,
+            _ => registry::image_provider(&settings.image_provider, &self.run_deps(&settings, &settings.image_provider, "Painting"))?,
+        };
         let text_model = model_or(&settings.text_provider.model, text.default_model()).to_string();
         let image_model = model_or(&settings.image_provider.model, image.default_model()).to_string();
         let (width, height) = self.request_size(image.as_ref(), &image_model);
@@ -1642,6 +2017,79 @@ impl Inner {
         Ok((job, text, image))
     }
 
+    /// Both roles finish their check even when one fails. Only cheap read-only requests are sent.
+    async fn check_services(&self, job: &Job, text: &dyn TextProvider, image: &dyn ImageProvider) -> Result<()> {
+        self.check_cancel()?;
+        let check = async {
+            let writing = async {
+                let result = async {
+                    text.check_ready()?;
+                    service_check(text.kind(), text.check_available()).await
+                }.await;
+                self.record_service_check("Writing", job.text_kind, &job.text_model, &result);
+                result
+            };
+            let painting = async {
+                let result = async {
+                    image.check_ready()?;
+                    service_check(image.kind(), image.check_available()).await
+                }.await;
+                self.record_service_check("Painting", job.image_kind, &job.image_model, &result);
+                result
+            };
+            let (writing, painting) = tokio::join!(writing, painting);
+            writing.and(painting)
+        };
+        self.unless_cancelled(check).await
+    }
+
+    fn record_service_check(&self, role: &str, provider: ProviderKind, model: &str, result: &Result<()>) {
+        let outcome = match result { Ok(()) => "available".into(), Err(error) => error.to_string() };
+        self.console.event(None, "Checking services", Some(provider), model, "service_check", &format!("{role}: {outcome}"));
+    }
+
+    async fn service_fallback(self: &Arc<Self>, mood: String, error: AutoPaperError) -> Result<Shown> {
+        if let Some(run) = lock(&self.console.active).as_mut() {
+            run.status = RunStatus::Failed;
+            run.detail = self.console.text(&error.to_string());
+        }
+        let inner = self.clone();
+        let selected = tokio::task::spawn_blocking(move || inner.latest_usable_in_mood(&mood)).await
+            .map_err(|error| AutoPaperError::Storage { detail: error.to_string() })??;
+        self.check_cancel()?;
+        match selected {
+            Some(generation) => {
+                self.console.event(None, "Fallback", None, "", "fallback", &format!(
+                    "Showing the latest usable wallpaper from the selected mood: “{}” ({}). No new wallpaper was generated.",
+                    generation.concept.title, generation.id));
+                Ok(Shown { generation, revisit: Some(RevisitReason::ServicesUnavailable) })
+            }
+            None => {
+                self.console.event(None, "Fallback", None, "", "fallback", "No usable wallpaper remains in the selected mood. The current wallpaper stays in place.");
+                Err(error)
+            }
+        }
+    }
+
+    fn latest_usable_in_mood(&self, mood: &str) -> Result<Option<Generation>> {
+        let limits = DecodeLimits::default();
+        let mut offset = 0;
+        loop {
+            let page = self.store().history_by_mood(HistoryFilter::All, Some(mood), 50, offset)?;
+            let count = page.len();
+            for generation in page {
+                if generation.rating == Rating::Disliked { continue; }
+                let Some(path) = &generation.image_path else { continue };
+                let Ok(metadata) = fs::metadata(path) else { continue };
+                if !metadata.is_file() || metadata.len() > limits.max_bytes as u64 { continue; }
+                let Ok(bytes) = fs::read(path) else { continue };
+                if imaging::decode(&bytes, &limits).is_ok() { return Ok(Some(generation)); }
+            }
+            if count < 50 { return Ok(None); }
+            offset += count as u32;
+        }
+    }
+
     async fn run(
         self: &Arc<Self>,
         job: &mut Job,
@@ -1660,6 +2108,9 @@ impl Inner {
                 other => other?,
             };
             let prompt = chosen.composed.concept.prompt.clone();
+            self.console.event(None, "Selection", Some(job.text_kind), &chosen.model, "selection",
+                &format!("Selected “{}”\nNovelty penalty: {:.4}; score: {:.4}; least-similar fallback: {}\n{}",
+                    chosen.composed.concept.title, chosen.report.max_penalty, chosen.score, chosen.least_similar, prompt));
             job.chosen = Some(chosen);
             self.check_cancel()?;
             self.stage(observer, ProgressStage::Generating);
@@ -1679,6 +2130,8 @@ impl Inner {
                 progress: None,
                 expected_secs: expected,
             };
+            self.console.event(None, "Painting", Some(job.image_kind), &job.image_model, "parameters",
+                &format!("{} × {} · {:?} · seed {:?}\n{}", request.width, request.height, request.quality, request.seed, request.prompt));
             let started = tokio::time::Instant::now();
             match self.paint(image, request, job.image_steps.is_some()).await {
                 Ok(response) => {
@@ -1692,7 +2145,7 @@ impl Inner {
                         steps: job.image_steps,
                         seconds: started.elapsed().as_secs_f64(),
                         finished_at: self.now(),
-                    });
+                    }, &response.model);
                     break response;
                 }
                 Err(AutoPaperError::Refused { .. }) if !gentler => {
@@ -1713,6 +2166,7 @@ impl Inner {
         job.spent = job.spent.saturating_add(cost);
         job.images = 1;
         self.record_spend(job, cost, 1);
+        self.run_cost(job);
 
         self.check_cancel()?;
         self.stage(observer, ProgressStage::Downloading);
@@ -1952,6 +2406,8 @@ impl Inner {
         self.check_cancel()?;
         self.stage(observer, ProgressStage::Composing);
         let request = composer::build_request(context, job.settings.text_provider.model.trim());
+        self.console.event(None, "Writing", Some(job.text_kind), &job.text_model, "instructions",
+            &format!("System instructions:\n{}\n\nUser prompt:\n{}\n\nSchema:\n{}\n\nTemperature (where supported): {}", request.system, request.user, request.schema, request.temperature));
         let started = tokio::time::Instant::now();
         let response = self.unless_cancelled(text.compose(request)).await?;
         self.record_timing(Timing {
@@ -1964,11 +2420,15 @@ impl Inner {
             steps: None,
             seconds: started.elapsed().as_secs_f64(),
             finished_at: self.now(),
-        });
+        }, &response.model);
         let model = answered_model(&response.model, &job.text_model);
+        job.text_model = model.clone();
         let cost = pricing::text_cost(job.text_kind, &model, &response.usage);
         job.spent = job.spent.saturating_add(cost);
         self.record_spend(job, cost, 0);
+        self.run_cost(job);
+        self.console.event(None, "Writing", Some(job.text_kind), &model, "candidates",
+            &format!("Answering model: {model}\nInput tokens: {}; output tokens: {}\n{}", response.usage.input_tokens, response.usage.output_tokens, response.output));
         self.stat(|stats| stats.compose_calls += 1);
 
         self.check_cancel()?;
@@ -1976,6 +2436,7 @@ impl Inner {
         let candidates = match composer::parse(&response.output, context.echo.is_some()) {
             Ok(candidates) => candidates,
             Err(error) => {
+                self.console.event(None, "CheckingMemory", Some(job.text_kind), &model, "rejected", &error.to_string());
                 tracing::warn!(error = %net::redact(&error.to_string()), "the text model's answer couldn't be read");
                 return Ok(Vec::new());
             }
@@ -1989,7 +2450,15 @@ impl Inner {
         let basis = basis.clone();
         let keywords = job.keywords.clone();
         let echo = job.echo.clone();
-        blocking(move || inner.evaluate(candidates, &keywords, &basis, echo.as_ref(), &jitters, &model)).await
+        let model_for_trace = model.clone();
+        let evaluated = blocking(move || inner.evaluate(candidates, &keywords, &basis, echo.as_ref(), &jitters, &model)).await?;
+        for (index, candidate) in evaluated.iter().enumerate() {
+            self.console.event(None, "CheckingMemory", Some(job.text_kind), &model_for_trace, "evaluation",
+                &format!("Candidate {}: “{}”\nValid: {}; novel: {}; similarity penalty: {:.4}; score: {:.4}\nKeyword checks: {}\nEcho in band: {:?}; echo changed: {:?}",
+                    index + 1, candidate.composed.concept.title, candidate.valid, candidate.novel, candidate.report.max_penalty, candidate.score,
+                    if candidate.problems.is_empty() { "Passed".into() } else { candidate.problems.iter().map(problem_text).collect::<Vec<_>>().join("; ") }, candidate.echo_in_band, candidate.echo_changed));
+        }
+        Ok(evaluated)
     }
 
     /// Checks, embeds, assesses and scores candidates (blocking: runs the embedding model).
@@ -2114,6 +2583,7 @@ impl Inner {
             _ => GenerationStatus::Failed,
         };
         let detail = net::redact(&error.to_string());
+        self.run_cost(job);
         tracing::warn!(?status, error = %detail, "a wallpaper couldn't be made");
         let generation = Generation {
             id: Uuid::now_v7().to_string(),
@@ -2317,6 +2787,13 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 
 /// Reports a stage. A host observer that fails (UniFFI turns a foreign exception into a panic) is logged and
 /// ignored: progress is a courtesy, and the generation's bookkeeping must still run.
+async fn service_check(provider: ProviderKind, request: impl std::future::Future<Output = Result<()>>) -> Result<()> {
+    tokio::time::timeout(Duration::from_secs(8), request).await.unwrap_or_else(|_| {
+        Err(AutoPaperError::ProviderUnavailable { provider, reason: ProviderUnavailableReason::TimedOut,
+            detail: "The service availability check did not finish within 8 seconds.".into() })
+    })
+}
+
 fn progress(observer: Option<&Arc<dyn ProgressObserver>>, stage: ProgressStage) {
     if let Some(observer) = observer
         && catch_unwind(AssertUnwindSafe(|| observer.on_progress(stage))).is_err()
@@ -2834,4 +3311,43 @@ mod tests {
         assert_eq!(year_of(1_791_216_000), "2026");
         assert_eq!(year_of(0), "1970");
     }
+
+    #[test]
+    fn console_preserves_prompt_and_models_but_excludes_nested_credentials_and_image_bytes() {
+        let body = serde_json::json!({
+            "model": "gemini-3.1-flash-image",
+            "prompt": "Watercolour of a lighthouse at dawn.",
+            "nested": {"api_key": "private-value", "password": "another-secret"},
+            "data": [{"b64_json": "pixel-data", "inlineData": {"data": "other-pixels"}}],
+            "url": "https://example.test/image?token=private-query#secret-fragment",
+            "error": "bad key sk-live-0123456789abcdefghijkl"
+        }).to_string();
+        let safe = console_body_with_secrets(body.as_bytes(), &[]);
+        assert!(safe.contains("Watercolour of a lighthouse") && safe.contains("gemini-3.1-flash-image"));
+        for secret in ["private-value", "another-secret", "pixel-data", "other-pixels", "private-query", "secret-fragment", "sk-live-"] {
+            assert!(!safe.contains(secret), "leaked {secret}: {safe}");
+        }
+        assert!(safe.contains("[redacted]") && safe.contains("[image bytes omitted]"));
+        assert_eq!(console_body_with_secrets(b"not JSON", &[]), "[non-JSON response: 8 bytes]");
+    }
+
+    #[test]
+    fn console_caps_untrusted_payloads_and_marks_truncation() {
+        let text = console_text(&"word ".repeat(20_000));
+        assert!(text.contains("[Console detail truncated"));
+        assert!(text.len() < 66_000);
+        assert_eq!(console_text("safe\u{1b}\ntext"), "safe\ntext");
+    }
+
+    #[test]
+    fn console_redacts_opaque_header_credentials_even_when_echoed_as_plain_text() {
+        let secrets = vec!["Bearer opaque-provider-key".into(), "opaque-provider-key".into()];
+        let detail = console_text_with_secrets("Provider rejected opaque-provider-key (Bearer opaque-provider-key).", &secrets);
+        assert!(!detail.contains("opaque-provider-key"));
+        assert!(detail.contains("Provider rejected [redacted]"));
+        let body = br#"{"output":"opaque-provider-key","prompt":"lighthouse at dawn"}"#;
+        let safe = console_body_with_secrets(body, &secrets);
+        assert!(safe.contains("lighthouse at dawn") && !safe.contains("opaque-provider-key"));
+    }
+
 }

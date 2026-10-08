@@ -155,6 +155,13 @@ enum DesktopStatus {
 
 /// When the app's timer asks the engine for a scheduled wallpaper.
 enum ScheduleRules {
+    /// The engine budgets by UTC months, independently of the wallpaper cadence or the person's time zone.
+    static func nextBudgetMonth(after now: Date) -> Date? {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar.dateInterval(of: .month, for: now)?.end
+    }
+
     /// The engine's `next_start` (the due time less how long a wallpaper takes here, so it's ready on time), else
     /// `next_due`; never before the hold after launch, nor within `minimumGap` of the last attempt, so nothing can
     /// make the timer spin. Nil (paused, Only When I Ask, or not started) disarms it.
@@ -166,9 +173,9 @@ enum ScheduleRules {
     }
 }
 
-/// The main window's three sections.
+/// The main window's sections (View menu and sidebar).
 enum MainSection: String, CaseIterable, Identifiable {
-    case now, moods, history
+    case now, moods, history, console
 
     var id: Self { self }
 
@@ -177,6 +184,7 @@ enum MainSection: String, CaseIterable, Identifiable {
         case .now: "Now"
         case .moods: "Moods"
         case .history: "History"
+        case .console: "Console"
         }
     }
 
@@ -185,6 +193,7 @@ enum MainSection: String, CaseIterable, Identifiable {
         case .now: "photo"
         case .moods: "rectangle.stack"
         case .history: "clock"
+        case .console: "terminal"
         }
     }
 }

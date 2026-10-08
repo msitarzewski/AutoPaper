@@ -103,11 +103,18 @@ struct SettingsProblem: Equatable {
         SettingsProblem(
             sentence: bringingBack
                 ? "This month's budget is spent. AutoPaper is bringing back wallpapers you liked."
-                : "This month's budget is spent. New wallpapers start again next month.",
+                : "The next wallpaper would exceed this month's budget. Your current wallpaper stays. New wallpapers start again next month.",
             linkTitle: "Raise the budget",
             place: .budget,
             symbol: "dollarsign.circle"
         )
+    }
+
+    /// Exact amounts and the next run's estimate come from the engine, including when its estimate exceeds
+    /// what's left even though the person hasn't spent the whole limit.
+    static func budget(_ status: BudgetStatus) -> SettingsProblem? {
+        guard status.blocked else { return nil }
+        return SettingsProblem(sentence: status.message, linkTitle: "Adjust the budget", place: .budget, symbol: "dollarsign.circle")
     }
 
     /// One of the person's pictures couldn't be put back (an Aerial, or one recorded before AutoPaper kept a record).

@@ -40,6 +40,8 @@ Each provider's own policy is the one that applies; you hold the key, so you're 
 
 ## What's sent
 
+Before composing a new wallpaper, AutoPaper checks both selected services with read-only model-list requests (ComfyUI uses `/object_info`). These checks send credentials to their own provider as usual, but no keywords, prompts or images. Demo needs no network; a budget block makes no checks. If a check fails, a saved usable wallpaper from the selected mood can be shown without generation. Both results stay in Console on this computer.
+
 **To write a scene** (one request; two or three when the first ideas are too close to ones you've had, and one more if a provider declines an idea):
 
 - the current mood's **keywords** (Must, Maybe and Avoid) and its **Surprise**;
@@ -65,7 +67,7 @@ Not sent: the mood's name, dates or the time of day, your display's size, what y
 - **Keys stay with their service.** Each key is sent only to its own provider. A key for an OpenAI-compatible server belongs to that server's address and is never sent anywhere else. Redirects are followed only within the same host, and a change of scheme or port drops the key first.
 - **Your network stays yours.** Plain `http` is used only for addresses on your own computer or local network; anything further away needs `https`. Hosted providers are reached only at their own API host, over `https`.
 - **No cookies, no cache, no Referer**, and responses are size-limited and checked before use (see [NETWORK.md](./NETWORK.md)).
-- **No logs of what you send.** AutoPaper never logs keys, keywords or prompts, and removes anything that looks like a key from error messages.
+- **Local request transparency.** Console keeps the prompts, provider/model choices, responses, retry decisions and outcomes of your wallpaper runs on this computer. It never records authentication headers or image bytes, and redacts credentials from retained details. Nothing in Console is uploaded automatically; Copy Details and Export JSON share only the run you choose. System logs still contain no prompts or request bodies.
 
 ## What's stored on your computer
 
@@ -82,6 +84,7 @@ Everything AutoPaper keeps is in its own data folder, plus a few preferences. No
 | A ComfyUI workflow of your own, if you chose one | macOS preferences; Windows `workflows\` in the data folder; Linux GSettings | Until you choose another |
 | App preferences (for example notifications, the last Settings pane) | macOS preferences; Windows app settings; Linux GSettings (`io.github.msitarzewski.AutoPaper`) | Until you change them |
 | API keys | Keychain; Credential Manager; Secret Service | Until you remove them in Settings |
+| Console runs (original mood/keywords/Surprise, prompts, provider/model choices, sanitized requests and responses, retry checks, timing, estimated cost and outcome) | `runs` in `autopaper.sqlite3`; visible in Console | At most 200 runs for 30 days; Clear Console deletes them independently of wallpapers and memory. Each trace is size-limited, with omitted details labeled. Requests made before this version were not recorded |
 | Diagnostics | macOS: the system log (errors, and a line naming the providers and models that made each wallpaper); Windows: `logs\autopaper.log` in the data folder (unexpected errors only, at most 256 KB, plus one older file); Linux: standard error only, no log file | No keys, keywords or prompts in any of them |
 
 The data folder is:

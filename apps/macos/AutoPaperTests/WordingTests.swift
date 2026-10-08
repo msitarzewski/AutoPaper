@@ -194,7 +194,14 @@ struct ErrorSentenceTests {
 
     @Test func revisitReasonsHaveTheirOwnLine() {
         #expect(Sentences.revisit(.overBudget) == "This month's budget is spent. AutoPaper is bringing back wallpapers you liked.")
-        #expect(Set([RevisitReason.requested, .overBudget, .offline, .providerFailed].map(Sentences.revisit)).count == 4)
+        #expect(Sentences.revisit(.servicesUnavailable) == "A writing or painting service is unavailable. Showing the latest saved wallpaper from this mood. See Console for details.")
+        #expect(Set([RevisitReason.requested, .overBudget, .offline, .providerFailed, .servicesUnavailable].map(Sentences.revisit)).count == 5)
+    }
+
+    @Test func servicesAreCheckedBeforeComposing() {
+        #expect(ProgressStage.checkingServices.title == "Checking services…")
+        #expect(RunPresentation.label("CheckingServices") == "Checking Services")
+        #expect(RunPresentation.label("service_check") == "Service Check")
     }
 }
 
@@ -422,7 +429,7 @@ struct SettingsProblemTests {
     @Test("A spent budget links to raising it")
     func budget() throws {
         let spent = try #require(problem(.BudgetReached(budgetCents: 500)))
-        #expect(spent.sentence == "This month's budget is spent. New wallpapers start again next month.")
+        #expect(spent.sentence == "The next wallpaper would exceed this month's budget. Your current wallpaper stays. New wallpapers start again next month.")
         #expect(spent.linkTitle == "Raise the budget")
         #expect(spent.place == .budget)
         #expect(SettingsProblem.overBudget(bringingBack: true).sentence == Sentences.revisit(.overBudget))
@@ -1171,5 +1178,94 @@ struct MoodActivityTests {
     @Test func footnote() {
         #expect(MoodActivity.footnote(total: 42) == "42 wallpapers in the last 30 days. Kept on this Mac only.")
         #expect(MoodActivity.footnote(total: 1) == "1 wallpaper in the last 30 days. Kept on this Mac only.")
+    }
+}
+
+@Suite("Console runs and persistent budget notices")
+struct ConsoleTests {
+    @Test("Used-model timing labels distinguish the job and provider even when model IDs match")
+    func modelTimingLabels() {
+        let writing = ConsoleModel(provider: .openAi, job: .concepts, model: "shared-model", calls: 2, averageSecs: 0.003564)
+        let painting = ConsoleModel(provider: .openAi, job: .images, model: "shared-model", calls: 1, averageSecs: 4)
+        let other = ConsoleModel(provider: .openAiCompatible, job: .concepts, model: "shared-model", calls: 1, averageSecs: 1)
+        let labels = [writing, painting, other].map(RunPresentation.modelTimingTitle)
+        #expect(Set(labels).count == 3)
+        #expect(labels[0].contains("Writing"))
+        #expect(labels[1].contains("Painting"))
+        #expect(labels.allSatisfy { $0.contains("shared-model") })
+    }
+
+    @Test("Console preserves micro-dollar writing costs without extra zeros", arguments: [
+        (UInt64(3_564), "$0.003564"), (1, "$0.000001"), (20, "$0.00002"), (0, "$0.00"),
+        (40_000, "$0.04"), (1_200_000, "$1.20"),
+    ])
+    func preciseCost(microusd: UInt64, expected: String) {
+        #expect(Formatting.consoleDollars(microUSD: microusd) == expected)
+    }
+
+    @Test("Budget refresh is at the next UTC month boundary, including leap February and year rollover")
+    func budgetMonthBoundary() throws {
+        let iso = ISO8601DateFormatter()
+        for (now, next) in [("2026-10-31T23:59:59Z", "2026-11-01T00:00:00Z"),
+                            ("2026-12-31T23:59:59Z", "2027-01-01T00:00:00Z"),
+                            ("2028-02-29T20:00:00Z", "2028-03-01T00:00:00Z"),
+                            ("2026-11-01T00:00:00Z", "2026-12-01T00:00:00Z")] {
+            #expect(ScheduleRules.nextBudgetMonth(after: try #require(iso.date(from: now))) == iso.date(from: next))
+        }
+    }
+
+    private func run(_ id: String, started: Int64, finished: Int64? = nil, status: RunStatus = .failed) -> RunRecord {
+        RunRecord(id: id, startedAt: started, finishedAt: finished, trigger: .manual, status: status,
+                  moodName: "Coast", keywords: [], surprise: 0.35, textProvider: .demo, textModel: "demo",
+                  imageProvider: .demo, imageModel: "demo", generationId: nil, detail: "", costMicrousd: 0, events: [])
+    }
+
+    @Test("Runs are newest first within local dates, including a repeated daylight-saving hour")
+    func localDays() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/New_York"))
+        // The clock repeats 1 AM on 1 November 2026. Both occurrences belong to the same local day.
+        let firstHour: Int64 = 1_793_511_000 // 05:30 UTC: 1:30 AM EDT
+        let secondHour = firstHour + 3_600
+        let prior = firstHour - 10_800 // 10:30 PM on the previous local day
+        let days = RunPresentation.days([run("older", started: prior), run("first", started: firstHour),
+                                         run("second", started: secondHour)], calendar: calendar)
+        #expect(days.count == 2)
+        #expect(days[0].runs.map(\.id) == ["second", "first"])
+        #expect(days[1].runs.map(\.id) == ["older"])
+        #expect(calendar.component(.day, from: days[0].id) == 1)
+        #expect(calendar.component(.day, from: days[1].id) == 31)
+        #expect(RunPresentation.days([], calendar: calendar).isEmpty)
+    }
+
+    @Test("A running run has no made-up duration; clock changes never show negative time")
+    func durations() {
+        #expect(RunPresentation.duration(run("active", started: 100, status: .running)) == nil)
+        #expect(RunPresentation.duration(run("stopped", started: 100, finished: 105)) != nil)
+        #expect(RunPresentation.duration(run("clock", started: 100, finished: 90))
+            == RunPresentation.duration(run("zero", started: 100, finished: 100)))
+    }
+
+    @Test("All outcomes remain distinguishable, including blocks, cancels and restarts")
+    func outcomes() {
+        let statuses: [RunStatus] = [.running, .succeeded, .failed, .blocked, .cancelled, .interrupted]
+        #expect(Set(statuses.map(RunPresentation.outcome)).count == statuses.count)
+        #expect(RunPresentation.outcome(.succeeded) == "Completed")
+        #expect(RunPresentation.outcome(.blocked) == "Blocked")
+        #expect(MainSection.allCases.last == .console)
+        #expect(SidebarItem.section(.console).destination(keeping: "coast").mood == "coast")
+    }
+
+    @Test("A prospective budget block preserves exact engine amounts and links to Budget")
+    func prospectiveBudget() throws {
+        let message = "Estimated spending is $4.98 of $5.00. The next wallpaper costs about $0.04. Your current wallpaper stays."
+        var status = BudgetStatus(month: "2026-10", spentMicrousd: 4_980_000, budgetCents: 500,
+                                  nextCostMicrousd: 40_000, blocked: true, message: message)
+        let problem = try #require(SettingsProblem.budget(status))
+        #expect(problem.sentence == message)
+        #expect(problem.place == .budget)
+        #expect(problem.linkTitle == "Adjust the budget")
+        status.blocked = false
+        #expect(SettingsProblem.budget(status) == nil)
     }
 }

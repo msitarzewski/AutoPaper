@@ -33,3 +33,11 @@ self-hosted updates instead of Flathub, release order, Qwen examples).
 ## Artifacts
 - Release: https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.0 · Update feeds: `site/static/appcast.xml`,
   https://msitarzewski.com/app-updates/autopaper/ (AutoPaper.appinstaller, AutoPaper.flatpakref, flatpak/, windows/).
+
+## Post-release checkpoint (2026-10-07; recorded before reboot)
+The v0.1.0 release and its QA above remain historical. Subsequent Console/budget transparency, Console
+charts/help, Mac Moods cleanup, native list/form tasks and service preflight/selected-mood fallback are recorded in
+[261007_console-budget-transparency.md](261007_console-budget-transparency.md).
+Current local Mac is 0.1.1 build 6; public feeds remain v0.1.0. These follow-ups are uncommitted on
+`codex/console-runs`; the user explicitly deferred public releases to gather a larger batch.
+See `../../activeContext.md#Reboot checkpoint` for exact installed hash, latest QA, open checks and resume steps.

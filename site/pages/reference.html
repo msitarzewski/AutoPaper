@@ -5,7 +5,7 @@ description: Every AutoPaper setting with its default and range, the limits, how
 <article class="doc">
   <h1>Reference</h1>
   <p class="intro">How AutoPaper works, with the numbers. Every figure here is a value in AutoPaper’s <a href="https://github.com/msitarzewski/AutoPaper/tree/main/core/src">source code</a>, the same on macOS, Windows and Linux unless it says otherwise. The <a href="privacy.html">Privacy</a> and <a href="network.html">Network</a> pages cover what is sent where.</p>
-  <p>These are the values in AutoPaper 0.1.0.</p>
+  <p>These are the values in AutoPaper 0.1.1.</p>
 
   <nav class="toc" aria-label="On this page">
     <strong>On this page</strong>
@@ -20,6 +20,7 @@ description: Every AutoPaper setting with its default and range, the limits, how
       <li><a href="#display">Putting it on screen</a></li>
       <li><a href="#schedule">The schedule, failures and the budget</a></li>
       <li><a href="#timings">Time estimates</a></li>
+      <li><a href="#console">Console and statistics</a></li>
       <li><a href="#storage">What’s stored, and where</a></li>
       <li><a href="#accessibility">Accessibility</a></li>
       <li><a href="#automation">Siri and Shortcuts</a></li>
@@ -36,9 +37,9 @@ description: Every AutoPaper setting with its default and range, the limits, how
     <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Setting</th><th scope="col" role="columnheader">Default</th><th scope="col" role="columnheader">Choices and notes</th></tr></thead>
     <tbody role="rowgroup">
       <tr role="row"><th scope="row" role="rowheader">New wallpaper</th><td role="cell" data-label="Default">Every day</td><td role="cell" data-label="Choices and notes">Every hour, Every 3 hours, Every 6 hours, Every 12 hours, Every day, Every week, Only when I ask.</td></tr>
-      <tr role="row"><th scope="row" role="rowheader">Pause new wallpapers</th><td role="cell" data-label="Default">Off</td><td role="cell" data-label="Choices and notes">No new ones on the schedule; New Wallpaper Now still works. On a Mac the current wallpaper stays up; on Windows and Linux, pausing puts your own wallpaper back.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Pause new wallpapers</th><td role="cell" data-label="Default">Off</td><td role="cell" data-label="Choices and notes">No new ones on the schedule; New Wallpaper Now still works. The current wallpaper stays up.</td></tr>
       <tr role="row"><th scope="row" role="rowheader">Replace wallpapers I dislike</th><td role="cell" data-label="Default">On</td><td role="cell" data-label="Choices and notes">Disliking the wallpaper on your desktop makes a new one straight away, within the budget.</td></tr>
-      <tr role="row"><th scope="row" role="rowheader">When a new one can’t be made</th><td role="cell" data-label="Default">Bring back one I liked</td><td role="cell" data-label="Choices and notes">Or <em>Keep the current one</em>. For when you’re offline, a provider is down, or the month’s budget is spent.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">When a new one can’t be made</th><td role="cell" data-label="Default">Bring back one I liked</td><td role="cell" data-label="Choices and notes">Or <em>Keep the current one</em>. For when you’re offline or a provider is down. Budget blocks always keep the current wallpaper.</td></tr>
       <tr role="row"><th scope="row" role="rowheader">Show wallpapers (macOS)</th><td role="cell" data-label="Default">Over my wallpaper</td><td role="cell" data-label="Choices and notes">Or <em>As my wallpaper</em>. See <a href="#display">Putting it on screen</a>.</td></tr>
       <tr role="row"><th scope="row" role="rowheader">Your own wallpaper</th><td role="cell" data-label="Default">—</td><td role="cell" data-label="Choices and notes"><strong>Restore My Wallpaper</strong>: your own wallpaper again until AutoPaper’s next new one. On Windows also <strong>Turn Windows Spotlight back on</strong>, when Spotlight was yours. On Linux it’s in the main menu and the tray.</td></tr>
       <tr role="row"><th scope="row" role="rowheader">Lock screen</th><td role="cell" data-label="Default">On, where there’s a choice</td><td role="cell" data-label="Choices and notes">macOS: no setting, as apps can’t set the lock screen picture on its own; it shows AutoPaper’s wallpapers only with As my wallpaper. Windows: <em>Also set the lock screen</em>, unless your organisation manages it. GNOME: a note (its lock screen always shows the desktop wallpaper). Other Linux desktops: a switch.</td></tr>
@@ -80,6 +81,8 @@ description: Every AutoPaper setting with its default and range, the limits, how
       <tr role="row"><th scope="row" role="rowheader">Clear History…</th><td role="cell" data-label="Default">—</td><td role="cell" data-label="Choices and notes">Keep memory (descriptions stay, so repeats are still avoided; History and Now are empty) or clear memory too (taste as well). Moods, settings and spending stay. Your desktop keeps its picture either way.</td></tr>
     </tbody>
   </table></div>
+
+  <p>The <strong>History</strong> section in Memory settings also contains Console help: local retention, report contents, privacy and the link to <a href="help.html#console">Console help</a>. Clearing wallpaper history and clearing Console are separate actions.</p>
 
   <h3 id="budget-settings">Budget</h3>
   <div class="table-wrap stack wrap-heads"><table role="table">
@@ -168,8 +171,8 @@ description: Every AutoPaper setting with its default and range, the limits, how
     <li><strong>Every display gets the same wallpaper</strong>, made for it: cropped from the centre to the display’s shape, scaled to its exact pixels (Lanczos), lightly sharpened only when enlarged more than 1.25 times, and saved as a JPEG at quality 90 without metadata. On Linux, the Wallpaper portal takes one picture for every monitor, made for the largest.</li>
     <li><strong>macOS, Over my wallpaper</strong> (the default): one borderless, click-through window per display, just above the desktop picture and below the icons, on every Space. Wallpapers cross-fade in 1.6 seconds (0.3 with Reduce Motion). Your desktop picture is never changed; quitting closes the windows.</li>
     <li><strong>macOS, As my wallpaper</strong>: sets each display’s desktop picture, after noting your own for each, so it shows in Mission Control and on the lock screen. macOS doesn’t let apps put back its moving wallpapers exactly.</li>
-    <li><strong>Windows</strong>: sets each monitor’s wallpaper, positioned to fill, and the lock screen. Before the first, it keeps a copy of each monitor’s picture, its position and colour, and whether it was a slideshow or Windows Spotlight, and puts them back when AutoPaper quits, is paused, or you choose Restore my wallpaper.</li>
-    <li><strong>Linux</strong>: through the desktop’s Wallpaper portal, which may ask once. On GNOME (outside Flatpak), your own wallpaper settings are recorded first and put back when AutoPaper quits, is paused, or you choose Restore my wallpaper.</li>
+    <li><strong>Windows</strong>: sets each monitor’s wallpaper, positioned to fill, and the lock screen. Before the first, it keeps a copy of each monitor’s picture, its position and colour, and whether it was a slideshow or Windows Spotlight, and puts them back when AutoPaper quits or you choose Restore my wallpaper. Pausing keeps the current wallpaper.</li>
+    <li><strong>Linux</strong>: through the desktop’s Wallpaper portal, which may ask once. On GNOME (outside Flatpak), your own wallpaper settings are recorded first and put back when AutoPaper quits or you choose Restore my wallpaper. Pausing keeps the current wallpaper.</li>
   </ul>
 
   <h2 id="schedule">The schedule, failures and the budget</h2>
@@ -178,6 +181,7 @@ description: Every AutoPaper setting with its default and range, the limits, how
     <li>The apps check when it’s due, and again when the computer wakes or is unlocked.</li>
     <li>After a failure, the next try waits 10 minutes, then 20, 40, and 60, or longer if the provider asks (at most an hour). The first failure in a row that isn’t yours to fix brings back a wallpaper you liked, unless you chose <em>Keep the current one</em>. A painting ComfyUI couldn’t do waits for the next scheduled time instead. Cancelling isn’t a failure.</li>
     <li>Before each paid request, its estimated cost is checked against what’s left of the month’s budget. Each paid request counts as soon as it’s answered, even if the wallpaper doesn’t work out. Local providers, OpenAI-compatible servers and Demo cost nothing.</li>
+    <li>A request that would exceed the limit is blocked before credentials or the provider are contacted. The current wallpaper stays. The notice shows estimated spend, limit and next request cost; the month resets in UTC, even while new wallpapers are paused or set to Only when I ask.</li>
     <li>Estimated prices (as of October 5, 2026): OpenAI’s default painter at 3840 × 2160 about $0.026 (Standard) or $0.10 (High); Nano Banana 2 about $0.10 at 2K and $0.15 at 4K. Writing a scene costs about a tenth of a cent with OpenAI’s default writer, and about half a cent with Gemini’s.</li>
   </ul>
 
@@ -189,12 +193,28 @@ description: Every AutoPaper setting with its default and range, the limits, how
     <li>ComfyUI jobs have no fixed time limit. One is stopped after 3 minutes without progress following a step (or 4 times its slowest step), 10 minutes in a step-less part, or past the longer of 30 minutes and 3 times its estimate. Hosted writers have 60 seconds and painters 240; Ollama and OpenAI-compatible writers 180 seconds, painters 300. The <a href="network.html">Network</a> page has every limit.</li>
   </ul>
 
+  <h2 id="console">Console and statistics</h2>
+  <p>Console records each wallpaper attempt, including failures, budget blocks, cancellations and interruptions, grouped by date. A selected run shows the actual prompts, provider/model names, responses, retries, candidate checks, errors, elapsed time and estimated cost. Requests made before Console was added are unavailable.</p>
+  <div class="table-wrap stack wrap-heads"><table role="table">
+    <caption class="sr-only">Console statistics and what they measure</caption>
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Statistic</th><th scope="col" role="columnheader">Meaning</th></tr></thead>
+    <tbody role="rowgroup">
+      <tr role="row"><th scope="row" role="rowheader">Outcomes</th><td role="cell" data-label="Meaning">Counts of succeeded, failed, blocked, cancelled, interrupted and running attempts, across all retained runs.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Runs by day</th><td role="cell" data-label="Meaning">The same outcomes grouped by the run’s start date in UTC.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Success rate</th><td role="cell" data-label="Meaning">Succeeded ÷ (succeeded + failed). No percentage until there is a successful or failed attempt.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Average run time</th><td role="cell" data-label="Meaning">Mean elapsed time of finished successful and failed attempts. Blocked, cancelled, interrupted and ongoing attempts are excluded.</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Average call time by model</th><td role="cell" data-label="Meaning">Mean measured duration of completed writing or painting calls, grouped by provider, job and model, with the number of calls. Uses recent timing samples linked to retained runs.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Model timing starts with calls recorded after this update; older timing samples are not assigned to runs by guessing. The newest 50 samples for each provider, server, model and job are kept for time estimates, so model averages can cover fewer calls than the outcome charts. A run can include more than one call and additional memory, download and display work. Chart values are also available as a table.</p>
+  <p>Up to 200 runs are kept for 30 days locally. Each event is limited to 65,536 UTF-8 bytes, with up to 255 events and roughly 512 KiB of details per run; truncation is marked. Credentials and image bytes are omitted. <strong>Copy Details</strong> and <strong>Export JSON…</strong> share only the selected run when you choose them. <strong>Clear Console…</strong> removes its records and statistics, keeping wallpapers, memory, settings, spending and the separate progress time estimates.</p>
+
   <h2 id="storage">What’s stored, and where</h2>
   <div class="table-wrap stack wrap-heads"><table role="table">
     <caption class="sr-only">What AutoPaper stores, and where</caption>
     <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">What</th><th scope="col" role="columnheader">Where</th></tr></thead>
     <tbody role="rowgroup">
-      <tr role="row"><th scope="row" role="rowheader">Moods, keywords, settings, history, memory, taste, spending and timings</th><td role="cell" data-label="Where"><code>autopaper.sqlite3</code> in the data folder</td></tr>
+      <tr role="row"><th scope="row" role="rowheader">Moods, keywords, settings, history, memory, taste, spending, timings and Console runs</th><td role="cell" data-label="Where"><code>autopaper.sqlite3</code> in the data folder</td></tr>
       <tr role="row"><th scope="row" role="rowheader">Wallpapers as delivered</th><td role="cell" data-label="Where"><code>images/</code><em>year</em><code>/</code> in the data folder; the oldest go first past <em>Keep up to</em>, never liked ones or the one on the desktop</td></tr>
       <tr role="row"><th scope="row" role="rowheader">Thumbnails, 640 px wide</th><td role="cell" data-label="Where"><code>thumbs/</code>; kept when the original goes</td></tr>
       <tr role="row"><th scope="row" role="rowheader">Wallpapers made for each display</th><td role="cell" data-label="Where"><code>renders/</code>; a cache, cleared first, except what’s on the desktop</td></tr>
@@ -203,7 +223,7 @@ description: Every AutoPaper setting with its default and range, the limits, how
       <tr role="row"><th scope="row" role="rowheader">Keys</th><td role="cell" data-label="Where">Keychain, Credential Manager, Secret Service</td></tr>
     </tbody>
   </table></div>
-  <p>Failed attempts are kept 30 days, without images, then deleted. Everything else stays until you delete it. <a href="privacy.html#whats-stored-on-your-computer">Privacy</a> has the full list.</p>
+  <p>Failed wallpaper attempts are kept 30 days, without images. Console has its separate 200-run and 30-day limits, and timings have the sample limits above. Other data stays until you delete it or the image storage limit removes it. <a href="privacy.html#whats-stored-on-your-computer">Privacy</a> has the full list.</p>
 
   <h2 id="accessibility">Accessibility</h2>
   <p>AutoPaper aims for WCAG 2.2 AA as W3C’s <a href="https://www.w3.org/TR/wcag2ict-22/">WCAG2ICT</a> applies it to desktop software, and for Apple’s, Microsoft’s and GNOME’s accessibility guidelines. This site aims for WCAG 2.2 AA directly.</p>

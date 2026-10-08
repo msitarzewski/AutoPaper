@@ -10,26 +10,46 @@ import AppKit
 @MainActor
 final class Scheduler {
     private var timer: Timer?
+    private var budgetTimer: Timer?
     private var observers: [(NotificationCenter, any NSObjectProtocol)] = []
     private var pendingCheck: Task<Void, Never>?
     private let onDue: @MainActor () -> Void
+    private let onStatus: @MainActor () -> Void
 
     /// Delay after waking before checking; the network usually needs a few seconds.
     static let wakeDelay: Duration = .seconds(20)
 
-    init(onDue: @escaping @MainActor () -> Void) {
+    init(onDue: @escaping @MainActor () -> Void, onStatus: @escaping @MainActor () -> Void) {
         self.onDue = onDue
+        self.onStatus = onStatus
     }
 
     /// Starts listening for wake, unlock, session and clock changes.
     func start() {
         guard observers.isEmpty else { return }
+        armBudgetRefresh()
         let workspace = NSWorkspace.shared.notificationCenter
         observe(workspace, NSWorkspace.didWakeNotification, after: Self.wakeDelay)
         observe(workspace, NSWorkspace.screensDidWakeNotification, after: .seconds(3))
         observe(workspace, NSWorkspace.sessionDidBecomeActiveNotification, after: .seconds(3))
         observe(DistributedNotificationCenter.default(), Notification.Name("com.apple.screenIsUnlocked"), after: .seconds(3))
         observe(NotificationCenter.default, .NSSystemClockDidChange, after: .seconds(1))
+    }
+
+    /// The budget notice resets even when wallpaper scheduling is paused, manual or unarmed and no window is
+    /// open. This timer only re-reads status; it doesn't request a wallpaper or contact a provider.
+    private func armBudgetRefresh() {
+        budgetTimer?.invalidate()
+        guard let next = ScheduleRules.nextBudgetMonth(after: .now) else { budgetTimer = nil; return }
+        let timer = Timer(fire: next, interval: 0, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.onStatus()
+                self?.armBudgetRefresh()
+            }
+        }
+        timer.tolerance = 1
+        RunLoop.main.add(timer, forMode: .common)
+        budgetTimer = timer
     }
 
     /// Arms the timer for `due`; nil (paused, or only when asked) disarms it. A time in the past fires at once.
@@ -60,6 +80,8 @@ final class Scheduler {
         pendingCheck = Task { [weak self] in
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
+            self?.armBudgetRefresh()
+            self?.onStatus()
             self?.onDue()
         }
     }

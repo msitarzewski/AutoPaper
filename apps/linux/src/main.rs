@@ -4,6 +4,7 @@
 //! the app does is docs/app-spec.md; how the core works is memory-bank/systemPatterns.md.
 
 mod app;
+mod console;
 mod desktop;
 mod history;
 mod keywords;

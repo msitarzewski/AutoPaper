@@ -1,17 +1,17 @@
 import AutopaperCore
 import SwiftUI
 
-/// The main window: a sidebar with Now, Moods and History (View ▸ ⌘1–⌘3), the section on the right. Moods is a
+/// The main window: a sidebar with Now, Moods, History and Console (View ▸ ⌘1–⌘4), the section on the right. Moods is a
 /// disclosure group listing every mood (the current one checkmarked); choosing the Moods row shows the summary of all
 /// moods, choosing a mood shows its detail. A stationary footer under the sidebar holds Settings and a one-line status.
 ///
 /// Moods is a first-party three-column layout (the user's layout, after their own app's library): sidebar › mood
-/// list, titled "Moods" with its + in the list's part of the toolbar › the selected mood, its name the title at the
-/// leading edge of the detail's part of the toolbar (renamed in place) and Use This Mood at its trailing end. Now and
-/// History have no middle column, so, as the user's app does for its sections of a different shape, each shape is a
+/// list, titled "Moods" with its + in the list's part of the toolbar › the selected mood, its editable name in the
+/// detail header and New Wallpaper Now / Stop in the toolbar. Now and
+/// History have no middle column; Console manages its run list within the detail, so each shape is a
 /// split view of its own: three columns for Moods, two for Now and History, sharing the sidebar, its width and whether
 /// it's shown. Changing shape rebuilds the sidebar, so when the sidebar had the keyboard the new one takes it back
-/// (arrowing through Now, Moods, the moods and History, or View ▸ ⌘1–⌘3, keeps the person's place). The mood list
+/// (arrowing through the sidebar or View ▸ ⌘1–⌘4 keeps the person's place). The mood list
 /// sits beside the sidebar rather than under it (`SplitViewSetup`), so Tab goes sidebar › list › detail › toolbar.
 struct MainWindow: View {
     @Environment(AppModel.self) private var model
@@ -35,7 +35,11 @@ struct MainWindow: View {
                         .navigationSplitViewColumnWidth(min: SplitViewMemory.listRange.lowerBound, ideal: ideal.list,
                                                         max: SplitViewMemory.listRange.upperBound)
                 } detail: {
-                    MoodDetailColumn()
+                    VStack(spacing: 0) {
+                        budgetNotice
+                        MoodDetailColumn()
+                            .frame(maxHeight: .infinity)
+                    }
                         .frame(minWidth: 440)
                         .modifier(WallpaperDialogs())
                 }
@@ -43,8 +47,16 @@ struct MainWindow: View {
                 NavigationSplitView(columnVisibility: $twoColumns) {
                     sidebar(width: ideal.sidebar)
                 } detail: {
-                    Group {
-                        if model.section == .history { HistoryView() } else { NowView() }
+                    VStack(spacing: 0) {
+                        budgetNotice
+                        Group {
+                            switch model.section {
+                            case .history: HistoryView()
+                            case .console: ConsoleView()
+                            default: NowView()
+                            }
+                        }
+                        .frame(maxHeight: .infinity)
                     }
                     .modifier(WallpaperDialogs())
                 }
@@ -61,6 +73,24 @@ struct MainWindow: View {
         .onChange(of: threeColumns) { _, visibility in
             let hidden = Self.sidebarHidden(visibility)
             if hidden != (twoColumns == .detailOnly) { twoColumns = hidden ? .detailOnly : .all }
+        }
+    }
+
+    /// Above each detail column, so the floating native sidebar stays independent and each section begins below
+    /// the explanation, including Console's native split view which doesn't consume SwiftUI safe-area insets.
+    @ViewBuilder
+    private var budgetNotice: some View {
+        if let problem = model.budgetProblem {
+            SettingsProblemLink(problem: problem)
+                .font(.callout)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                // Native split-view columns ask for an intrinsic size with an unspecified width. Give the
+                // explanation a usable minimum so that its wrapping text cannot demand a thousands-high column.
+                .frame(minWidth: 340, maxWidth: .infinity, alignment: .leading)
+                .background(.background.secondary)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("New wallpapers are waiting for the budget")
         }
     }
 
@@ -185,7 +215,7 @@ private struct SplitViewSetup: NSViewRepresentable {
 }
 
 /// The sidebar: Now, Moods (a disclosure group of every mood, expanded until the person closes it, remembered), and
-/// History; the footer stays at the bottom whatever the list scrolls.
+/// History and Console; the footer stays at the bottom whatever the list scrolls.
 private struct Sidebar: View {
     @Environment(AppModel.self) private var model
     @AppStorage("sidebarMoodsExpanded") private var moodsExpanded = true
@@ -210,6 +240,7 @@ private struct Sidebar: View {
                 }
             }
         }
+        .listStyle(.sidebar)
         .focused(focused)
         .contextMenu(forSelectionType: SidebarItem.self) { items in
             // A mood's row has the mood list's own menu; the sections have none.
@@ -249,13 +280,12 @@ private struct MoodSidebarRow: View {
     let mood: Mood
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack {
             Label(mood.name, systemImage: "swatchpalette")
                 .lineLimit(1)
-            Spacer(minLength: 4)
+            Spacer()
             if mood.active {
                 Image(systemName: "checkmark")
-                    .font(.callout.weight(.semibold))
             }
         }
         // VoiceOver reads a text element's value, not a label put on it, so the spoken line is a text of its own.
@@ -282,7 +312,6 @@ private struct SidebarFooter: View {
                 } label: {
                     Label("Settings", systemImage: "gearshape")
                         .labelStyle(.iconOnly)
-                        .font(.body)
                 }
                 .buttonStyle(.borderless)
                 .help("Settings (⌘,)")
@@ -312,6 +341,7 @@ private struct SidebarFooter: View {
     private var status: (String, String)? {
         guard model.phase == .ready, let settings = model.settings else { return nil }
         let stage = model.work?.stage
+        if stage == nil, model.budgetProblem != nil { return ("New wallpapers waiting for budget", "Waiting for budget") }
         return (
             Formatting.footerLine(stage: stage, due: model.nextDue, paused: settings.paused, cadence: settings.cadence, armed: model.scheduleArmed),
             Formatting.footerShortLine(stage: stage, due: model.nextDue, paused: settings.paused, cadence: settings.cadence, armed: model.scheduleArmed)

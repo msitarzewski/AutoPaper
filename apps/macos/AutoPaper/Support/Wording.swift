@@ -220,6 +220,7 @@ extension ProgressStage {
     /// What AutoPaper is doing now; nil once it's done.
     var title: String? {
         switch self {
+        case .checkingServices: "Checking services…"
         case .composing: "Composing an idea…"
         case .checkingMemory: "Checking memory…"
         case .generating: "Painting…"
@@ -312,7 +313,7 @@ enum Sentences {
             }
             return "\(provider.subject) can't do that. Choose another provider in Settings → Providers."
         case .BudgetReached:
-            return "This month's budget is spent. New wallpapers start again next month, or raise the budget in Settings → Budget."
+            return "The next wallpaper would exceed this month's budget. Your current wallpaper stays. New wallpapers start again next month, or raise the budget in Settings → Budget."
         case .Offline:
             return "AutoPaper can't reach the internet." + (retrying ? " It'll try again soon." : "")
         case .InvalidResponse:
@@ -423,6 +424,7 @@ enum Sentences {
         case .overBudget: "This month's budget is spent. AutoPaper is bringing back wallpapers you liked."
         case .offline: "AutoPaper couldn't reach the internet, so it brought back one you liked. It'll try again soon."
         case .providerFailed: "A new wallpaper couldn't be made, so AutoPaper brought back one you liked. It'll try again soon."
+        case .servicesUnavailable: "A writing or painting service is unavailable. Showing the latest saved wallpaper from this mood. See Console for details."
         }
     }
 
@@ -451,6 +453,13 @@ enum Formatting {
 
     static func dollars(cents: UInt32) -> String {
         dollars(microUSD: UInt64(cents) * 10_000)
+    }
+
+    /// Console keeps every micro-dollar of a small writing charge; ordinary spending summaries keep their
+    /// existing rounded presentation. Trailing zeros stop at the normal two currency digits.
+    static func consoleDollars(microUSD: UInt64) -> String {
+        (Double(microUSD) / 1_000_000).formatted(.currency(code: "USD").precision(.fractionLength(2...6))
+            .locale(Locale(identifier: "en_US")))
     }
 
     /// "$1.20 of $5.00 this month (estimated)", or without a cap "$1.20 this month (estimated)".
@@ -747,5 +756,84 @@ enum KeywordText {
     static func duplicate(of text: String, in keywords: [Keyword]) -> Keyword? {
         let wanted = normalised(text).lowercased()
         return keywords.first { normalised($0.text).lowercased() == wanted }
+    }
+}
+
+/// Console's outcomes and grouping use local calendar days, just like wallpaper History. Full diagnostics stay in
+/// the engine's report; these labels only make its recorded facts readable.
+enum RunPresentation {
+    static func seconds(_ seconds: Double) -> String {
+        "\(seconds.formatted(.number.precision(.fractionLength(0...6)))) sec"
+    }
+
+    static func calls(_ calls: UInt64) -> String { calls == 1 ? "1 call" : "\(calls) calls" }
+
+    static func utcDay(_ unix: Int64) -> String {
+        var format = Date.FormatStyle(date: .abbreviated, time: .omitted)
+        format.timeZone = TimeZone(secondsFromGMT: 0)!
+        return Date(timeIntervalSince1970: TimeInterval(unix)).formatted(format)
+    }
+
+    static func modelTimingTitle(_ timing: ConsoleModel) -> String {
+        let job = timing.job == .concepts ? "Writing" : "Painting"
+        return "\(job) · \(Provenance.who(timing.provider, model: timing.model))"
+    }
+
+    struct Day: Identifiable {
+        let id: Date
+        let runs: [RunRecord]
+    }
+
+    static func days(_ runs: [RunRecord], calendar: Calendar = .current) -> [Day] {
+        let grouped = Dictionary(grouping: runs) {
+            calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval($0.startedAt)))
+        }
+        return grouped.keys.sorted(by: >).map { day in
+            Day(id: day, runs: (grouped[day] ?? []).sorted {
+                if $0.startedAt == $1.startedAt { return $0.id > $1.id }
+                return $0.startedAt > $1.startedAt
+            })
+        }
+    }
+
+    static func outcome(_ status: RunStatus) -> String {
+        switch status {
+        case .running: "Running"
+        case .succeeded: "Completed"
+        case .failed: "Failed"
+        case .blocked: "Blocked"
+        case .cancelled: "Cancelled"
+        case .interrupted: "Interrupted"
+        }
+    }
+
+    static func symbol(_ status: RunStatus) -> String {
+        switch status {
+        case .running: "arrow.trianglehead.2.clockwise.rotate.90"
+        case .succeeded: "checkmark.circle"
+        case .failed: "exclamationmark.circle"
+        case .blocked: "pause.circle"
+        case .cancelled: "xmark.circle"
+        case .interrupted: "exclamationmark.triangle"
+        }
+    }
+
+    static func trigger(_ trigger: Trigger) -> String {
+        switch trigger {
+        case .scheduled: "Scheduled"
+        case .manual: "New Wallpaper Now"
+        case .dislikeReplace: "Replace disliked wallpaper"
+        case .echoRequest: "Make an Echo"
+        }
+    }
+
+    static func label(_ value: String) -> String {
+        value.replacingOccurrences(of: "([a-z0-9])([A-Z])", with: "$1 $2", options: .regularExpression)
+            .replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: "-", with: " ").capitalized
+    }
+
+    static func duration(_ run: RunRecord) -> String? {
+        guard let finished = run.finishedAt else { return nil }
+        return Duration.seconds(max(0, finished - run.startedAt)).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated))
     }
 }

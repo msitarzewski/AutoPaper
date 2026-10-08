@@ -181,7 +181,7 @@ impl MoodsPage {
     }
 
     fn make_row(self: &Rc<Self>, mood: &Mood, last: bool, count: usize) -> Rc<MoodRow> {
-        // Under Moods, indented to its label; the checkmark (the current mood) at the end. The labels are presentation:
+        // Under Moods, with native sidebar insets; the checkmark (the current mood) at the end. The labels are presentation:
         // the row speaks its mood once ("Fog, Night, current mood"), with its keywords as the description.
         let name = gtk::Label::builder()
             .xalign(0.0)
@@ -191,10 +191,10 @@ impl MoodsPage {
             .build();
         let check = crate::history::decorative_icon("object-select-symbolic");
         check.set_tooltip_text(Some("Current mood"));
-        let content = gtk::Box::builder().spacing(12).margin_start(28).build();
+        let content = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         content.append(&name);
         content.append(&check);
-        let row = gtk::ListBoxRow::builder().child(&content).css_classes(["mood-row"]).build();
+        let row = gtk::ListBoxRow::builder().child(&content).build();
         let actions = gio::SimpleActionGroup::new();
         row.insert_action_group("mood", Some(&actions));
         crate::wallpapers::attach_menu(&row, &mood_menu());
@@ -559,22 +559,15 @@ impl MoodDetail {
         let surprise_box = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(6)
-            .margin_top(12)
-            .margin_bottom(12)
-            .margin_start(12)
-            .margin_end(12)
             .build();
         surprise_box.append(&scale);
         surprise_box.append(&band);
         surprise_box.append(&band_detail);
-        let surprise_row = gtk::ListBoxRow::builder().activatable(false).focusable(false).child(&surprise_box).build();
-        let surprise_list = gtk::ListBox::builder().selection_mode(gtk::SelectionMode::None).css_classes(["boxed-list"]).build();
-        surprise_list.append(&surprise_row);
         let surprise = adw::PreferencesGroup::builder()
             .title("Surprise")
             .description("How much freedom AutoPaper takes with this mood's keywords.")
             .build();
-        surprise.add(&surprise_list);
+        surprise.add(&surprise_box);
 
         let recent_box = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
         let recent_empty = gtk::Label::builder()

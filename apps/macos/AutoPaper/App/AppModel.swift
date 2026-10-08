@@ -60,6 +60,10 @@ final class AppModel {
     /// When the timer asks for the next scheduled wallpaper: `next_due` less how long one takes here.
     private(set) var nextStart: Date?
     private(set) var spend: SpendSummary?
+    /// Re-read at launch and after every run or settings change. Independent of transient notices, so a success
+    /// or showing a past wallpaper can't hide why the next new one won't be made.
+    private(set) var budgetStatus: BudgetStatus?
+    var budgetProblem: SettingsProblem? { budgetStatus.flatMap(SettingsProblem.budget) }
     /// The engine's settings. Pausing only stops new wallpapers: the one showing stays, in both ways of showing
     /// wallpapers (user, 2026-10-06); only Restore My Wallpaper (and quitting, over the person's wallpaper) uncovers
     /// their own.
@@ -102,7 +106,7 @@ final class AppModel {
     }
     /// The Providers section whose server address field Settings focuses next (set by an address link).
     var providersFocus: ProviderJob?
-    /// The main window's section (View menu ⌘1–⌘3, the sidebar).
+    /// The main window's section (View menu ⌘1–⌘4, the sidebar).
     var section: MainSection = .now
     /// The mood selected in Moods' list (its detail shows on the right).
     var moodSelection: Mood.ID?
@@ -245,7 +249,9 @@ final class AppModel {
             MainActor.assumeIsolated { self?.displaysChanged() }
         }
         holdUntil = .now.addingTimeInterval(Self.launchGrace)
-        let scheduler = Scheduler { [weak self] in self?.runScheduled() }
+        let scheduler = Scheduler(onDue: { [weak self] in self?.runScheduled() }, onStatus: { [weak self] in
+            Task { await self?.refreshStatus() }
+        })
         scheduler.start()
         self.scheduler = scheduler
         desktop.rendersDirectory = try? CoreBridge.dataDirectory().appending(path: "renders", directoryHint: .isDirectory)
@@ -278,7 +284,10 @@ final class AppModel {
         appActiveObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.desktopChanged() }
+            MainActor.assumeIsolated {
+                self?.desktopChanged()
+                Task { await self?.refreshStatus() }
+            }
         }
         reschedule()
     }
@@ -372,7 +381,7 @@ final class AppModel {
     // MARK: Making wallpapers
 
     func newWallpaperNow() {
-        make { core, observer in try await core.engine.generate(trigger: .manual, observer: observer) }
+        make { core, observer in try await core.engine.generateOrRevisit(trigger: .manual, observer: observer) }
     }
 
     /// Use This Mood and Make a New Wallpaper (a mood's detail, user 2026-10-06): makes the mood current, then a new
@@ -388,7 +397,7 @@ final class AppModel {
     }
 
     func makeEcho(of id: String) {
-        make { core, observer in try await core.engine.makeEcho(id: id, observer: observer) }
+        make { core, observer in try await core.engine.makeEchoOrRevisit(id: id, observer: observer) }
     }
 
     func cancel() {
@@ -401,9 +410,9 @@ final class AppModel {
         return WorkPresentation(stage: stage?.title, fraction: progressFraction, secondsLeft: secondsLeft, generating: isGenerating)
     }
 
-    /// A wallpaper the person asked for: made, then put on the desktop. Its outcome is announced even when
+    /// A wallpaper the person asked for: made or brought back, then put on the desktop. Its outcome is announced even when
     /// AutoPaper isn't the active app (it may have been asked for from the menu bar).
-    private func make(_ work: @escaping @Sendable (CoreBridge, ProgressObserver) async throws -> Generation) {
+    private func make(_ work: @escaping @Sendable (CoreBridge, ProgressObserver) async throws -> Shown) {
         guard let core, phase == .ready, !manualInFlight else { return }
         manualInFlight = true
         manualGenerating = true
@@ -414,11 +423,15 @@ final class AppModel {
         Task {
             var cancelled = false
             do {
-                let generation = try await work(core, observer)
-                try await present(generation, as: .new, evenInBackground: true)
-                Notifier.shared.clearKeyWarning()
+                let shown = try await work(core, observer)
+                try await present(shown.generation, as: shown.revisit.map(Presentation.revisit) ?? .new, evenInBackground: true)
+                if shown.revisit == nil { Notifier.shared.clearKeyWarning() }
             } catch {
                 cancelled = Self.isCancel(error)
+                if case .BudgetReached = error as? AutoPaperError {
+                    await refreshStatus()
+                    if let budgetStatus { Notifier.shared.budgetSpent(budgetStatus) }
+                }
                 report(error, evenInBackground: true)
             }
             manualInFlight = false
@@ -473,7 +486,7 @@ final class AppModel {
                     case nil:
                         Notifier.shared.newWallpaper(shown.generation)
                     case .overBudget:
-                        if let month = spend?.month { Notifier.shared.budgetSpent(month: month) }
+                        if let budgetStatus { Notifier.shared.budgetSpent(budgetStatus) }
                     default:
                         break
                     }
@@ -482,11 +495,12 @@ final class AppModel {
                 // A cancelled scheduled run fills its slot in the engine, so the next due time (re-read below)
                 // has already moved on.
                 cancelled = Self.isCancel(error)
+                if case .BudgetReached = error as? AutoPaperError { await refreshStatus() }
                 // Cancelling a scheduled one is something the person did, so it's said even from the menu bar.
                 report(error, evenInBackground: cancelled)
                 switch error as? AutoPaperError {
                 case .BudgetReached:
-                    if let month = spend?.month { Notifier.shared.budgetSpent(month: month) }
+                    if let budgetStatus { Notifier.shared.budgetSpent(budgetStatus) }
                 case .MissingKey, .InvalidKey:
                     if let problem = KeyProblem(error, selection: keySelection(for: error)) { Notifier.shared.keyProblem(SettingsProblem(key: problem)) }
                 default:
@@ -643,7 +657,8 @@ final class AppModel {
 
     /// The problem with a setting behind `error`, if it's one, worded for the providers in use.
     func settingsProblem(for error: any Error) -> SettingsProblem? {
-        SettingsProblem(error, writing: settings?.textProvider, painting: settings?.imageProvider, ownWorkflow: settings?.comfyuiWorkflow != nil)
+        if case .BudgetReached = error as? AutoPaperError, let budgetProblem { return budgetProblem }
+        return SettingsProblem(error, writing: settings?.textProvider, painting: settings?.imageProvider, ownWorkflow: settings?.comfyuiWorkflow != nil)
     }
 
     // MARK: The wallpaper showing
@@ -678,7 +693,7 @@ final class AppModel {
     }
 
     private func replaceDisliked() {
-        make { core, observer in try await core.engine.generate(trigger: .dislikeReplace, observer: observer) }
+        make { core, observer in try await core.engine.generateOrRevisit(trigger: .dislikeReplace, observer: observer) }
     }
 
     /// After a run: replaces a wallpaper disliked during it, if it's still the one showing (and still disliked).
@@ -1456,6 +1471,7 @@ final class AppModel {
         let moods: [Mood]
         let narrow: Bool
         let spend: SpendSummary
+        let budget: BudgetStatus
         let nextDue: Int64?
         let nextStart: Int64?
         let taste: TasteSummary
@@ -1474,6 +1490,7 @@ final class AppModel {
                     moods: try engine.moods(),
                     narrow: try engine.keywordsAreNarrow(),
                     spend: try engine.spendSummary(),
+                    budget: try engine.budgetStatus(),
                     nextDue: try engine.nextDue(),
                     nextStart: try engine.nextStart(),
                     taste: try engine.tasteSummary(),
@@ -1486,6 +1503,7 @@ final class AppModel {
             moods = snapshot.moods
             narrow = snapshot.narrow
             spend = snapshot.spend
+            budgetStatus = snapshot.budget
             nextDue = snapshot.nextDue.map(Self.date)
             nextStart = snapshot.nextStart.map(Self.date)
             taste = snapshot.taste
@@ -1500,15 +1518,44 @@ final class AppModel {
     /// Spend, the next due and start times and the narrow-keywords flag: after every generation and settings change.
     func refreshStatus() async {
         guard let core else { return }
-        if let (summary, due, start, isNarrow) = try? await core.call({ engine in
-            (try engine.spendSummary(), try engine.nextDue(), try engine.nextStart(), try engine.keywordsAreNarrow())
+        if let (summary, budget, due, start, isNarrow) = try? await core.call({ engine in
+            (try engine.spendSummary(), try engine.budgetStatus(), try engine.nextDue(), try engine.nextStart(), try engine.keywordsAreNarrow())
         }) {
             spend = summary
+            budgetStatus = budget
+            if !budget.blocked, notice?.link?.place == .budget { notice = nil }
             nextDue = due.map(Self.date)
             nextStart = start.map(Self.date)
             narrow = isNarrow
         }
         reschedule()
+    }
+
+    // MARK: Console
+
+    func consoleStatistics() async throws -> ConsoleStatistics? {
+        guard let core else { return nil }
+        return try await core.call { try $0.consoleStatistics() }
+    }
+
+    func runs(limit: UInt32, offset: UInt32 = 0) async throws -> [RunRecord] {
+        guard let core else { return [] }
+        return try await core.call { try $0.runs(limit: limit, offset: offset) }
+    }
+
+    func run(_ id: String) async throws -> RunRecord? {
+        guard let core else { return nil }
+        return try await core.call { try $0.run(id: id) }
+    }
+
+    func runReport(_ id: String) async throws -> String {
+        guard let core else { return "" }
+        return try await core.call { try $0.runReport(id: id) }
+    }
+
+    func clearRuns() async throws {
+        guard let core else { return }
+        try await core.write { try $0.clearRuns() }
     }
 
     private static func date(_ unix: Int64) -> Date {

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="AutoPaper.Views.ConsolePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:apcontrols="using:AutoPaper.Controls">
+    <Grid Padding="24,20,24,16" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Uid="ConsoleTitle" VerticalAlignment="Center" AutomationProperties.HeadingLevel="Level1" Style="{StaticResource TitleTextBlockStyle}" />
+            <CommandBar x:Uid="ConsoleCommands" Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
+                <AppBarButton x:Name="RefreshButton" x:Uid="ConsoleRefresh" Icon="Refresh" Click="OnRefresh" />
+                <AppBarButton x:Name="CopyButton" x:Uid="ConsoleCopy" Icon="Copy" IsEnabled="False" Click="OnCopy" />
+                <AppBarButton x:Name="ExportButton" x:Uid="ConsoleExport" Icon="Save" IsEnabled="False" Click="OnExport" />
+                <CommandBar.SecondaryCommands>
+                    <AppBarButton x:Name="ClearButton" x:Uid="ConsoleClear" Icon="Delete" Click="OnClear" />
+                </CommandBar.SecondaryCommands>
+            </CommandBar>
+        </Grid>
+        <InfoBar x:Name="StatusBar" Grid.Row="1" IsClosable="True" Closed="OnStatusClosed" Visibility="Collapsed" />
+        <ScrollViewer x:Name="ContentScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto" SizeChanged="OnEmptyLayoutSizeChanged">
+        <StackPanel Spacing="16" Padding="0,0,0,12">
+        <Grid x:Name="StatTiles" ColumnSpacing="12" RowSpacing="12" SizeChanged="OnStatTilesSizeChanged" />
+        <Expander x:Name="Overview" x:Uid="ConsoleOverview" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" SizeChanged="OnEmptyLayoutSizeChanged">
+            <Grid x:Name="Charts" ColumnSpacing="24" RowSpacing="20" SizeChanged="OnChartsSizeChanged">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition x:Name="ModelsColumn" Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <apcontrols:ActivityChart x:Name="OutcomeChart" />
+                <StackPanel x:Name="ModelChart" Grid.Column="1" Spacing="12">
+                    <TextBlock x:Uid="ConsoleModelTimings" Style="{StaticResource SubtitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level2" />
+                    <StackPanel x:Name="ModelBars" Spacing="14" />
+                </StackPanel>
+            </Grid>
+        </Expander>
+        <Grid x:Name="Split" Height="440" ColumnSpacing="20" RowSpacing="12" SizeChanged="OnSplitSizeChanged">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="RunsColumn" Width="300" />
+                <ColumnDefinition x:Name="DetailsColumn" Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition x:Name="RunsRow" Height="*" />
+                <RowDefinition x:Name="DetailsRow" Height="0" />
+            </Grid.RowDefinitions>
+            <Grid x:Name="RunsPane" RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock x:Uid="ConsoleRunsHeading" AutomationProperties.HeadingLevel="Level2" Style="{StaticResource SubtitleTextBlockStyle}" />
+                <TreeView
+                    x:Name="RunTree"
+                    x:Uid="ConsoleRunTree"
+                    Grid.Row="1"
+                    AutomationProperties.AutomationId="ConsoleRuns"
+                    CanDragItems="False"
+                    CanReorderItems="False"
+                    SelectionMode="Single"
+                    SelectionChanged="OnSelectionChanged" />
+                <Button x:Name="OlderButton" x:Uid="ConsoleOlder" Grid.Row="2" HorizontalAlignment="Left" Click="OnOlder" Visibility="Collapsed" />
+            </Grid>
+            <TextBlock x:Name="EmptyText" x:Uid="ConsoleEmpty" Grid.ColumnSpan="2" Grid.RowSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
+            <ScrollViewer x:Name="DetailsPane" Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="12" Padding="0,0,12,16">
+                    <TextBlock x:Name="SelectionTitle" x:Uid="ConsoleChooseRun" AutomationProperties.HeadingLevel="Level2" IsTextSelectionEnabled="True" Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
+                    <TextBlock x:Name="Summary" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
+                    <InfoBar x:Name="OutcomeBar" IsClosable="False" Visibility="Collapsed">
+                        <InfoBar.Content>
+                            <TextBlock x:Name="OutcomeDetail" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
+                        </InfoBar.Content>
+                    </InfoBar>
+                    <TextBlock x:Name="NoEvents" x:Uid="ConsoleNoEvents" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
+                    <StackPanel x:Name="Trace" Spacing="8" />
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+        </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

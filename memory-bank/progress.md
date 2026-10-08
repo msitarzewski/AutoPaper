@@ -1,6 +1,29 @@
 # Progress
 
-## Done
+## Current local batch (documented before reboot)
+- **Service availability:** both roles checked before paid work; both Console outcomes recorded, newest usable
+  non-disliked selected-mood image returned when unavailable, current preserved when no same-mood image remains.
+  Core 465 + CLI 6 pass, 10 existing ignored, strict clippy. Mac 108 tests / 163 cases and Linux 35 / 1 ignored
+  plus native builds/VM manual fallback pass; Windows final dual DLL/native build/86 tests/ARM64 smoke pass,
+  both real architecture smokes pass; VM suspended again, original profile/desktop untouched.
+  Windows GUI unavailable without a logged-in user.
+  Signed universal Mac **0.1.1 build 6 installed/opened**, installed/build equality verified. Mac VM stopped, Windows/Scratch restored to original suspension; original profiles/data/background preserved.
+- **Native lists/forms:** all platforms inherit native row/control/icon metrics; Mac grouped Forms fit
+  short keyword lists; Linux Console collapse/stacked panes resize correctly. All native builds pass;
+  Mac 107 tests/162 cases, Windows 83, Linux 34 (+1 existing ignored). Local Mac build 5 was installed, then superseded by build 6,
+  strict universal Developer ID signature and installed/build equality verified. Native UI feedback pending.
+- **Mac Moods cleanup:** user approved names-only list, detail name, context Use/Delete, no duplicate
+  Current/blue icon. Build 4 installed/verified, then superseded by build 5. VM editing/menus/focus verified.
+- **Console/budget and charts:** date/run/outcome/request diagnostics, exact prospective budget notice,
+  current wallpaper preserved, real outcome/day/actual-model timing charts, help in settings/website.
+  Final core 459 tests (10 existing ignored), strict clippy pass. Native builds/tests and applicable VM
+  data/export/clear checks pass. Local builds 2/3 superseded by build 5.
+- All tasks recorded in `tasks/2026-10/261007_console-budget-transparency.md`; reboot/resume details
+  in `activeContext.md#Reboot checkpoint`. Source remains uncommitted on `codex/console-runs`.
+- Windows locked visual/physical/native-file-save checks and Linux model-popup/clipboard/full screen-reader
+  checks remain open. Public release stays v0.1.0; new packaging/signing/publication deliberately deferred.
+
+## Done (public release history)
 - 2026-10-05: Plan approved (shared Rust core + native SwiftUI / WinUI 3 / GTK4 apps). Repo scaffolded: licence, ignore
   rules, secret scanning config, memory bank, core design (`systemPatterns.md`). Toolchains proven on all three platforms
   (Swift/C# UniFFI round trips; WinUI MSIX sideload; GTK4 on Scratch). Website built (AudioPaper style, red, Lighthouse 100s),
@@ -27,7 +50,7 @@
   verified; **v0.1.0 released** on all three platforms; real-key Sparkle update test passed; site shows the real Download buttons.
 
 ## Next
-- User's UI tweaks (pending). Optional: winget submission; Linux Flatpak "pick my picture" restore; full VoiceOver/Narrator/Orca
+- Batch more changes before public packaging/signing/publication, as the user requested. Windows signing is ready for that final batch. Optional: winget submission; Linux Flatpak "pick my picture" restore; full VoiceOver/Narrator/Orca
   passes; CI `cargo fmt` check after a one-off format.
 - Backlog (user go-ahead needed): "On this Mac" writer (Foundation Models), ChatGPT-plan writer, Foundry Local preset,
   Image Playground sheet; verify Nano Banana 2.1 pricing / Gemini Omni image output.

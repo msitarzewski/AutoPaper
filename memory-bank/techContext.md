@@ -1,5 +1,29 @@
 # Tech Context
 
+## Current local build and reboot facts (2026-10-07 local)
+- Mac installed Release **0.1.1 build 6** at `/Applications/AutoPaper.app`; universal x86_64/arm64,
+  Developer ID team 7JQGQ7CRH8, deep/strict verification and installed/final-build equality pass.
+  Executable SHA256 `2437884218b47dc2756a4f2395aeb8adfa2bfc0d2b5b71d8f9c1bc32840817fb`.
+- Mac test VM stopped; Windows and Scratch restored to original suspended states. Windows user profile/
+  desktop/clipboard untouched; Scratch original schema 4/current 107-image baseline/settings/background preserved,
+  temporary QA profiles/services/caffeinate removed. PIDs/IPs must be rediscovered.
+- Scratch libadwaita **1.9.1** supports native `boxed-list-separate`; use stock row/control metrics.
+  Statistics `vexpand(false)` and vertical Paned resize fix preserve the Console's native allocation.
+- Native title-focus requests on Mac must survive until NSTextField attaches to its window; mark them
+  handled only after successful `makeFirstResponder`. A one-shot dispatch before attachment loses requests.
+- Windows service-preflight QA: no logged-in user; GUI/UIA unavailable, final headless build/86 tests/ARM64
+  and x64 real smokes pass. Restored to original suspended state; user profile/desktop/clipboard untouched.
+  Older locked-session UIA coverage is historical; visual/physical input remains unverified. Linux isolated provider
+  popup may trigger keyring password prompts; do not retrieve/enter credentials to bypass QA limits.
+- Repeated Parallels suspension interrupted QA; temporary caffeinate helped finish and was terminated.
+  No host power preferences changed. Do not assume suspended VMs still have live command sessions.
+- Strict Mac trust checks may need system access outside the sandbox; a sandbox trust rejection alone
+  does not establish a bad signature. Last installed signature was verified with system trust access.
+- Working branch `codex/console-runs`, uncommitted. Persistent review patch `.scratch/autopaper-console-review.patch`;
+  session log `.scratch/session-log.jsonl`; Windows final core receipt `.scratch/windows/console-statistics-core-receipt.json`.
+- Public release remains v0.1.0. Final batch packaging/signing/publication awaits the user; existing build5
+  installation is a local development build. Full task history/resume steps are in activeContext/tasks.
+
 Versions verified 2026-10-05 (sources in `docs/research/rust-linux.md`, `docs/research/providers.md`,
 `docs/research/windows.md`).
 
@@ -237,7 +261,7 @@ the VM; nothing appears on the Mac's screen.
   on x64 aws-lc-rs needs NASM or `AWS_LC_SYS_PREBUILT_NASM=1`. The VM has clang-cl at
   `C:\BuildTools\VC\Tools\Llvm\{ARM64,x64}\bin` (not on PATH; aws-lc-sys finds it there) and no nasm (checked
   2026-10-05).
-- **VM "Windows 11"**: Windows 11 Pro **Insider evaluation build 29680, ARM64** (will expire). Installed
+- **VM "Windows 11"**: Windows 11 Pro **Insider evaluation build 29683.1000, ARM64 (updated during 0.1.1 packaging, 2026-10-07)** (will expire). Installed
   2026-10-05: .NET SDK 10.0.401 arm64, rustup (rustc 1.99.0, aarch64 + x86_64 MSVC targets) for `michael`,
   uniffi-bindgen-cs, winapp 0.7.1, WinUI templates, AxeWindowsCLI 2.4.2 (`C:\Tools\AxeWindowsCLI-2.4.2`),
   Developer Mode on. Already present: VS Build Tools 2022 17.14 (ARM64/x64 C++, Windows SDK 10.0.26100), Git 2.55.

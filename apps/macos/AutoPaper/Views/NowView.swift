@@ -153,14 +153,15 @@ struct StatusLines: View {
                 // What the app's own timer will do: before scheduled wallpapers have started (the welcome skipped,
                 // nothing made yet) the engine's due time isn't acted on, so it isn't promised.
                 Label(
-                    Formatting.nextLine(due: model.nextDue, paused: settings.paused, cadence: settings.cadence, armed: model.scheduleArmed),
-                    systemImage: settings.paused ? "pause.circle" : "clock"
+                    model.budgetProblem != nil ? "Next new wallpaper: waiting for budget"
+                        : Formatting.nextLine(due: model.nextDue, paused: settings.paused, cadence: settings.cadence, armed: model.scheduleArmed),
+                    systemImage: model.budgetProblem != nil ? "pause.circle" : settings.paused ? "pause.circle" : "clock"
                 )
             }
             if let spend = model.spend {
                 Label(Formatting.budgetLine(spentMicroUSD: spend.spentMicrousd, budgetCents: spend.budgetCents), systemImage: "dollarsign.circle")
             }
-            if let notice = model.notice {
+            if let notice = model.notice, notice.link?.place != .budget {
                 if let link = notice.link {
                     // A problem with a setting: its line and one link to the fix (spec 6a).
                     SettingsProblemLink(problem: link)

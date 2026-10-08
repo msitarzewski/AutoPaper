@@ -23,16 +23,18 @@ The same client enforces:
 |---|---|
 | Installing, first launch | **None.** Writing and painting both start on **Demo**, which works without any network |
 | Using Demo | **None** |
-| A new wallpaper is due on your schedule (checked again when your computer wakes or you unlock it) | One writing request, then one painting request, to the providers you chose (below). A scheduled wallpaper may start a little early, by its estimated time, so it's ready when due |
+| A new wallpaper is due on your schedule (checked again when your computer wakes or you unlock it) | Read-only availability checks for both selected providers, then one writing request and one painting request (below). A scheduled wallpaper may start a little early, by its estimated time, so it's ready when due |
 | **New Wallpaper Now**, **Make an Echo**, or **Dislike** with *Replace wallpapers I dislike* on | The same |
 | The **New Wallpaper** action in Siri or Shortcuts (macOS) | The same |
-| The month's budget is spent | **None** for paid providers: a wallpaper you liked comes back instead, or the current one stays |
-| Showing a past wallpaper again, rating, switching moods, editing keywords, browsing History, the memory check | **None** |
+| The next wallpaper would exceed the monthly budget | **None**: the current wallpaper stays, and a notice shows spending, the limit and the next wallpaper's estimated cost |
+| Showing a past wallpaper again, rating, switching moods, editing keywords, browsing History or Console, clearing Console, exporting a run report, the memory check | **None** |
 | Settings → Providers opens, or you change a provider, address, workflow or key; **Refresh** and **Test** | The chosen providers' model lists (below) |
 | Clicking **Get a key**, a Brew Browser button, or an install link for Ollama or ComfyUI | Opens the page in your browser, or Brew Browser itself (`brewbrowser://bundle/local-llm` or `brewbrowser://bundle/image-gen`); AutoPaper makes no request |
 | Checking for updates | On a Mac, the update feed ([below](#checking-for-updates)): about once a day if you allowed automatic checks, or when you choose **Check for Updates…**. On Windows and Linux, AutoPaper makes none: the system's own installer does it |
 
-**Per wallpaper, typically:** one writing request and one painting request. When the ideas are too close to ones you've had, AutoPaper asks again, at most twice; if a provider declines to write or paint an idea, it asks once more for a gentler one.
+**Before each new wallpaper:** both selected providers are checked independently, in parallel, using the model-list endpoints below (ComfyUI always uses `GET /object_info`). Each check is limited to 8 seconds. Demo checks locally. These checks send no prompts or images and incur no generation cost. A budget block makes no checks or other network requests. If either check fails, Console records both results and the latest usable, non-disliked saved wallpaper from the selected mood is shown; when that mood has none, the current wallpaper stays.
+
+**Per wallpaper, typically:** the availability checks, one writing request and one painting request. When the ideas are too close to ones you've had, AutoPaper asks again, at most twice; if a provider declines to write or paint an idea, it asks once more for a gentler one.
 
 ## OpenAI
 
@@ -92,6 +94,7 @@ The address you give; `http://127.0.0.1:8188` unless you change it. No key.
 | `GET /object_info` (`/object_info/{node}` with your own workflow) | Model list, **Test**: which of AutoPaper's workflows your ComfyUI has the models and nodes for | — | 30 s, 16 MB |
 
 A ComfyUI painting has no fixed time limit: it can take as long as it keeps making progress. It's given up and stopped when no progress arrives for 3 minutes after a step (or 4 times its slowest step, if that's longer), or 10 minutes while a step-less part of the job runs (loading a model, decoding the picture), or when it passes the longer of 30 minutes and 3 times AutoPaper's estimate for it. Waiting in ComfyUI's queue behind someone else's job doesn't count. The bundled workflows save each painting in ComfyUI's own `output/autopaper/` folder, as any ComfyUI job does; AutoPaper doesn't delete anything there.
+
 
 ## Checking for updates
 

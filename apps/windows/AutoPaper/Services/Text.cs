@@ -34,6 +34,7 @@ internal static class Text
 
     public static string Stage(ProgressStage stage) => stage switch
     {
+        ProgressStage.CheckingServices => Loc.Get("Stage_CheckingServices"),
         ProgressStage.Composing => Loc.Get("Stage_Composing"),
         ProgressStage.CheckingMemory => Loc.Get("Stage_CheckingMemory"),
         ProgressStage.Generating => Loc.Get("Stage_Painting"),
@@ -70,9 +71,7 @@ internal static class Text
             AutoPaperException.Unsupported e => Loc.Format(
                 Paints(e.provider) && !Writes(e.provider) ? "Error_UnsupportedConcepts" : "Error_UnsupportedImages",
                 Provider(e.provider)),
-            AutoPaperException.BudgetReached => !scheduled
-                ? Loc.Get("Error_BudgetReachedManual")
-                : settings?.Fallback == Fallback.KeepCurrent ? Loc.Get("Error_BudgetReachedKeep") : Loc.Get("Error_BudgetReached"),
+            AutoPaperException.BudgetReached => Loc.Get("Error_BudgetReachedKeep"),
             AutoPaperException.Offline => Loc.Get(scheduled ? "Error_OfflineScheduled" : "Error_Offline"),
             AutoPaperException.InvalidResponse => Loc.Get(scheduled ? "Error_InvalidResponseScheduled" : "Error_InvalidResponse"),
             AutoPaperException.PaintingFailed e => PaintingFailed(e.provider, e.model),
@@ -109,7 +108,7 @@ internal static class Text
             AutoPaperException.ProviderUnavailable { reason: ProviderUnavailableReason.NotRunning } e =>
                 Linked(Unavailable(e.provider, e.reason, settings, scheduled), SettingsLink(e.provider), Fix.Providers),
             AutoPaperException.PaintingFailed e => Linked(PaintingFailed(e.provider, e.model), SettingsLink(e.provider), Fix.Providers),
-            AutoPaperException.BudgetReached when !scheduled => new(Loc.Get("Error_BudgetReachedShort"), Loc.Get("Link_RaiseBudget"), Fix.Budget, null),
+            AutoPaperException.BudgetReached => new(Loc.Get("Error_BudgetReachedShort"), Loc.Get("Link_RaiseBudget"), Fix.Budget, null),
             // The whole line is the link: it names the keyword, and opens the mood where it's reworded, made a Maybe
             // or removed. No "try again later": asking again rarely helps.
             AutoPaperException.KeywordNotFollowed e => new("", KeywordNotFollowed(e.keyword, e.weight), Fix.Moods, null, e.moodId),
@@ -278,6 +277,7 @@ internal static class Text
 
     public static string Revisit(RevisitReason reason, Settings settings) => reason switch
     {
+        RevisitReason.ServicesUnavailable => Loc.Get("Revisit_ServicesUnavailable"),
         RevisitReason.OverBudget => Loc.Get("Revisit_OverBudget"),
         RevisitReason.Offline => Loc.Get("Revisit_Offline"),
         RevisitReason.ProviderFailed => Loc.Format("Revisit_ProviderFailed", Provider(settings.ImageProvider.Kind)),
@@ -409,6 +409,24 @@ internal static class Text
     }
 
     public static string Dollars0(uint cents) => (cents / 100m).ToString(cents % 100 == 0 ? "C0" : "C2", Dollars);
+
+    /// <summary>The Console keeps the recorded microUSD precision, including paid writing that costs under a cent.</summary>
+    public static string RunMoney(ulong microusd) => "$" + (microusd / 1_000_000m).ToString("#,0.00####", Dollars);
+
+    public static string RunRate(double? fraction) => fraction?.ToString("P0", CultureInfo.CurrentCulture) ?? "—";
+
+    public static string RunSeconds(double? seconds) => seconds is { } value
+        ? Loc.Format("Console_Seconds", value.ToString("0.######", CultureInfo.CurrentCulture)) : "—";
+
+    /// <summary>The Console's outcomes include requests stopped before any provider was contacted.</summary>
+    public static string RunOutcome(RunStatus status) => Loc.Get("ConsoleStatus_" + status);
+
+    public static string RunTrigger(Trigger trigger) => Loc.Get("ConsoleTrigger_" + trigger);
+
+    /// <summary>The precise model id is kept visible for debugging, including when a provider's friendly name differs.</summary>
+    public static string RunProvider(ProviderKind provider, string model) => string.IsNullOrEmpty(model)
+        ? Provenance.ProviderName(provider)
+        : Loc.Format("Console_ProviderModel", Provenance.ProviderName(provider), model);
 
     public static string Size(ulong bytes)
     {

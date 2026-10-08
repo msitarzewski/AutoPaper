@@ -32,13 +32,6 @@
   background-color: alpha(currentColor, 0.1);
 }
 
-/* A very narrow window (a phone's 360 px): each keyword's Must / Maybe / Avoid keeps its words with a little less
-   padding (libadwaita's is 8px a side) instead of being cut to "Ma…" and "Av…". */
-toggle-group.compact-weights > toggle.text-button {
-  padding-left: 4px;
-  padding-right: 4px;
-}
-
 /* A keyword someone tried to add again: the existing row is highlighted (with a toast saying why). */
 row.keyword-highlight {
   background-color: color-mix(in srgb, var(--accent-bg-color) 22%, transparent);
@@ -97,23 +90,6 @@ menubutton.thumb-actions > button:checked {
 @media (prefers-reduced-motion: reduce) {
   .remaking-veil.animated {
     animation: none;
-  }
-}
-
-/* A mood's name in the Moods list, in bold above its keywords. */
-row.mood-row label.title {
-  font-weight: bold;
-}
-
-/* A mood's keywords under its name tell moods apart, so they're secondary text at the app's own level (as
-   .secondary-text above: at least 4.5:1, also on the selected row), not libadwaita's 55% row subtitle. */
-row.mood-row label.subtitle {
-  opacity: 80%;
-}
-
-@media (prefers-contrast: more) {
-  row.mood-row label.subtitle {
-    opacity: var(--dim-opacity);
   }
 }
 

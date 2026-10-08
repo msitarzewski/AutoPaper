@@ -62,32 +62,6 @@ pub fn mark_invalid(row: &adw::EntryRow, invalid: bool) {
     }
 }
 
-/// An AdwEntryRow without a title still keeps room for one: its text is laid out as if a title sat above it, about
-/// 7 px below the row's centre (libadwaita's `allocate_editable_area` offsets the text by the title label's height).
-/// Hiding that empty title label (its `.subtitle` label in the `.editable-area`) centres the text. If libadwaita's
-/// layout changes and the label isn't found, nothing happens: the text is just a little low again.
-fn centre_untitled_text(row: &adw::EntryRow) {
-    let mut stack: Vec<gtk::Widget> = row.first_child().into_iter().collect();
-    while let Some(widget) = stack.pop() {
-        if widget.has_css_class("editable-area") {
-            let mut child = widget.first_child();
-            while let Some(label) = child {
-                if label.is::<gtk::Label>() && label.has_css_class("subtitle") {
-                    label.set_visible(false);
-                    return;
-                }
-                child = label.next_sibling();
-            }
-            return;
-        }
-        let mut child = widget.first_child();
-        while let Some(next) = child {
-            child = next.next_sibling();
-            stack.push(next);
-        }
-    }
-}
-
 /// Esc on `row` (while the keyboard is in it) runs `undo`, which says whether it changed anything: if it didn't, Esc goes
 /// on up (and does nothing there while the keyboard is in a text field, window.rs).
 fn add_escape(row: &adw::EntryRow, undo: impl Fn() -> bool + 'static) {
@@ -144,7 +118,7 @@ impl KeywordEditor {
             .build();
         let list = gtk::ListBox::builder()
             .selection_mode(gtk::SelectionMode::None)
-            .css_classes(["boxed-list"])
+            .css_classes(["boxed-list-separate"])
             .build();
         list.update_property(&[gtk::accessible::Property::Label("Keywords")]);
         list.append(&add_row);
@@ -276,7 +250,6 @@ impl KeywordEditor {
 
     fn make_row(self: &Rc<Self>, keyword: Keyword, index: usize, count: usize) -> Rc<KeywordRow> {
         let row = adw::EntryRow::builder().text(&keyword.text).show_apply_button(true).build();
-        centre_untitled_text(&row);
         let handle = gtk::Image::builder()
             .icon_name("list-drag-handle-symbolic")
             .tooltip_text("Drag to reorder")
@@ -285,7 +258,7 @@ impl KeywordEditor {
         handle.update_property(&[gtk::accessible::Property::Label("Drag to reorder")]);
         row.add_prefix(&handle);
 
-        let toggles = adw::ToggleGroup::builder().valign(gtk::Align::Center).build();
+        let toggles = adw::ToggleGroup::builder().valign(gtk::Align::Center).can_shrink(false).build();
         for (_, name, label) in WEIGHTS {
             toggles.add(adw::Toggle::builder().name(name).label(label).build());
         }
@@ -642,14 +615,9 @@ impl KeywordEditor {
 }
 
 impl KeywordRow {
-    /// Very narrow windows: no drag handle, and the weight toggles a little tighter (style.css) so their words fit.
+    /// Very narrow windows: no drag handle; the menu and keyboard still reorder rows.
     fn set_compact(&self, compact: bool) {
         self.handle.set_visible(!compact);
-        if compact {
-            self.toggles.add_css_class("compact-weights");
-        } else {
-            self.toggles.remove_css_class("compact-weights");
-        }
     }
 
     /// "rain, Must" for the row and its text field; the toggle group and menu name their keyword.

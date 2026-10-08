@@ -1,7 +1,7 @@
 //! The main window (docs/app-spec.md, "Main window"): an AdwNavigationSplitView, GNOME's sidebar layout.
 //!
 //! The sidebar is a navigation list: Now; Moods (the summary of every mood, "Your moods") with each mood under it, in
-//! the person's order, the current one checked; and History. Its header bar has New mood (+, Ctrl+N) and the primary
+//! the person's order, the current one checked; History; and Console. Its header bar has New mood (+, Ctrl+N) and the primary
 //! menu. The content shows the page chosen, each with its own header bar: Now and a mood have the reload/stop button
 //! (`MakeOrStop`: New wallpaper now while idle, Stop while one is being made, like a browser's); a mood's header has its
 //! name in the title's place (renamable in place) and Use this mood or "Current mood"; History has Grid | Gallery;
@@ -10,7 +10,7 @@
 //!
 //! Keyboard: Ctrl+R or F5 is the reload button of the page shown (on another mood's page it makes that mood current
 //! first; elsewhere it's New wallpaper now); Esc stops the wallpaper being made, unless the keyboard is in a text field
-//! (there Esc is the field's: it puts the text back); Ctrl+N is New mood; Alt+1, 2, 3 go to Now, Moods and History.
+//! (there Esc is the field's: it puts the text back); Ctrl+N is New mood; Alt+1, 2, 3, 4 go to Now, Moods, History and Console.
 //!
 //! Before the engine opens the window shows a spinner; on first run, the welcome (an AdwStatusPage) instead.
 
@@ -21,6 +21,7 @@ use adw::prelude::*;
 use gtk::{gio, glib};
 
 use crate::app::{App, Event};
+use crate::console::ConsolePage;
 use crate::desktop::{self, APP_ID};
 use crate::history::HistoryPage;
 use crate::moods::MoodsPage;
@@ -45,6 +46,7 @@ pub enum Destination {
     Moods,
     Mood(String),
     History,
+    Console,
 }
 
 impl Destination {
@@ -54,6 +56,7 @@ impl Destination {
             Destination::Moods => "moods",
             Destination::Mood(_) => "mood",
             Destination::History => "history",
+            Destination::Console => "console",
         }
     }
 }
@@ -67,6 +70,7 @@ pub struct MainWindow {
     now_row: gtk::ListBoxRow,
     moods_row: gtk::ListBoxRow,
     history_row: gtk::ListBoxRow,
+    console_row: gtk::ListBoxRow,
     content_page: adw::NavigationPage,
     content: gtk::Stack,
     toasts: adw::ToastOverlay,
@@ -76,6 +80,9 @@ pub struct MainWindow {
     /// Owned here: its handlers hold it weakly.
     _summary: Rc<SummaryPage>,
     history: Rc<HistoryPage>,
+    _console: Rc<ConsolePage>,
+    budget_notice: gtk::Box,
+    budget_text: gtk::Label,
     destination: RefCell<Destination>,
     /// The sidebar's selection is being changed by the window itself (not the person choosing a row).
     selecting: Cell<bool>,
@@ -104,8 +111,9 @@ impl MainWindow {
         let now = NowPage::new(app);
         let summary = SummaryPage::new(app);
         let history = HistoryPage::new(app);
+        let console = ConsolePage::new(app);
 
-        // The sidebar: Now, Moods (with each mood under it: MoodsPage puts them there), History.
+        // The sidebar: Now, Moods (with each mood under it: MoodsPage puts them there), History, Console.
         let sidebar = gtk::ListBox::builder()
             .selection_mode(gtk::SelectionMode::Single)
             .activate_on_single_click(false)
@@ -117,9 +125,11 @@ impl MainWindow {
         let now_row = nav_row("preferences-desktop-wallpaper-symbolic", "Now");
         let moods_row = nav_row("view-list-bullet-symbolic", "Moods");
         let history_row = nav_row("document-open-recent-symbolic", "History");
+        let console_row = nav_row("utilities-terminal-symbolic", "Console");
         sidebar.append(&now_row);
         sidebar.append(&moods_row);
         sidebar.append(&history_row);
+        sidebar.append(&console_row);
         let moods = MoodsPage::new(app, &sidebar, 2, &toasts);
 
         let new_mood = gtk::Button::builder()
@@ -148,6 +158,7 @@ impl MainWindow {
         content.add_named(summary.widget(), Some("moods"));
         content.add_named(moods.detail_widget(), Some("mood"));
         content.add_named(history.widget(), Some("history"));
+        content.add_named(console.widget(), Some("console"));
         let content_page = adw::NavigationPage::builder().title("Now").tag("content").child(&content).build();
 
         let split = adw::NavigationSplitView::builder()
@@ -157,7 +168,34 @@ impl MainWindow {
             .max_sidebar_width(280.0)
             .sidebar_width_fraction(0.26)
             .build();
-        toasts.set_child(Some(&split));
+        // Budget blocking stays visible on every page, including after restarting the app. It has its own state so
+        // another error or a successful manual revisit cannot hide why new wallpapers have stopped.
+        let budget_text = gtk::Label::builder().xalign(0.0).wrap(true).selectable(true).hexpand(true).build();
+        let budget_settings = gtk::Button::builder().label("Change budget").valign(gtk::Align::Center).build();
+        budget_settings.update_property(&[gtk::accessible::Property::Description("Opens Preferences on the Budget page")]);
+        let weak = Rc::downgrade(app);
+        budget_settings.connect_clicked(move |_| {
+            if let Some(app) = weak.upgrade() {
+                app.open_fix(preferences::Fix::Budget);
+            }
+        });
+        let budget_notice = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(8)
+            .margin_start(12)
+            .margin_end(12)
+            .margin_top(12)
+            .margin_bottom(12)
+            .visible(false)
+            .build();
+        budget_notice.append(&budget_text);
+        budget_notice.append(&budget_settings);
+        budget_settings.set_halign(gtk::Align::Start);
+        let main = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
+        main.append(&budget_notice);
+        main.append(&split);
+        split.set_vexpand(true);
+        toasts.set_child(Some(&main));
 
         // Narrow windows: History's gallery puts the details under the picture; narrower, the split view collapses
         // (the sidebar, then a page pushed over it); a phone's width also drops the keywords' drag handles, so each
@@ -194,6 +232,7 @@ impl MainWindow {
             now_row,
             moods_row,
             history_row,
+            console_row,
             content_page,
             content,
             toasts,
@@ -202,6 +241,9 @@ impl MainWindow {
             moods,
             _summary: summary,
             history,
+            _console: console,
+            budget_notice,
+            budget_text,
             destination: RefCell::new(Destination::Now),
             selecting: Cell::new(false),
             welcome: RefCell::new(None),
@@ -230,6 +272,9 @@ impl MainWindow {
             let Some(this) = weak.upgrade() else { return false };
             if matches!(event, Event::Ready | Event::Settings) {
                 this.update_mode();
+            }
+            if matches!(event, Event::Ready | Event::Settings | Event::Status) {
+                this.update_budget_notice();
             }
             // The moods page has rebuilt its rows by now (it subscribed first): the selection follows the page shown.
             if matches!(event, Event::Ready | Event::Moods) {
@@ -271,6 +316,24 @@ impl MainWindow {
         self.go(Destination::History, true);
     }
 
+    pub fn show_console(&self) {
+        self.go(Destination::Console, true);
+    }
+
+    fn update_budget_notice(&self) {
+        let Some(app) = self.app.upgrade() else { return };
+        let state = app.state();
+        let budget = state.budget.as_ref().filter(|budget| budget.blocked);
+        if let Some(budget) = budget {
+            let changed = self.budget_text.label().as_str() != budget.message || !self.budget_notice.is_visible();
+            self.budget_text.set_label(&budget.message);
+            if changed && self.window.is_active() {
+                self.window.announce(&budget.message, gtk::AccessibleAnnouncementPriority::Medium);
+            }
+        }
+        self.budget_notice.set_visible(budget.is_some());
+    }
+
     /// History, filtered to the wallpapers made in one mood (a mood's "Show in History").
     pub fn show_mood_history(&self, mood_id: &str) {
         self.history.show_mood(Some(mood_id.to_string()));
@@ -292,6 +355,7 @@ impl MainWindow {
             Destination::Now => Some(self.now_row.clone()),
             Destination::Moods => Some(self.moods_row.clone()),
             Destination::History => Some(self.history_row.clone()),
+            Destination::Console => Some(self.console_row.clone()),
             Destination::Mood(id) => self.moods.row_for_mood(id),
         };
         if row.as_ref() != self.sidebar.selected_row().as_ref() {
@@ -319,6 +383,7 @@ impl MainWindow {
             Destination::Now => "Now".to_string(),
             Destination::Moods => "Moods".to_string(),
             Destination::History => "History".to_string(),
+            Destination::Console => "Console".to_string(),
             Destination::Mood(id) => {
                 let name = app.state().moods.iter().find(|mood| mood.id == *id).map(|mood| mood.name.clone());
                 self.moods.show_mood(id);
@@ -396,6 +461,8 @@ impl MainWindow {
             Some(Destination::Moods)
         } else if *row == self.history_row {
             Some(Destination::History)
+        } else if *row == self.console_row {
+            Some(Destination::Console)
         } else {
             self.moods.mood_of_row(row).map(Destination::Mood)
         }
@@ -416,6 +483,7 @@ impl MainWindow {
             this.sidebar.set_activate_on_single_click(collapsed);
             this.moods.set_compact(compact);
             this.history.set_stacked(stacked);
+            this._console.set_stacked(stacked);
         });
     }
 
@@ -621,6 +689,7 @@ impl MainWindow {
                 match name.as_str() {
                     "moods" => this.show_moods(),
                     "history" => this.show_history(),
+                    "console" => this.show_console(),
                     _ => this.show_now(),
                 }
             }
@@ -679,9 +748,7 @@ fn is_text_field(widget: &gtk::Widget) -> bool {
 
 /// A sidebar row: an icon and its name. The row speaks its name (the icon is decoration).
 fn nav_row(icon: &str, title: &str) -> gtk::ListBoxRow {
-    let content = gtk::Box::builder().spacing(12).build();
-    content.append(&crate::history::decorative_icon(icon));
-    content.append(&gtk::Label::builder().label(title).xalign(0.0).hexpand(true).build());
+    let content = adw::ButtonContent::builder().icon_name(icon).label(title).halign(gtk::Align::Start).build();
     let row = gtk::ListBoxRow::builder().child(&content).build();
     row.update_property(&[gtk::accessible::Property::Label(title)]);
     row
@@ -914,7 +981,7 @@ pub fn show_shortcuts(app: &Rc<App>) {
     }
     dialog.add(general);
     let views = adw::ShortcutsSection::new(Some("Going places"));
-    for (title, accelerator) in [("Now", "<Alt>1"), ("Moods", "<Alt>2"), ("History", "<Alt>3")] {
+    for (title, accelerator) in [("Now", "<Alt>1"), ("Moods", "<Alt>2"), ("History", "<Alt>3"), ("Console", "<Alt>4")] {
         views.add(adw::ShortcutsItem::new(title, accelerator));
     }
     dialog.add(views);

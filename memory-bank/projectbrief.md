@@ -4,6 +4,10 @@
 Distribution: macOS notarized DMG + Sparkle; Windows signed MSIX via App Installer (Azure Artifact Signing; winget pending); Linux own
 signed Flatpak repository (no Flathub). Updates are served from the author's server msitarzewski.com and GitHub Pages/Releases.
 
+**Local follow-ups (2026-10-07):** Console/budget transparency, real run/model charts, Mac Moods cleanup,
+native list/form defaults, and service availability with selected-mood fallback implemented; Mac 0.1.1 build 6 installed. Public release stays
+v0.1.0 until the user requests a substantial batch. See `activeContext.md#Reboot checkpoint` and October tasks.
+
 A native desktop app for macOS, Windows and Linux that keeps making new wallpapers you're unlikely to
 ever see twice. You give it a few keywords ("rain • ruins • peaceful • night • blue") instead of an
 image prompt; it composes a coherent scene, generates it with the AI provider you choose (your own API

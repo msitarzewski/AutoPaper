@@ -45,8 +45,8 @@ use uuid::Uuid;
 
 use crate::error::{AutoPaperError, InvalidInputReason, Result};
 use crate::model::{
-    Concept, DayCount, Generation, GenerationStatus, HistoryFilter, Keyword, KeywordSnapshot, KeywordWeight, Mood,
-    MoodStats, ProviderJob, ProviderKind, Rating, Settings, Trigger,
+    Concept, ConsoleDay, ConsoleModel, ConsoleOutcome, ConsoleStatistics, DayCount, Generation, GenerationStatus, HistoryFilter, Keyword, KeywordSnapshot, KeywordWeight, Mood,
+    MoodStats, ProviderJob, ProviderKind, Rating, RunRecord, RunStatus, Settings, Trigger,
 };
 use crate::perf::Timing;
 use crate::taste::TasteRow;
@@ -97,6 +97,9 @@ const MIGRATIONS: &[Migration] = &[
     Migration { sql: MIGRATION_2, data: None },
     Migration { sql: MIGRATION_3, data: Some(first_mood) },
     Migration { sql: MIGRATION_4, data: None },
+    Migration { sql: MIGRATION_5, data: None },
+    Migration { sql: MIGRATION_6, data: None },
+    Migration { sql: MIGRATION_7, data: None },
 ];
 
 /// One schema step: SQL, then (in the same transaction) an optional data step for what SQL can't say well.
@@ -237,6 +240,28 @@ CREATE TABLE timings (
     finished_at INTEGER NOT NULL
 ) STRICT;
 CREATE INDEX timings_by_key ON timings (job, provider, origin, model, finished_at);
+"#;
+
+/// Local Console. Separate from generation memory: blocked/cancelled runs have no wallpaper.
+const MIGRATION_5: &str = r#"
+CREATE TABLE runs (
+    id          TEXT PRIMARY KEY NOT NULL,
+    started_at  INTEGER NOT NULL,
+    status      TEXT NOT NULL,
+    record      TEXT NOT NULL
+) STRICT;
+CREATE INDEX runs_by_time ON runs (started_at);
+"#;
+
+/// Link future provider timings exactly to Console runs; old timing samples remain useful for estimates.
+const MIGRATION_6: &str = r#"
+ALTER TABLE timings ADD COLUMN run_id TEXT;
+CREATE INDEX timings_by_run ON timings (run_id);
+"#;
+
+/// Keep estimate lookup keys while reporting the model that actually answered in Console.
+const MIGRATION_7: &str = r#"
+ALTER TABLE timings ADD COLUMN answered_model TEXT;
 "#;
 
 /// The columns `generation_from_row` reads (`mood_name` is the mood's name now, `NULL` once it's deleted).
@@ -659,6 +684,109 @@ impl Store {
     /// Inserts or replaces the value for `key`.
     pub fn state_set(&mut self, key: &str, value: &serde_json::Value) -> Result<()> {
         set_state(&self.conn, key, value)
+    }
+
+    // ── Console ────────────────────────────────────────────────────────────────────────────
+
+    pub fn save_run(&mut self, run: &RunRecord) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO runs (id, started_at, status, record) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(id) DO UPDATE SET status = excluded.status, record = excluded.record",
+            params![run.id, run.started_at, to_json(&run.status)?, to_json(run)?],
+        )?;
+        Ok(())
+    }
+
+    pub fn runs(&self, limit: u32, offset: u32) -> Result<Vec<RunRecord>> {
+        let mut statement = self.conn.prepare_cached(
+            "SELECT json_set(record, '$.events', json('[]')) FROM runs ORDER BY started_at DESC, rowid DESC LIMIT ?1 OFFSET ?2",
+        )?;
+        let jsons = statement.query_map(params![limit.min(100), offset], |row| row.get::<_, String>(0))?;
+        jsons.map(|json| {
+            serde_json::from_str(&json?).map_err(|error| storage(format!("Console record: {error}")))
+        }).collect()
+    }
+
+    pub fn run(&self, id: &str) -> Result<Option<RunRecord>> {
+        let json: Option<String> = self.conn.query_row(
+            "SELECT record FROM runs WHERE id = ?1", [id], |row| row.get(0),
+        ).optional()?;
+        json.map(|json| serde_json::from_str(&json).map_err(|error| storage(format!("Console record: {error}")))).transpose()
+    }
+
+    pub fn clear_runs(&mut self) -> Result<()> {
+        self.conn.execute("DELETE FROM runs", [])?;
+        Ok(())
+    }
+
+    pub fn console_statistics(&self) -> Result<ConsoleStatistics> {
+        const STATUSES: [RunStatus; 6] = [RunStatus::Succeeded, RunStatus::Failed, RunStatus::Blocked,
+            RunStatus::Cancelled, RunStatus::Interrupted, RunStatus::Running];
+        let mut statement = self.conn.prepare_cached(
+            "SELECT json_set(record, '$.events', json('[]')) FROM runs ORDER BY started_at, rowid",
+        )?;
+        let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
+        let mut counts = [0_u64; 6];
+        let mut days = BTreeMap::<i64, [u64; 6]>::new();
+        let mut total_secs = 0.0;
+        let mut duration_samples = 0_u64;
+        for json in rows {
+            let run: RunRecord = serde_json::from_str(&json?)
+                .map_err(|error| storage(format!("Console record: {error}")))?;
+            let index = STATUSES.iter().position(|status| *status == run.status).expect("all run statuses");
+            counts[index] += 1;
+            let day = run.started_at.div_euclid(86_400).saturating_mul(86_400);
+            days.entry(day).or_default()[index] += 1;
+            if matches!(run.status, RunStatus::Succeeded | RunStatus::Failed)
+                && let Some(finished) = run.finished_at.filter(|finished| *finished >= run.started_at)
+            {
+                total_secs += finished.saturating_sub(run.started_at) as f64;
+                duration_samples += 1;
+            }
+        }
+        let mut statement = self.conn.prepare_cached(
+            "SELECT t.provider, t.job, COALESCE(t.answered_model, t.model), COUNT(*), AVG(t.seconds) FROM timings t
+             JOIN runs r ON r.id = t.run_id WHERE t.seconds >= 0 AND t.seconds < 1e308
+             GROUP BY t.provider, t.job, COALESCE(t.answered_model, t.model)
+             ORDER BY AVG(t.seconds) DESC, t.provider, t.job, COALESCE(t.answered_model, t.model)",
+        )?;
+        let models = statement.query_map([], |row| Ok(ConsoleModel {
+            provider: row.get(0)?, job: row.get(1)?, model: row.get(2)?, calls: u64::from(row.get::<_, u32>(3)?), average_secs: row.get(4)?,
+        }))?.collect::<rusqlite::Result<Vec<_>>>()?;
+        let completed = counts[0] + counts[1];
+        Ok(ConsoleStatistics {
+            total: counts.iter().sum(),
+            outcomes: STATUSES.iter().zip(counts).map(|(status, count)| ConsoleOutcome { status: *status, count }).collect(),
+            days: days.into_iter().flat_map(|(day_start, counts)| STATUSES.iter().zip(counts)
+                .filter(|(_, count)| *count > 0).map(move |(status, count)| ConsoleDay { day_start, status: *status, count })).collect(),
+            models: models.into_iter().filter(|model| model.average_secs.is_finite()).collect(),
+            average_run_secs: (duration_samples > 0).then(|| total_secs / duration_samples as f64),
+            success_rate: (completed > 0).then(|| counts[0] as f64 / completed as f64),
+        })
+    }
+
+    /// 30 days and at most 200 runs. In-progress records survive pruning.
+    pub fn prune_runs(&mut self, now: i64) -> Result<()> {
+        self.conn.execute(
+            "DELETE FROM runs WHERE status <> '\"running\"' AND
+             (started_at < ?1 OR id NOT IN (SELECT id FROM runs ORDER BY started_at DESC, rowid DESC LIMIT 200))",
+            [now.saturating_sub(30 * 86_400)],
+        )?;
+        Ok(())
+    }
+
+    /// Recover records left by a previous engine session; never claim an unfinished request succeeded.
+    pub fn interrupt_runs(&mut self, now: i64) -> Result<()> {
+        let jsons: Vec<String> = self.conn.prepare("SELECT record FROM runs WHERE status = '\"running\"'")?
+            .query_map([], |row| row.get(0))?.collect::<rusqlite::Result<_>>()?;
+        for json in jsons {
+            let mut run: RunRecord = serde_json::from_str(&json).map_err(|error| storage(format!("Console record: {error}")))?;
+            run.status = RunStatus::Interrupted;
+            run.finished_at = Some(now);
+            run.detail = "AutoPaper closed before this run finished. Its final provider outcome and cost may be unknown.".into();
+            self.save_run(&run)?;
+        }
+        Ok(())
     }
 
     // ── Generations (memory) ────────────────────────────────────────────────────────────────
@@ -1123,10 +1251,14 @@ impl Store {
     /// Records one finished provider call, keeping the newest `TIMINGS_KEPT` of its kind (same job, provider,
     /// origin and model).
     pub fn add_timing(&mut self, timing: &Timing) -> Result<()> {
+        self.add_timing_for_run(timing, None, None)
+    }
+
+    pub fn add_timing_for_run(&mut self, timing: &Timing, run_id: Option<&str>, answered_model: Option<&str>) -> Result<()> {
         let tx = self.write()?;
         tx.execute(
-            "INSERT INTO timings (job, provider, origin, model, width, height, steps, seconds, finished_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            "INSERT INTO timings (job, provider, origin, model, width, height, steps, seconds, finished_at, run_id, answered_model)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 timing.job,
                 timing.provider,
@@ -1136,7 +1268,9 @@ impl Store {
                 timing.height,
                 timing.steps,
                 timing.seconds,
-                timing.finished_at
+                timing.finished_at,
+                run_id,
+                answered_model
             ],
         )?;
         tx.execute(
@@ -3228,6 +3362,76 @@ mod tests {
              ORDER BY finished_at DESC, id DESC LIMIT ?1 OFFSET ?2",
         );
         assert!(timings.contains("timings_by_key"), "{timings}");
+    }
+
+    fn console_run(id: &str, status: RunStatus, at: i64, finished_at: Option<i64>) -> RunRecord {
+        RunRecord { id: id.into(), started_at: at, finished_at, trigger: Trigger::Manual, status,
+            mood_name: "Coast".into(), keywords: Vec::new(), surprise: 0.35,
+            text_provider: ProviderKind::Demo, text_model: "demo".into(),
+            image_provider: ProviderKind::ComfyUi, image_model: "z".into(),
+            generation_id: None, detail: String::new(), cost_microusd: 0, events: Vec::new() }
+    }
+
+    #[test]
+    fn console_statistics_separate_outcomes_and_only_average_completed_attempts() {
+        let mut store = store();
+        assert_eq!(store.console_statistics().expect("empty").total, 0);
+        assert!(store.console_statistics().expect("empty").success_rate.is_none());
+        for run in [
+            console_run("s1", RunStatus::Succeeded, T0, Some(T0 + 10)),
+            console_run("s2", RunStatus::Succeeded, T0 + DAY, Some(T0 + DAY + 20)),
+            console_run("f", RunStatus::Failed, T0 + DAY + 50, Some(T0 + DAY + 80)),
+            console_run("b", RunStatus::Blocked, T0, Some(T0)),
+            console_run("c", RunStatus::Cancelled, T0, Some(T0 + 500)),
+            console_run("i", RunStatus::Interrupted, T0, Some(T0 + 1000)),
+            console_run("r", RunStatus::Running, T0, None),
+        ] { store.save_run(&run).expect("save"); }
+        let stats = store.console_statistics().expect("stats");
+        assert_eq!(stats.total, 7);
+        assert_eq!(stats.success_rate, Some(2.0 / 3.0));
+        assert_eq!(stats.average_run_secs, Some(20.0));
+        assert_eq!(stats.outcomes.iter().find(|o| o.status == RunStatus::Failed).unwrap().count, 1);
+        assert_eq!(stats.outcomes.iter().find(|o| o.status == RunStatus::Blocked).unwrap().count, 1);
+        assert!(stats.days.iter().all(|day| day.day_start % DAY == 0));
+        assert_eq!(stats.days.iter().map(|day| day.count).sum::<u64>(), 7);
+    }
+
+    #[test]
+    fn console_model_statistics_use_exact_run_links_and_clear_preserves_estimates() {
+        let mut store = store();
+        store.save_run(&console_run("s", RunStatus::Succeeded, T0, Some(T0 + 10))).expect("run");
+        store.add_timing(&timing("z", 999.0, T0)).expect("unlinked legacy timing");
+        store.add_timing_for_run(&timing("z", 1000.0, T0), Some("already cleared"), Some("z-actual")).expect("orphan timing");
+        store.add_timing_for_run(&timing("z", 10.0, T0), Some("s"), Some("z-actual")).expect("image");
+        store.add_timing_for_run(&timing("z", 30.0, T0), Some("s"), Some("z-actual")).expect("second image");
+        store.add_timing_for_run(&Timing { job: ProviderJob::Concepts, provider: ProviderKind::Demo,
+            origin: String::new(), width: 0, height: 0, steps: None, ..timing("z", 2.5, T0) }, Some("s"), Some("z-actual")).expect("writer with same model name");
+        let stats = store.console_statistics().expect("stats");
+        assert_eq!(stats.models.len(), 2);
+        let image = stats.models.iter().find(|model| model.job == ProviderJob::Images).unwrap();
+        assert_eq!(image.calls, 2);
+        assert_eq!(image.average_secs, 20.0);
+        assert_eq!(image.provider, ProviderKind::ComfyUi);
+        assert_eq!(image.model, "z-actual", "Console groups by the actual response model, estimates keep the request key");
+        assert_eq!(stats.models.iter().find(|model| model.job == ProviderJob::Concepts).unwrap().average_secs, 2.5);
+        store.clear_runs().expect("clear");
+        let empty = store.console_statistics().expect("empty");
+        assert_eq!(empty.total, 0);
+        assert!(empty.models.is_empty());
+        assert_eq!(store.timings(ProviderJob::Images, ProviderKind::ComfyUi, "http://127.0.0.1:8188", "z").expect("performance history").len(), 4);
+    }
+
+    #[test]
+    fn version_five_upgrade_keeps_legacy_timing_samples_without_inventing_run_links() {
+        let mut conn = Connection::open_in_memory().expect("db");
+        migrate(&mut conn, &MIGRATIONS[..5]).expect("existing installed version five");
+        conn.execute("INSERT INTO timings(job, provider, origin, model, width, height, steps, seconds, finished_at) VALUES ('images', 'comfy_ui', '', 'z', 2048, 1152, 8, 12, ?1)", [T0]).expect("legacy sample");
+        migrate(&mut conn, MIGRATIONS).expect("upgrade");
+        let linked: Option<String> = conn.query_row("SELECT run_id FROM timings", [], |row| row.get(0)).expect("legacy link");
+        assert!(linked.is_none());
+        let answered: Option<String> = conn.query_row("SELECT answered_model FROM timings", [], |row| row.get(0)).expect("legacy actual model");
+        assert!(answered.is_none());
+        assert_eq!(conn.query_row::<f64, _, _>("SELECT seconds FROM timings", [], |row| row.get(0)).unwrap(), 12.0);
     }
 
     // ── Timings ─────────────────────────────────────────────────────────────────────────────

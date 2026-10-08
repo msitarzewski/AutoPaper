@@ -32,7 +32,7 @@ struct GeneralSettings: View {
                     Text(Fallback.keepCurrent.title).tag(Fallback.keepCurrent)
                 } label: {
                     Text("When a new one can't be made")
-                    Text("For example when you're offline, a provider is down, or this month's budget is spent.")
+                    Text("When you're offline or a provider is down. Budget limits always keep your current wallpaper.")
                 }
                 .pickerStyle(.radioGroup)
                 .accessibilityLabel("When a new one can't be made")

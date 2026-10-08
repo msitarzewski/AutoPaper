@@ -119,6 +119,24 @@ internal sealed partial class AppModel : ObservableObject
     /// <summary>"$1.20 of $5.00 this month (estimated)".</summary>
     public string BudgetText { get; private set => SetProperty(ref field, value); } = "";
 
+    /// <summary>The current month's budget gate, refreshed at launch, after settings changes and every run. The
+    /// window keeps its notice visible across pages while the estimated next run would exceed the limit.</summary>
+    public BudgetStatus? BudgetStatus
+    {
+        get;
+        private set
+        {
+            if (SetProperty(ref field, value))
+            {
+                OnPropertyChanged(nameof(BudgetBlocked));
+                OnPropertyChanged(nameof(BudgetNotice));
+            }
+        }
+    }
+
+    public bool BudgetBlocked => BudgetStatus?.Blocked == true;
+    public string BudgetNotice => BudgetBlocked ? BudgetStatus!.Message : "";
+
     /// <summary>The last thing that went wrong (cleared by the next success): a sentence and, when the person can fix
     /// it, a link to where (docs/app-spec.md 6a).</summary>
     public Problem? Problem
@@ -449,19 +467,12 @@ internal sealed partial class AppModel : ObservableObject
             var shown = await Task.Run(() => Engine.RunIfDue(observer));
             if (shown is not null)
             {
-                // A new one can still be kept off the desktop by Cancel; a liked one brought back is just shown.
+                // A new one can still be kept off the desktop by Cancel; a saved one brought back is just shown.
                 await PutOnDesktopAsync(shown.Generation, markShown: true, setLockScreen: true, cancellable: shown.Revisit is null);
                 Problem = null;
                 if (shown.Revisit is { } reason)
                 {
-                    // Closed first, so the Now page's InfoBar opens again (and says so) even when it's the same reason.
-                    NoticeText = null;
-                    NoticeText = Text.Revisit(reason, Settings);
-                    Announce(NoticeText, AnnouncementKind.NowNotice);
-                    if (reason == RevisitReason.OverBudget)
-                    {
-                        await NotifyBudgetOnceAsync();
-                    }
+                    await ShowRevisitAsync(reason);
                 }
                 else
                 {
@@ -512,11 +523,12 @@ internal sealed partial class AppModel : ObservableObject
 
     private async Task NotifyBudgetOnceAsync()
     {
-        var month = (await Call(e => e.SpendSummary())).Month;
-        if (Preferences.BudgetNotifiedMonth != month)
+        var budget = await Call(e => e.BudgetStatus());
+        BudgetStatus = budget;
+        if (budget.Blocked && Preferences.BudgetNotifiedMonth != budget.Month)
         {
-            Preferences.BudgetNotifiedMonth = month;
-            Notifications.BudgetSpent(Settings.Fallback);
+            Preferences.BudgetNotifiedMonth = budget.Month;
+            Notifications.BudgetSpent(budget.Message);
         }
     }
 
@@ -524,7 +536,7 @@ internal sealed partial class AppModel : ObservableObject
 
     /// <summary>New Wallpaper Now (and a disliked one's replacement): generate, then put it on every display.</summary>
     public Task<string?> NewWallpaperAsync(Trigger trigger = Trigger.Manual) =>
-        MakeAsync(() => Engine.Generate(trigger, observer));
+        MakeAsync(() => Engine.GenerateOrRevisit(trigger, observer));
 
     /// <summary>A mood's New wallpaper now (its detail's reload, Ctrl+R there; the macOS app's newWallpaper(from:)):
     /// a mood that isn't the one in use is made current first, then a new wallpaper is made from it. If the switch
@@ -551,11 +563,11 @@ internal sealed partial class AppModel : ObservableObject
     }
 
     /// <summary>History's Make an Echo.</summary>
-    public Task<string?> MakeEchoAsync(string id) => MakeAsync(() => Engine.MakeEcho(id, observer));
+    public Task<string?> MakeEchoAsync(string id) => MakeAsync(() => Engine.MakeEchoOrRevisit(id, observer));
 
     /// <summary>Makes one and shows it. Returns the sentence said about how it ended (the new wallpaper, cancelled, or
     /// the problem), for a page to show too; null when it didn't start (another one is under way).</summary>
-    private async Task<string?> MakeAsync(Func<Task<Generation>> make)
+    private async Task<string?> MakeAsync(Func<Task<Shown>> make)
     {
         if (!IsReady || IsGenerating)
         {
@@ -567,15 +579,17 @@ internal sealed partial class AppModel : ObservableObject
         stoppable = true;
         IsGenerating = true;
         ShowProgress(null, null);
-        StageText = Text.Stage(ProgressStage.Composing);
+        StageText = Text.Stage(ProgressStage.CheckingServices);
         Problem = null;
         NoticeText = null;
         Announce(StageText);
         try
         {
-            var made = await Task.Run(make);
-            await PutOnDesktopAsync(made, markShown: true, setLockScreen: true, cancellable: true);
-            outcome = NewWallpaperMade(made, scheduled: false);
+            var shown = await Task.Run(make);
+            await PutOnDesktopAsync(shown.Generation, markShown: true, setLockScreen: true, cancellable: shown.Revisit is null);
+            outcome = shown.Revisit is { } reason
+                ? await ShowRevisitAsync(reason)
+                : NewWallpaperMade(shown.Generation, scheduled: false);
         }
         catch (MadeButNotShownException)
         {
@@ -597,6 +611,10 @@ internal sealed partial class AppModel : ObservableObject
         {
             ShowProblem(error, scheduled: false);
             outcome = Problem?.Spoken;
+            if (error is AutoPaperException.BudgetReached)
+            {
+                await NotifyBudgetOnceAsync();
+            }
         }
         finally
         {
@@ -758,6 +776,22 @@ internal sealed partial class AppModel : ObservableObject
         var said = Loc.Get("Status_CancelledKept");
         Announce(said);
         return said;
+    }
+
+    /// <summary>A saved wallpaper returned by the core, with its reason; never announced as a new image.</summary>
+    private async Task<string> ShowRevisitAsync(RevisitReason reason)
+    {
+        // Reopen Now's InfoBar even when a consecutive run has the same reason.
+        NoticeText = null;
+        var message = Text.Revisit(reason, Settings);
+        NoticeText = message;
+        Announce(message, AnnouncementKind.NowNotice);
+        HistoryChanged?.Invoke(this, EventArgs.Empty);
+        if (reason == RevisitReason.OverBudget)
+        {
+            await NotifyBudgetOnceAsync();
+        }
+        return message;
     }
 
     /// <summary>History, the announcement and (when the window isn't in front) a notification. Returns what was said.</summary>
@@ -1155,10 +1189,16 @@ internal sealed partial class AppModel : ObservableObject
         }
         try
         {
-            var (due, spend, narrow) = await Call(e => (e.NextDue(), e.SpendSummary(), e.KeywordsAreNarrow()));
+            var (due, spend, narrow, budget) = await Call(e => (e.NextDue(), e.SpendSummary(), e.KeywordsAreNarrow(), e.BudgetStatus()));
             NextText = Text.Next(due, Settings);
             BudgetText = Text.Budget(spend);
             KeywordsNarrow = narrow;
+            BudgetStatus = budget;
+            // Budget blocks have a persistent notice with the actual estimates, rather than a second transient error.
+            if (Problem is { Fix: Fix.Budget })
+            {
+                Problem = null;
+            }
         }
         catch (Exception)
         {

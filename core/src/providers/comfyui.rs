@@ -537,6 +537,11 @@ impl ImageProvider for ComfyUi {
         Ok(ImageResponse { bytes, mime, model: graph.model, reported_cost_microusd: None })
     }
 
+    async fn check_available(&self) -> Result<()> {
+        // Own workflows without a recognized loader still need an actual server check.
+        self.get_json(&["object_info"]).await.map(|_| ())
+    }
+
     /// With AutoPaper's workflows: the models whose bundled workflow this server can run (one GET /object_info),
     /// named in words, the default first, then by name. With the person's own workflow: its loader's choices.
     async fn list_models(&self) -> Result<Vec<ModelInfo>> {

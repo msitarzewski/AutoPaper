@@ -60,13 +60,14 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate, Sendable {
 
     /// Once per budget month. The notification is the link to the fix (spec 6a): it ends with the action ("Raise
     /// the budget.") and clicking it opens Settings → Budget.
-    func budgetSpent(month: String) {
-        guard isEnabled, UserDefaults.standard.string(forKey: Self.budgetWarnedKey) != month else { return }
+    func budgetSpent(_ status: BudgetStatus) {
+        let month = status.month
+        guard status.blocked, isEnabled, UserDefaults.standard.string(forKey: Self.budgetWarnedKey) != month else { return }
         UserDefaults.standard.set(month, forKey: Self.budgetWarnedKey)
-        let problem = SettingsProblem.overBudget(bringingBack: false)
+        let problem = SettingsProblem.budget(status) ?? SettingsProblem.overBudget(bringingBack: false)
         let content = UNMutableNotificationContent()
-        content.title = "This month's budget is spent"
-        content.body = "New wallpapers start again next month. \(problem.linkTitle)."
+        content.title = "New wallpapers are waiting for the budget"
+        content.body = problem.spoken
         content.userInfo = [Self.paneKey: SettingsPaneID.budget.rawValue]
         post(content, id: "budget-\(month)")
     }

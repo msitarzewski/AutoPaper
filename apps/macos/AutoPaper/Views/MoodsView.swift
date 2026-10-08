@@ -3,13 +3,13 @@ import Charts
 import SwiftUI
 
 // Moods (the user's layout, 2026-10-06): the main window's middle column lists every mood under its own title and +,
-// and the right column is the selected mood's detail — its name (the title of the detail's part of the toolbar), Use
-// This Mood (at the toolbar's trailing end), its keywords, its Surprise, what it has made, Delete Mood….
+// and the right column is the selected mood's detail — its editable name, its keywords, its Surprise, what it has
+// made, Delete Mood…. The detail toolbar holds New Wallpaper Now / Stop.
 // A mood is a name with its own keywords and Surprise; exactly one is current, and switching never makes a
 // wallpaper by itself.
 
 /// The middle column: every mood in the person's order (drag to reorder, or Edit ▸ Move Mood Up / Down). Each row
-/// shows the mood's name, its keywords in short, and "Current" with a checkmark, or a Use button. Double-click or
+/// shows only the mood's name. Double-click or
 /// Return uses the selected mood; + adds one (⌘N); right-click offers Use, Duplicate, Rename…, Delete…; the Delete
 /// key asks to delete the selected mood. The + and its title, "Moods" (the window's title too), lead the list's part
 /// of the toolbar.
@@ -76,9 +76,7 @@ struct MoodList: View {
     }
 }
 
-/// One mood in the list: its name (bold) and keywords in short; "Current" with a checkmark (never colour alone), or
-/// a Use button. Spoken as one line of text, "Rainy beach, current mood, rain, beach" (the name, whether it's
-/// current, then its keywords), followed by the row's Use button.
+/// One mood in the list: its name, with the same reorder actions as the Edit menu.
 private struct MoodRow: View {
     @Environment(AppModel.self) private var model
     let mood: Mood
@@ -86,41 +84,8 @@ private struct MoodRow: View {
     let count: Int
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(mood.name)
-                    .fontWeight(.semibold)
-                    .lineLimit(1)
-                Text(MoodText.summary(mood.keywords))
-                    .font(.callout)
-                    .lineLimit(2)
-            }
-            // VoiceOver reads a text element's value, not a label put on it, so the spoken line is a text of its
-            // own (its value is the whole line).
-            .accessibilityRepresentation {
-                Text(MoodText.spokenRow(mood))
-            }
-            Spacer(minLength: 4)
-            if mood.active {
-                Label("Current", systemImage: "checkmark")
-                    .font(.callout.weight(.medium))
-                    .labelStyle(.titleAndIcon)
-                    .fixedSize()
-                    // The line above already says "current mood".
-                    .accessibilityHidden(true)
-            } else {
-                Button("Use") { model.useMood(mood.id) }
-                    .controlSize(.small)
-                    .fixedSize()
-                    // Not a Tab stop of its own (an unnamed cell to VoiceOver as the list's next stop): the keyboard
-                    // uses the selected mood with Return, or the detail's Use This Mood.
-                    .focusable(false)
-                    // Starts with the visible title (WCAG 2.5.3), so "Click Use" finds it.
-                    .accessibilityLabel("Use \(mood.name)")
-                    .help("Make this the current mood. Nothing changes until the next wallpaper.")
-            }
-        }
-        .padding(.vertical, 4)
+        Text(mood.name)
+            .lineLimit(1)
         // Only the moves that apply (none up from the first row, none down from the last), as the menus disable them.
         .accessibilityActions {
             if index > 0 { Button("Move Up") { model.moveMood(mood.id, to: index - 1) } }
@@ -161,29 +126,21 @@ struct MoodDetailColumn: View {
 
 // MARK: - One mood
 
-/// One mood (the user's layout, 2026-10-06, like a first-party app's item pane): its name is the title at the leading
-/// edge of the detail's part of the toolbar, renamed in place (click it; Rename… and File ▸ Rename Mood… start it from
-/// a menu or the keyboard), with "Current mood" or Use This Mood and Now's New Wallpaper Now / Stop at the trailing
-/// end (for another mood it makes that mood current first); a header with the mood's icon, whether it's current, its
-/// Surprise and what it has made; its keywords; its Surprise; the wallpapers it made lately; and Delete Mood… at the
-/// bottom.
+/// One mood: an editable name in the detail header (Rename… and File ▸ Rename Mood… focus it), its Surprise and
+/// what it has made; one native grouped form for keywords, Surprise, recent wallpapers and Delete Mood….
 private struct MoodDetail: View {
     @Environment(AppModel.self) private var model
     let mood: Mood
     let stats: MoodStats?
-    /// The bottom form's content height (an estimate until it's measured).
-    @State private var formHeight: CGFloat = 330
     /// Why the last name typed in the title wasn't saved; shown under the header until the name is edited again.
     @State private var renameProblem: String?
 
     var body: some View {
         GeometryReader { proxy in
             VStack(spacing: 0) {
-                MoodHeader(mood: mood, stats: stats, problem: renameProblem)
-                Divider()
-                MoodKeywords(mood: mood)
-                Divider()
+                MoodHeader(mood: mood, stats: stats, problem: $renameProblem)
                 Form {
+                    MoodKeywords(mood: mood, viewportLimit: max(160, proxy.size.height / 2))
                     Section("Surprise") {
                         SurpriseControl(mood: mood)
                     }
@@ -203,70 +160,22 @@ private struct MoodDetail: View {
                 }
                 .formStyle(.grouped)
                 .scrollBounceBehavior(.basedOnSize)
-                // As tall as its content, measured at the width it has, but never so tall that the keywords get less
-                // than a few rows: past that the form scrolls. (`fixedSize` would let the split view ask the form for
-                // its height at almost no width, where the text wraps into a column thousands of points tall.)
-                .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                    geometry.contentSize.height + geometry.contentInsets.top + geometry.contentInsets.bottom
-                } action: { _, height in
-                    formHeight = height
-                }
-                .frame(height: min(formHeight, max(200, proxy.size.height - Self.keywordsMinimum)))
             }
         }
-        // The detail's part of the toolbar: the name at its leading edge; Use This Mood (or "Current mood") and New
-        // Wallpaper Now at its trailing end. (A
-        // three-column split view puts `.navigation` items and the window's title, "Moods", in the list's part, and
-        // primary actions in the detail's; tried in the test VM, 2026-10-06. No title of the detail's own, so it
-        // never shows twice.)
+        // Now's reload/stop remains at the trailing end. The mood's editable name lives in its detail header.
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                MoodTitleField(mood: mood, problem: $renameProblem)
-            }
-            .sharedBackgroundVisibility(.hidden)
             ToolbarSpacer(.flexible, placement: .primaryAction)
-            // Its own background: "Current mood" is a label, and Use This Mood draws its own prominent glass
-            // capsule. A shared glass background around that capsule crowded its title (seen on macOS 27).
-            ToolbarItem(placement: .primaryAction) {
-                MoodUseControl(mood: mood)
-            }
-            .sharedBackgroundVisibility(.hidden)
-            // Now's reload/stop, at the trailing end as in Now (user, 2026-10-06).
             ToolbarItem(placement: .primaryAction) {
                 MakeOrStopButton(mood: mood)
             }
         }
     }
-
-    /// What the header, the add field and a few keyword rows need above the form.
-    private static let keywordsMinimum: CGFloat = 360
 }
 
-/// The trailing end of a mood's toolbar: "Current mood" (a checkmark and the words, never colour alone) for the
-/// current mood, or Use This Mood for any other.
-private struct MoodUseControl: View {
-    @Environment(AppModel.self) private var model
-    let mood: Mood
-
-    var body: some View {
-        if mood.active {
-            Label("Current mood", systemImage: "checkmark.circle.fill")
-                .labelStyle(.titleAndIcon)
-                .help("New wallpapers are made from this mood's keywords.")
-        } else {
-            Button("Use This Mood") { model.useMood(mood.id) }
-                .buttonStyle(.glassProminent)
-                .help("Make this the current mood. Nothing changes until the next wallpaper.")
-        }
-    }
-}
-
-/// The mood's name at the leading edge of the detail's part of the toolbar, looking like a title and renamed in place:
+/// The mood's name at the top of the detail, looking like a title and renamed in place:
 /// click it (or Rename…, File ▸ Rename Mood…, New Mood) and type; Return or leaving it saves, Esc puts the saved name
 /// back. A name the engine refuses (another mood's, too long) is put back, and why is said once, under the header, and
-/// announced. An AppKit text field: SwiftUI's focus state and Esc handling don't reach a field hosted in the toolbar,
-/// and SwiftUI's own editable title, `navigationTitle(Binding)`, doesn't edit in this window (both tried in the test
-/// VM, 2026-10-06).
+/// announced. Reuses the AppKit title field's Return, Esc and requested-focus handling.
 private struct MoodTitleField: View {
     @Environment(AppModel.self) private var model
     let mood: Mood
@@ -358,8 +267,8 @@ private struct TitleTextField: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
-    func makeNSView(context: Context) -> NSTextField {
-        let field = NSTextField(string: text)
+    func makeNSView(context: Context) -> RequestedTitleField {
+        let field = RequestedTitleField(string: text)
         field.isBordered = false
         field.drawsBackground = false
         field.isEditable = true
@@ -373,11 +282,10 @@ private struct TitleTextField: NSViewRepresentable {
         field.cell?.wraps = false
         field.placeholderString = label
         field.delegate = context.coordinator
-        context.coordinator.focused = focusRequest
         return field
     }
 
-    func updateNSView(_ field: NSTextField, context: Context) {
+    func updateNSView(_ field: RequestedTitleField, context: Context) {
         context.coordinator.parent = self
         if field.currentEditor() == nil || context.coordinator.putBack, field.stringValue != text {
             field.stringValue = text
@@ -387,12 +295,34 @@ private struct TitleTextField: NSViewRepresentable {
         field.setAccessibilityHelp(help)
         field.toolTip = help
         if focusRequest != context.coordinator.focused {
-            context.coordinator.focused = focusRequest
-            DispatchQueue.main.async {
-                guard let window = field.window else { return }
-                window.makeFirstResponder(field)
-                field.currentEditor()?.selectAll(nil)
+            field.requestFocus { [weak coordinator = context.coordinator] in
+                coordinator?.focused = focusRequest
             }
+        }
+    }
+
+    /// A requested edit stays pending until the native title field belongs to its window.
+    final class RequestedTitleField: NSTextField {
+        private var focusCompletion: (() -> Void)?
+
+        func requestFocus(_ completion: @escaping () -> Void) {
+            focusCompletion = completion
+            DispatchQueue.main.async { [weak self] in self?.focusWhenAttached() }
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if focusCompletion != nil {
+                DispatchQueue.main.async { [weak self] in self?.focusWhenAttached() }
+            }
+        }
+
+        private func focusWhenAttached() {
+            guard let completion = focusCompletion, let window,
+                  window.makeFirstResponder(self) else { return }
+            currentEditor()?.selectAll(nil)
+            focusCompletion = nil
+            completion()
         }
     }
 
@@ -427,32 +357,20 @@ private struct TitleTextField: NSViewRepresentable {
     }
 }
 
-/// The top of a mood: its icon, whether it's the current mood, its Surprise band, why a new name wasn't saved (if so),
+/// The top of a mood: its editable name, its Surprise band, why a new name wasn't saved (if so),
 /// then what it has made: wallpapers, liked, echoes and when the last one was made.
 private struct MoodHeader: View {
     let mood: Mood
     let stats: MoodStats?
-    let problem: String?
+    @Binding var problem: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 12) {
-                MoodIcon(size: 46)
-                VStack(alignment: .leading, spacing: 5) {
-                    // Said here too, so reading the mood from the top says whether it's current.
-                    if mood.active {
-                        Label("Current mood", systemImage: "checkmark.circle.fill")
-                            .font(.headline)
-                            .labelStyle(.titleAndIcon)
-                    } else {
-                        Text("Not in use")
-                            .font(.headline)
-                    }
-                    Text(MoodText.surpriseLine(mood.surprise))
-                        .font(.callout)
-                        .quietText()
-                }
-                Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 5) {
+                MoodTitleField(mood: mood, problem: $problem)
+                Text(MoodText.surpriseLine(mood.surprise))
+                    .font(.callout)
+                    .quietText()
             }
             if let problem {
                 Label(problem, systemImage: "exclamationmark.triangle")
@@ -477,23 +395,6 @@ private struct MoodHeader: View {
         guard let made = stats?.lastMadeAt else { return "Not yet" }
         let words = MoodText.relative(made)
         return words.prefix(1).uppercased() + words.dropFirst()
-    }
-}
-
-/// A mood's icon: the Moods symbol on a tinted rounded square, like an app's item icon. Decorative.
-struct MoodIcon: View {
-    var size: CGFloat = 46
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
-            .fill(Color.accentColor.gradient)
-            .frame(width: size, height: size)
-            .overlay {
-                Image(systemName: "rectangle.stack")
-                    .font(.system(size: size * 0.44, weight: .medium))
-                    .foregroundStyle(.white)
-            }
-            .accessibilityHidden(true)
     }
 }
 

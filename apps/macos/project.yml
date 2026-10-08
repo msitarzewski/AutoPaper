@@ -11,8 +11,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "0.1.1"
+    CURRENT_PROJECT_VERSION: "6"
     DEAD_CODE_STRIPPING: YES
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 packages:
@@ -80,8 +80,8 @@ targets:
         # Providers (OpenAI, Gemini, and the person's own Ollama, ComfyUI or OpenAI-compatible server), and
         # Sparkle's feed and update downloads (so Sparkle's downloader service isn't needed).
         com.apple.security.network.client: true
-        # "Use my own workflow…" (ComfyUI): reads the JSON file the person picks in the open panel.
-        com.apple.security.files.user-selected.read-only: true
+        # ComfyUI reads a selected workflow; Console exports a run report to the location the person chooses.
+        com.apple.security.files.user-selected.read-write: true
         # Sparkle's installer launcher and its status channel, reachable from the sandbox (Sparkle's
         # sandboxing guide). Nothing else is opened up.
         com.apple.security.temporary-exception.mach-lookup.global-name:

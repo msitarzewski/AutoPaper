@@ -6,6 +6,15 @@
     <description>AutoPaper updates</description>
     <language>en</language>
     <item>
+      <title>AutoPaper 0.1.1</title>
+      <pubDate>Thu, 08 Oct 2026 11:43:24 GMT</pubDate>
+      <sparkle:version>6</sparkle:version>
+      <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <sparkle:fullReleaseNotesLink>https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.1</sparkle:fullReleaseNotesLink>
+      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.1/AutoPaper-0.1.1.zip" length="95890469" type="application/octet-stream" sparkle:edSignature="4++WGpsf2APD5gIRaDolEEKS8OemfFp0sGj9vt4z/stuSE6cQFAENPvcgYaPEA2lNrcvD+PT4sTk/PtOut+vAA=="/>
+    </item>
+    <item>
       <title>AutoPaper 0.1.0</title>
       <pubDate>Wed, 07 Oct 2026 13:02:00 GMT</pubDate>
       <sparkle:version>1</sparkle:version>

@@ -32,7 +32,7 @@ AutoPaper is a desktop app for **macOS, Windows and Linux** that keeps making ne
 It's native on every platform, MIT-licensed and open source, with **no accounts, no telemetry and no AutoPaper server.**
 
 > [!NOTE]
-> **v0.1.0 is out for macOS, Windows and Linux.** [Download it](https://github.com/msitarzewski/AutoPaper/releases/latest) or see [Install](#install). It's the first release, so bug reports and ideas are very welcome as [issues](https://github.com/msitarzewski/AutoPaper/issues/new/choose).
+> **v0.1.1 is out for macOS, Windows and Linux.** [Download it](https://github.com/msitarzewski/AutoPaper/releases/latest) or see [Install](#install). It adds a Console for every wallpaper run, clearer budget messages, and longer waits for local models. Bug reports and ideas are very welcome as [issues](https://github.com/msitarzewski/AutoPaper/issues/new/choose).
 
 <p align="center">
   <img src="site/static/examples/rain-ruins-960.jpg" width="820" alt="Soft rain falls on a ruined stone colonnade standing in still water at night, lit in deep blues by a moon behind thin cloud.">

@@ -48,6 +48,7 @@
   `pipx-app-updates.sh`, `publish-flatpak.sh`, `publish-windows.sh`, `flatpak-repo-key.sh`; CI `flatpak.yml`.
 - 2026-10-07: **Azure Artifact Signing** set up (account, identity validation, PublicTrust profile); Windows bundle signed and
   verified; **v0.1.0 released** on all three platforms; real-key Sparkle update test passed; site shows the real Download buttons.
+- 2026-10-08: **v0.1.1 released** on all three platforms (Console, budget transparency, Moods cleanup, local inference timeouts).
 
 ## Next
 - Batch more changes before public packaging/signing/publication, as the user requested. Windows signing is ready for that final batch. Optional: winget submission; Linux Flatpak "pick my picture" restore; full VoiceOver/Narrator/Orca

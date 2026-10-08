@@ -196,8 +196,8 @@
 - Persistent review patch: `.scratch/autopaper-console-review.patch`; regenerate after source/documentation changes.
   Task record: `tasks/2026-10/261007_console-budget-transparency.md`.
 
-**State (2026-10-07): v0.1.0 RELEASED** for macOS, Windows and Linux. Public repo https://github.com/msitarzewski/AutoPaper
-(MIT, branch `main`, tag `v0.1.0`), site https://msitarzewski.github.io/AutoPaper/. CI green. Next work is optional
+**State (2026-10-08): v0.1.1 RELEASED** (v0.1.0 on 2026-10-07) for macOS, Windows and Linux. Public repo https://github.com/msitarzewski/AutoPaper
+(MIT, branch `main`, tags `v0.1.0`, `v0.1.1`), site https://msitarzewski.github.io/AutoPaper/. CI green. Next work is optional
 polish and the backlog (below); the implemented Console/Moods/native form follow-ups are documented above. Spec for every app: `docs/app-spec.md`;
 design: `systemPatterns.md`; toolchains/VMs/infrastructure: `techContext.md`; history: `progress.md`,
 `tasks/2026-10/`; decisions: `decisions.md`.
@@ -232,6 +232,18 @@ URLs anywhere.
   Other projects), SECURITY, CONTRIBUTING, THIRD-PARTY-NOTICES (generated crate list), AGENTS.md copy, FUNDING, issue
   templates. Settings: Issues/Wiki/Projects on, Discussions off, Pages = Actions, Dependabot alerts on, private vulnerability
   reporting on, secret scanning + push protection on, default workflow permissions read.
+
+## v0.1.1 (2026-10-08) — released on all three platforms
+https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.1 (main at 8d9ab17). Contents: **Console** (native date → runs → outcomes diagnostics with a
+sanitized HTTP trace, export/clear; core migration 5), **budget transparency** (exact explanation when the monthly budget blocks a wallpaper, current
+wallpaper kept, persistent notice + link), Mac Moods cleanup and list/form refinement (all done in a separate Codex session on branch `codex/console-runs`,
+committed 28e56bb on the user's request), and **local inference timeouts** (Ollama/OpenAI-compatible wait max(10 min, 3 × learned estimate), ≤ 1 hour;
+f6ed593; no new progress stage and no timeout setting — decision in `decisions.md`). Both branches were fast-forwarded into main with the version bump
+(22ac91b: Cargo/csproj/appxmanifest 0.1.1, Linux metainfo release entry; macOS 0.1.1 build 6). Mac: DMG + Sparkle zip (feed has 2 items). Windows: signed bundle
+upgraded the real published 0.1.0 in the VM (same package family). Linux: Flatpak repo updated (0.1.1 on top of 0.1.0, same key). winget manifests for 0.1.1 are
+in `packaging/winget/` (not submitted). Lessons: the Windows VM can wake from suspend at the lock screen (the user must sign in; a lock-screen
+timeout of Never helps during releases); when two sessions share a working tree, commit one's work first and move the other's to a new branch (and never
+`git checkout HEAD --` a file you only think is yours: diff it first).
 
 ## Release recipes (next release; versions in `Cargo.toml` workspace, `apps/macos/project.yml`, Linux metainfo `<release>`)
 1. **Mac:** `set -a; source ~/.config/brew-browser/signing.env; set +a; scripts/release.sh` → `build/release/AutoPaper-X.dmg|zip|sha256`

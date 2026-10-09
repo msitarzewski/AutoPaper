@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.12.0.schema.json
+# Made by scripts/windows-release.ps1 for v0.1.2. Not submitted anywhere by the script.
+
+PackageIdentifier: msitarzewski.AutoPaper
+PackageVersion: 0.1.2
+PackageLocale: en-US
+Publisher: Michael Sitarzewski
+PublisherUrl: https://github.com/msitarzewski
+PublisherSupportUrl: https://github.com/msitarzewski/AutoPaper/issues
+PrivacyUrl: https://msitarzewski.github.io/AutoPaper/privacy.html
+Author: Michael Sitarzewski
+PackageName: AutoPaper
+PackageUrl: https://msitarzewski.github.io/AutoPaper/
+License: MIT
+LicenseUrl: https://github.com/msitarzewski/AutoPaper/blob/main/LICENSE
+Copyright: Copyright (c) 2026 Michael Sitarzewski
+ShortDescription: New wallpapers from a few keywords, made by the AI you choose.
+Description: |-
+  Tell your computer what you'd like to see. AutoPaper makes new wallpapers from a few keywords, with the AI you
+  choose (OpenAI, Google Gemini, or local models through Ollama and ComfyUI), and remembers what it has made so it
+  doesn't repeat itself. It can set the lock screen too.
+Moniker: autopaper
+Tags:
+- wallpaper
+- desktop-background
+- lock-screen
+- ai
+- image-generation
+- comfyui
+- ollama
+ReleaseNotesUrl: https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.2
+Documentations:
+- DocumentLabel: Help
+  DocumentUrl: https://msitarzewski.github.io/AutoPaper/help.html
+ManifestType: defaultLocale
+ManifestVersion: 1.12.0

@@ -6,6 +6,21 @@
     <description>AutoPaper updates</description>
     <language>en</language>
     <item>
+      <title>AutoPaper 0.1.2</title>
+      <pubDate>Fri, 09 Oct 2026 14:30:00 GMT</pubDate>
+      <sparkle:version>7</sparkle:version>
+      <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <sparkle:fullReleaseNotesLink>https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.2</sparkle:fullReleaseNotesLink>
+      <description><![CDATA[<h3>AutoPaper 0.1.2</h3>
+<ul>
+<li><b>Match my appearance:</b> wallpapers now suit your Mac's light or dark mode (on by default; Settings → General). Your keywords still come first.</li>
+<li>A native Moods list with a Use / In Use button.</li>
+<li>The Dock and menu bring AutoPaper's windows to the front.</li>
+</ul>]]></description>
+      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.2/AutoPaper-0.1.2.zip" length="95905211" type="application/octet-stream" sparkle:edSignature="8a2FxyQFg7WwvqAr6+VE1ZUx6BMI6W+ievQVtliUkts5GOMGMn5svSMsTswmTf4itGSyRRGu9q2358dAlCVvDg=="/>
+    </item>
+    <item>
       <title>AutoPaper 0.1.1</title>
       <pubDate>Thu, 08 Oct 2026 11:43:24 GMT</pubDate>
       <sparkle:version>6</sparkle:version>

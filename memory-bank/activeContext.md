@@ -240,6 +240,11 @@ per row via `.listRowSeparator(.hidden)` on the row; the selected row is blue on
 highlight), a Use / In Use button in the mood header, and Dock click / Show AutoPaper / Show Console raise the windows (`AppModel.raiseWorkWindows`, also
 un-minimizes; `applicationShouldHandleReopen` calls it when a window is already open). Versions: Cargo/csproj 0.1.2, appxmanifest 0.1.2.0, Mac 0.1.2 build 7, Linux
 metainfo entry. Verified: core 400 + 69 tests, clippy clean; Mac builds + test target compiles; Linux builds + 35 tests (Scratch VM); Windows core + app build, 86 tests.
+Released: https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.2 (main 3d3efdf; 9 assets). Mac DMG sha256 `381b004d…`, zip `fe0a2acc…`; Windows bundle `5F313A58…`; Flatpaks aarch64 `d3cdaa83…`, x86_64 `4c98c2a4…`.
+Release lessons: the Windows signing token can be refused (AADSTS530035, security defaults) after a day; `az login --use-device-code --scope …` fails with "You don't have access";
+what worked was a plain `az login --tenant 10813422-10b3-434b-b687-be25b03e3c40` typed inside the Windows VM (choose "Azure subscription 1"), then re-run the signing script; the
+timestamp server (timestamp.acs.microsoft.com) can fail transiently: just re-run. Never copy the Mac's Azure token into the VM (the permission classifier blocks it, rightly).
+Order used: tag push (Flatpak workflow) → Mac release.sh → Windows signing → publish-flatpak.sh → publish-windows.sh → `gh release create` → push main (feed + site).
 Lessons: syncing to the Scratch VM: only tar `core/src core/tests apps/linux/src` (the repo's `build/` is 4.5 GB), `touch` the .rs files after extracting (the
 archive's older mtimes make cargo think nothing changed), and never delete the archive while an extract may still run; `scripts/windows-app.ps1 -Test` does NOT
 rebuild the core or compile the app: run `scripts\build-core-windows.ps1` and `dotnet build` the app first.

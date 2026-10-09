@@ -32,7 +32,7 @@ AutoPaper is a desktop app for **macOS, Windows and Linux** that keeps making ne
 It's native on every platform, MIT-licensed and open source, with **no accounts, no telemetry and no AutoPaper server.**
 
 > [!NOTE]
-> **v0.1.1 is out for macOS, Windows and Linux.** [Download it](https://github.com/msitarzewski/AutoPaper/releases/latest) or see [Install](#install). It adds a Console for every wallpaper run, clearer budget messages, and longer waits for local models. Bug reports and ideas are very welcome as [issues](https://github.com/msitarzewski/AutoPaper/issues/new/choose).
+> **v0.1.2 is out for macOS, Windows and Linux.** [Download it](https://github.com/msitarzewski/AutoPaper/releases/latest) or see [Install](#install). It makes wallpapers that suit your light or dark mode, brings AutoPaper's windows forward from the Dock and menu, and tidies the Mac's Moods list. (0.1.1 added a Console for every wallpaper run, clearer budget messages, and longer waits for local models.) Bug reports and ideas are very welcome as [issues](https://github.com/msitarzewski/AutoPaper/issues/new/choose).
 
 <p align="center">
   <img src="site/static/examples/rain-ruins-960.jpg" width="820" alt="Soft rain falls on a ruined stone colonnade standing in still water at night, lit in deep blues by a moon behind thin cloud.">
@@ -83,7 +83,8 @@ Every one of these came from a handful of keywords, composed the way AutoPaper c
 
 ## What makes it different
 
-- **Moods.** Named sets of keywords, each with its own Surprise: *Rainy beach*, *Night city*, *Winter forest*. One is current, and switching never makes a wallpaper by itself. A **Your Moods** summary shows what each one has made.
+- **Moods.** Named sets of keywords, each with its own Surprise: *Rainy beach*, *Night city*, *Winter forest*. One is current, and switching never makes a wallpaper by itself. A **Your Moods** summary shows what each one has made. On a Mac, each mood has a **Use** button (**In Use** for the current one) in its header.
+- **Light or dark, to match.** *Match my appearance* (on by default, in Settings → General) asks for wallpapers that suit your computer's light or dark mode: bright and airy on a light desktop, deep and moody on a dark one. Your keywords still come first.
 - **Memory.** Each new idea is compared, on your computer, with everything from your quiet period (a month to two years). Ideas too close to one you've had are asked for again, so the same scene doesn't come back next week.
 - **Echoes.** Once the quiet period has passed, an old idea can return seen differently (other weather, another hour or season, years of decay), linked to the original.
 - **Taste.** Like or Dislike any wallpaper and AutoPaper leans towards what you like. Taste is a hint; Avoid is the rule.
@@ -165,7 +166,7 @@ Keys are kept in your system's secure store, sent only to the service they belon
 The full account is in **[PRIVACY.md](./PRIVACY.md)** (who learns what, what's stored) and **[NETWORK.md](./NETWORK.md)** (every host, request and limit). In brief:
 
 - No telemetry, analytics, accounts or AutoPaper server. Out of the box AutoPaper uses Demo and sends nothing.
-- To write a scene, the provider you chose gets the current mood's keywords and Surprise, short descriptions of recent wallpapers, a few things you've liked or disliked, and your language. To paint it, the finished prompt, the size and the quality.
+- To write a scene, the provider you chose gets the current mood's keywords and Surprise, short descriptions of recent wallpapers, a few things you've liked or disliked, your language, and whether your computer is in light or dark mode (while *Match my appearance* is on). To paint it, the finished prompt, the size and the quality.
 - Your images, history, ratings, spending and settings stay on your computer. Memory runs on your computer with a small bundled model. With local models, nothing leaves your network.
 - Updates are checked by Sparkle on a Mac (the feed on this project's GitHub Pages, no system profile), by Windows' App Installer (from msitarzewski.com, the author's own server, which keeps no access logs) or winget, and by Flatpak on Linux (from the same server).
 
@@ -273,7 +274,7 @@ Found a bug or have an idea? [Open an issue](https://github.com/msitarzewski/Aut
 
 ## Roadmap
 
-- **Atmosphere:** let the wallpaper set the mood beyond the picture: your accent colour, light or dark, and gentle sounds.
+- **Atmosphere:** let the wallpaper set the mood beyond the picture: your accent colour, switching your computer between light and dark to suit it, and gentle sounds.
 - **Writers that come with your computer:** Apple's on-device Foundation Models on a Mac, and Foundry Local on Windows.
 - **Sign in with ChatGPT**, so a ChatGPT plan can do the writing without an API key.
 - **Image Playground** on a Mac, to paint a wallpaper by hand when you want to.

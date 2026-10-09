@@ -8,7 +8,7 @@ This page describes AutoPaper 0.1.0 on macOS, Windows and Linux, and changes wit
 
 - **No telemetry, no analytics, no accounts, no AutoPaper server.** AutoPaper talks only to the providers you set up, and only to make wallpapers or to check that a provider works. The one exception is the Mac app's update check, if you allow it (see [Updates](#updates)); on Windows and Linux, updates are your system's job, from the author's own server, which keeps no access logs.
 - **Out of the box it sends nothing.** Until you choose a provider, AutoPaper uses **Demo**, which writes simple ideas and paints gradients on your computer, without any network.
-- **What leaves your computer**, when you use a hosted provider: to write a scene, the current mood's keywords and Surprise, short descriptions of recent wallpapers, a few things you've liked or disliked, and your language; to paint it, the finished prompt, the size and the quality. Plus AutoPaper's version, your system's name and version, and your IP address, as with any request online.
+- **What leaves your computer**, when you use a hosted provider: to write a scene, the current mood's keywords and Surprise, short descriptions of recent wallpapers, a few things you've liked or disliked, your language, and whether your computer is in light or dark mode (only while Match my appearance is on); to paint it, the finished prompt, the size and the quality. Plus AutoPaper's version, your system's name and version, and your IP address, as with any request online.
 - **What never leaves your computer:** your images, history, ratings, mood names, spending, timings and settings. Memory (the check that a new idea isn't one you've had) runs on your computer with a small bundled model.
 - **With local models** (Ollama, LM Studio, ComfyUI and the like, on your computer or your own network), nothing leaves your network at all.
 - **Your keys stay in your system's secure store** (Keychain, Credential Manager, Secret Service) and are sent only to the service they belong to.
@@ -48,6 +48,7 @@ Before composing a new wallpaper, AutoPaper checks both selected services with r
 - **short descriptions of recent wallpapers**, up to 20, so the ideas don't repeat them, and, when it asks again, the descriptions of up to 8 it came too close to;
 - **taste hints**: up to 6 things you've tended to like and 6 you've tended to dislike, such as "warm ivory" or "harbour";
 - your **language and region**, such as `en-US`, so titles and descriptions come back in your language;
+- whether your computer is in **light or dark mode**, as one sentence asking for a wallpaper that suits it, only while *Match my appearance* is on (Settings, General; on by default);
 - AutoPaper's fixed instructions (how to compose a wallpaper), and the shape the answer must take.
 
 For an **echo**, the original wallpaper's concept (title, description, setting, palette and so on), its prompt and how long ago it was made go too, instead of the keywords.

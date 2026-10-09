@@ -15,7 +15,7 @@ public sealed class WordingTests
     private static readonly Settings Defaults = new(
         0.35f, Cadence.Daily, false, QuietPeriod.SixMonths, EchoFrequency.Sometimes,
         new ProviderSelection(ProviderKind.Demo, "", null), new ProviderSelection(ProviderKind.ComfyUi, "", null),
-        ImageQuality.High, 500, Fallback.RevisitLiked, true, true, 2048, null);
+        ImageQuality.High, 500, Fallback.RevisitLiked, true, true, true, 2048, null);
 
     [TestInitialize]
     public void UseAppStrings() => ReswStrings.Use();

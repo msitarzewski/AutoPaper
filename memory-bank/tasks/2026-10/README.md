@@ -1,5 +1,10 @@
 # October 2026
 
+### 2026-10-09: v0.1.2: Match my appearance, Mac Moods polish [COMPLETE; RELEASED]
+- Core `match_system_theme` setting (default on) + `set_system_appearance` + one composer prompt line; toggles and appearance reporting on macOS, Windows and Linux.
+- Mac: native Moods list, Use / In Use button, Dock/menu raise windows. Docs: README, site (home, help, reference), PRIVACY.md, `docs/app-spec.md`.
+- See `activeContext.md#v012-2026-10-09` and `decisions.md` (2026-10-09).
+
 ### 2026-10-07: Service availability preflight [COMPLETE; MAC INSTALLED]
 - User authorized checking both selected services before wallpaper generation, logging both outcomes in Console,
   and showing the latest usable saved wallpaper from the selected mood when either service is unavailable.

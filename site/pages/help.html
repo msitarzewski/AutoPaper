@@ -5,7 +5,7 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
 <article class="doc">
   <h1>Help</h1>
   <p class="intro">Everything AutoPaper does, where to find it, and what to try when it doesn’t do what you expected. You don’t need to read it in order.</p>
-  <p>This page describes AutoPaper 0.1.1 on macOS, Windows and Linux; where they differ, it says so. Names are as each app shows them: Mac menus use title case (<strong>New Wallpaper Now</strong>), Windows and Linux sentence case (<strong>New wallpaper now</strong>).</p>
+  <p>This page describes AutoPaper 0.1.2 on macOS, Windows and Linux; where they differ, it says so. Names are as each app shows them: Mac menus use title case (<strong>New Wallpaper Now</strong>), Windows and Linux sentence case (<strong>New wallpaper now</strong>).</p>
 
   <nav class="toc" aria-label="On this page">
     <strong>On this page</strong>
@@ -17,6 +17,7 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
       <li><a href="#moods">Moods and keywords</a></li>
       <li><a href="#providers">Providers and keys</a></li>
       <li><a href="#local">Local models</a></li>
+      <li><a href="#appearance">Light and dark</a></li>
       <li><a href="#your-wallpaper">Your own wallpaper</a></li>
       <li><a href="#progress">Progress and time left</a></li>
       <li><a href="#history">History and memory</a></li>
@@ -73,7 +74,7 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
 
   <h2 id="where">Where AutoPaper lives</h2>
   <ul>
-    <li><strong>macOS:</strong> a menu in the menu bar (a display with sparkles). It has the current wallpaper’s title, <strong>Like</strong> and <strong>Dislike</strong>, <strong>Mood</strong>, <strong>New Wallpaper Now</strong>, <strong>Pause New Wallpapers</strong>, <strong>Restore My Wallpaper</strong>, <strong>Show AutoPaper</strong>, <strong>Settings…</strong> and <strong>Quit AutoPaper</strong>. AutoPaper is in the Dock only while its window is open, or when you’ve turned off <strong>Show in menu bar</strong> in Settings → General. If you hid the menu bar icon and closed the window, open AutoPaper from Finder again.</li>
+    <li><strong>macOS:</strong> a menu in the menu bar (a display with sparkles). It has the current wallpaper’s title, <strong>Like</strong> and <strong>Dislike</strong>, <strong>Mood</strong>, <strong>New Wallpaper Now</strong>, <strong>Pause New Wallpapers</strong>, <strong>Restore My Wallpaper</strong>, <strong>Show AutoPaper</strong>, <strong>Settings…</strong> and <strong>Quit AutoPaper</strong>. AutoPaper is in the Dock only while its window is open, or when you’ve turned off <strong>Show in menu bar</strong> in Settings → General. If you hid the menu bar icon and closed the window, open AutoPaper from Finder again. Choosing AutoPaper in the Dock, or <strong>Show AutoPaper</strong> or <strong>Show Console</strong> in the menu, brings its windows to the front, even from behind other apps.</li>
     <li><strong>Windows:</strong> an icon in the notification area, with the same menu. Closing the window keeps AutoPaper there; <strong>Quit AutoPaper</strong> in its menu quits.</li>
     <li><strong>Linux:</strong> on GNOME, AutoPaper runs in the background with no icon; open its window from the app grid. On KDE and other desktops it has a tray icon with the same menu. Closing the window (<kbd>Ctrl</kbd> <kbd>W</kbd>) keeps it running; <strong>Quit AutoPaper</strong> in the main menu (<kbd>Ctrl</kbd> <kbd>Q</kbd>) quits.</li>
   </ul>
@@ -83,7 +84,7 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
   <p>A mood is a name, its keywords and its own <strong>Surprise</strong>. One mood is current, and new wallpapers come from it; your first one is made from the keywords you added in the welcome. Everything else (the schedule, providers, budget, memory and taste) is shared between moods.</p>
   <ul>
     <li><strong>Make a mood</strong> with <strong>+</strong> in Moods (<kbd>⌘</kbd> <kbd>N</kbd> on a Mac, <kbd>Ctrl</kbd> <kbd>N</kbd> on Windows and Linux). It starts empty, named “New mood”, ready to rename. <strong>Duplicate</strong> copies a mood’s keywords and Surprise.</li>
-    <li><strong>Switch moods</strong> with <strong>Use</strong> in a mood’s context menu (right-click on a Mac), <strong>Use This Mood</strong> where that button is shown, by pressing <kbd>Return</kbd> on a mood, or from the <strong>Mood</strong> submenu in the menu bar, notification-area or tray menu. Switching never makes a wallpaper by itself; the next one comes from the new mood.</li>
+    <li><strong>Switch moods</strong> with <strong>Use</strong> in a mood’s context menu (right-click on a Mac), the <strong>Use</strong> button in a mood’s header on a Mac (it reads <strong>In Use</strong> for the current mood), <strong>Use This Mood</strong> where that button is shown, by pressing <kbd>Return</kbd> on a mood, or from the <strong>Mood</strong> submenu in the menu bar, notification-area or tray menu. Switching never makes a wallpaper by itself; the next one comes from the new mood.</li>
     <li><strong>Right-click a mood</strong> (or <kbd>Shift</kbd> <kbd>F10</kbd> on Windows and Linux) for Use, Duplicate, Rename… and Delete…. The last mood can’t be deleted. Deleting a mood keeps its wallpapers in History.</li>
     <li><strong>On a Mac</strong>, the mood list shows names only. The selected mood’s editable name is at the top of its detail panel. <strong>Delete…</strong> asks you to confirm before removing the mood.</li>
     <li><strong>Reorder</strong> moods and keywords by dragging, or from the keyboard (see <a href="shortcuts.html">Keyboard shortcuts</a>).</li>
@@ -144,6 +145,9 @@ description: Getting started with AutoPaper on macOS, Windows and Linux: moods a
   </table></div>
   <p>Each paints at the largest size its model supports, at your display’s shape and never larger than your display; AutoPaper then scales it to fit each display. The first two are capped at about 3 megapixels on every computer: a larger image fails at the last step in ComfyUI on Apple silicon. Bigger takes longer. On a fast Mac, a full-size wallpaper took about a minute with Z-Image Turbo, about two with Krea 2 Turbo, and about nine with Qwen-Image 2.1. Settings shows how long each takes on your computer once it has made one (<em>About 9 minutes per wallpaper on this Mac</em>).</p>
   <p><strong>Your own…</strong>: a workflow you exported from ComfyUI with <strong>Export (API)</strong>, as JSON. Put <code>{{prompt}}</code> where AutoPaper’s scene goes; AutoPaper also fills in <code>{{width}}</code>, <code>{{height}}</code> and <code>{{seed}}</code> where you put them. The Model line then names the model your workflow loads. <strong>Choose Another…</strong> picks a different file.</p>
+
+  <h2 id="appearance">Light and dark</h2>
+  <p>With <strong>Match my appearance</strong> on (Settings → General, on by default), AutoPaper tells the writer whether your computer is in light or dark mode, and asks for wallpapers that sit well on it: bright and airy on a light desktop, deep and moody on a dark one. Your keywords still come first, so “night city” stays dark in light mode. It follows the change when you switch modes, and applies to the next wallpaper, not the one showing. Turn it off and nothing about your appearance is sent.</p>
 
   <h2 id="your-wallpaper">Your own wallpaper</h2>
   <h3 id="mac-wallpaper">On a Mac</h3>

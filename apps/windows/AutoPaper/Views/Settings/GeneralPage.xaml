@@ -61,6 +61,12 @@
                 </toolkit:SettingsCard.HeaderIcon>
                 <ToggleSwitch x:Name="ReplaceDisliked" AutomationProperties.AutomationId="ReplaceDisliked" Toggled="OnReplaceDislikedToggled" />
             </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="MatchThemeCard" x:Uid="GeneralMatchTheme">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE790;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <ToggleSwitch x:Name="MatchTheme" AutomationProperties.AutomationId="MatchTheme" Toggled="OnMatchThemeToggled" />
+            </toolkit:SettingsCard>
             <toolkit:SettingsCard x:Name="FallbackCard" x:Uid="GeneralFallback">
                 <toolkit:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xE8EE;" />

@@ -17,7 +17,7 @@ use serde_json::{Map, Value, json};
 
 use crate::echo::EchoAxis;
 use crate::error::{AutoPaperError, Result};
-use crate::model::{Concept, Keyword, KeywordWeight, SurpriseBand};
+use crate::model::{Appearance, Concept, Keyword, KeywordWeight, SurpriseBand};
 use crate::providers::{ComposeInputs, ComposeRequest};
 use crate::text;
 
@@ -60,6 +60,8 @@ pub struct ComposeContext {
     pub echo: Option<EchoBrief>,
     /// The provider declined the last attempt (content policy): ask for gentler, plainly described scenes.
     pub gentler: bool,
+    /// The computer's appearance when the person asked for wallpapers to suit it (`Settings::match_system_theme`).
+    pub appearance: Option<crate::model::Appearance>,
 }
 
 #[derive(Debug, Clone)]
@@ -576,6 +578,23 @@ another kind of place, another subject, other light and another palette."
         lines.push(String::new());
         lines.push("Your previous candidates couldn't be used. Put these right in every candidate:".to_string());
         lines.extend(corrections.iter().map(|correction| format!("- {correction}")));
+    }
+
+    if let Some(appearance) = context.appearance {
+        lines.push(String::new());
+        lines.push(
+            match appearance {
+                Appearance::Light => {
+                    "The person's computer is in light mode. Favour wallpapers that sit well on a light desktop: bright, \
+airy, light-toned, with dark icons and text staying legible on top. Only the keywords can override this."
+                }
+                Appearance::Dark => {
+                    "The person's computer is in dark mode. Favour wallpapers that sit well on a dark desktop: deep, \
+moody, dark-toned, with light icons and text staying legible on top. Only the keywords can override this."
+                }
+            }
+            .to_string(),
+        );
     }
 
     if context.gentler {
@@ -1511,6 +1530,16 @@ mod tests {
         "roads",
         "horses",
     ];
+
+    #[test]
+    fn the_computers_appearance_is_asked_for_only_when_known() {
+        let plain = build_request(&context(&["harbour"], &[], &[], 0.3), "").user;
+        assert!(!plain.contains("light mode") && !plain.contains("dark mode"), "{plain}");
+        for (appearance, word) in [(Appearance::Light, "light mode"), (Appearance::Dark, "dark mode")] {
+            let user = build_request(&ComposeContext { appearance: Some(appearance), ..context(&["harbour"], &[], &[], 0.3) }, "").user;
+            assert!(user.contains(word), "{user}");
+        }
+    }
 
     #[test]
     fn a_gentler_retry_says_so_and_a_new_medium_is_named() {

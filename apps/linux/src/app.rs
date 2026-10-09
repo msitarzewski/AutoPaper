@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use adw::prelude::*;
 use autopaper_core::{
-    AutoPaperError, BudgetStatus, DisplayTarget, Engine, EngineConfig, Fallback, Generation, InvalidInputReason, Mood, MoodStats,
+    Appearance, AutoPaperError, BudgetStatus, DisplayTarget, Engine, EngineConfig, Fallback, Generation, InvalidInputReason, Mood, MoodStats,
     ProgressDetail, ProgressDetailObserver, ProgressObserver, ProgressStage, ProviderJob, ProviderKind,
     ProviderUnavailableReason, Rating, RevisitReason, SecretStore, Settings, Shown, SpendSummary, Trigger,
     secret_account_for,
@@ -298,6 +298,7 @@ impl App {
         };
         let _ = self.engine.set(engine.clone());
         self.watch_progress_detail(&engine);
+        Self::watch_appearance(&engine);
         self.start_writer(engine);
         self.watch_displays();
         self.watch_background();
@@ -391,6 +392,21 @@ impl App {
         }
         self.state.borrow_mut().detail = detail;
         self.emit(Event::Detail);
+    }
+
+    /// Tells the engine whether the desktop is in light or dark mode, now and whenever it changes, so wallpapers can
+    /// suit it (when the person has that on).
+    fn watch_appearance(engine: &Arc<Engine>) {
+        let styles = adw::StyleManager::default();
+        let report = {
+            let engine = engine.clone();
+            move |styles: &adw::StyleManager| {
+                let appearance = if styles.is_dark() { Appearance::Dark } else { Appearance::Light };
+                engine.set_system_appearance(Some(appearance));
+            }
+        };
+        report(&styles);
+        styles.connect_dark_notify(report);
     }
 
     fn watch_progress_detail(self: &Rc<Self>, engine: &Arc<Engine>) {

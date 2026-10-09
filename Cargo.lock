@@ -204,7 +204,7 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "autopaper-cli"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "autopaper-core",
  "serde_json",
@@ -213,7 +213,7 @@ dependencies = [
 
 [[package]]
 name = "autopaper-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -243,7 +243,7 @@ dependencies = [
 
 [[package]]
 name = "autopaper-linux"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "ashpd",
  "async-channel",
@@ -4157,7 +4157,7 @@ dependencies = [
 
 [[package]]
 name = "uniffi-bindgen"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "uniffi",
 ]

@@ -6,6 +6,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.Windows.System.Power;
 using Windows.ApplicationModel;
 using Windows.Storage;
+using Windows.UI.ViewManagement;
 
 namespace AutoPaper.Models;
 
@@ -301,6 +302,24 @@ internal sealed partial class AppModel : ObservableObject
 
     public MemoryStatus? Memory { get; private set => SetProperty(ref field, value); }
 
+    private UISettings? colors;
+
+    /// <summary>Tells the engine whether Windows is in light or dark mode, now and whenever it changes, so wallpapers
+    /// can suit it (when the person has that on).</summary>
+    private void WatchAppearance(Engine opened)
+    {
+        colors = new UISettings();
+        void Report()
+        {
+            // Windows' own test: a light foreground (text) means a dark background.
+            var foreground = colors.GetColorValue(UIColorType.Foreground);
+            var dark = foreground.R + foreground.G + foreground.B > 3 * 128;
+            opened.SetSystemAppearance(dark ? Appearance.Dark : Appearance.Light);
+        }
+        Report();
+        colors.ColorValuesChanged += (_, _) => Report();
+    }
+
     // ── Opening ─────────────────────────────────────────────────────────────────────────────────
 
     /// <summary>Opens the engine (off the UI thread: it loads the 133 MB embedding model), then starts the schedule.</summary>
@@ -316,6 +335,7 @@ internal sealed partial class AppModel : ObservableObject
         {
             engine = await Task.Run(() => Engine.Open(new EngineConfig(dataDir, modelDir, locale, client), Secrets));
             engine.SetProgressDetailObserver(detailObserver);
+            WatchAppearance(engine);
             Settings = await Call(e => e.Settings());
             Memory = await Call(e => e.MemoryStatus());
             Moods = await Call(e => e.Moods());

@@ -24,12 +24,14 @@ struct MoodList: View {
             ForEach(model.moods) { mood in
                 MoodRow(mood: mood, index: index(of: mood), count: model.moods.count)
                     .tag(mood.id)
+                    .listRowSeparator(.hidden)
             }
             .onMove { offsets, destination in
                 guard let from = offsets.first else { return }
                 model.moveMood(model.moods[from].id, to: Reorder.position(from: from, droppedAt: destination))
             }
         }
+        .listStyle(.inset)
         .contextMenu(forSelectionType: Mood.ID.self) { ids in
             if let id = ids.first, let mood = model.mood(id) {
                 MoodMenuItems(mood: mood)
@@ -360,17 +362,31 @@ private struct TitleTextField: NSViewRepresentable {
 /// The top of a mood: its editable name, its Surprise band, why a new name wasn't saved (if so),
 /// then what it has made: wallpapers, liked, echoes and when the last one was made.
 private struct MoodHeader: View {
+    @Environment(AppModel.self) private var model
     let mood: Mood
     let stats: MoodStats?
     @Binding var problem: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 5) {
-                MoodTitleField(mood: mood, problem: $problem)
-                Text(MoodText.surpriseLine(mood.surprise))
-                    .font(.callout)
-                    .quietText()
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 5) {
+                    MoodTitleField(mood: mood, problem: $problem)
+                    Text(MoodText.surpriseLine(mood.surprise))
+                        .font(.callout)
+                        .quietText()
+                }
+                Spacer(minLength: 8)
+                if mood.active {
+                    Button("In Use") {}
+                        .disabled(true)
+                        .accessibilityLabel("\(mood.name) is the current mood")
+                } else {
+                    Button("Use") { model.useMood(mood.id) }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityLabel("Use \(mood.name)")
+                        .help("Make this the current mood. Nothing changes until the next wallpaper.")
+                }
             }
             if let problem {
                 Label(problem, systemImage: "exclamationmark.triangle")

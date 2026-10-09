@@ -7,7 +7,7 @@ description: A free desktop app for macOS, Windows and Linux. Give it a few keyw
   <h1>AutoPaper</h1>
   <p class="tagline">Tell your computer what you’d like to see.</p>
   <p class="sub">Give it a few keywords, such as <em>rain, ruins, peaceful, night, blue</em>, and it keeps making new wallpapers from them. It writes a scene, has it painted by the AI service you choose with your own key, or by a model on your own computer, and puts it on your desktop. It remembers everything it has made, so you’re unlikely to see the same idea twice.</p>
-  <p class="status"><strong>Version 0.1.1</strong>, for macOS, Windows and Linux.</p>
+  <p class="status"><strong>Version 0.1.2</strong>, for macOS, Windows and Linux.</p>
   <div class="actions">
     <a class="button primary" href="https://github.com/msitarzewski/AutoPaper/releases/latest">Download for Mac</a>
     <a class="button primary" href="https://msitarzewski.com/app-updates/autopaper/AutoPaper.appinstaller">Download for Windows</a>
@@ -301,7 +301,7 @@ description: A free desktop app for macOS, Windows and Linux. Give it a few keyw
       <h2>Privacy, in brief</h2>
       <ul class="plain">
         <li><strong>No account, no telemetry, no analytics, and no AutoPaper server.</strong> AutoPaper talks only to the providers you set up.</li>
-        <li>To write a scene, the provider gets the current mood’s keywords and Surprise, short descriptions of recent wallpapers (so it doesn’t repeat them), a few things you’ve liked or disliked, and your language, so titles and descriptions come back in it. To paint it, the image provider gets the finished prompt, the size and the quality. Each request also names AutoPaper’s version and your system’s, and carries your IP address, as any request online does.</li>
+        <li>To write a scene, the provider gets the current mood’s keywords and Surprise, short descriptions of recent wallpapers (so it doesn’t repeat them), a few things you’ve liked or disliked, your language (so titles and descriptions come back in it), and whether your computer is in light or dark mode (while Match my appearance is on). To paint it, the image provider gets the finished prompt, the size and the quality. Each request also names AutoPaper’s version and your system’s, and carries your IP address, as any request online does.</li>
         <li>Requests to OpenAI are sent with <code>store: false</code>, so they aren’t kept as stored conversations; Google’s API keeps no conversation to begin with. Each provider’s own data policy still applies.</li>
         <li>A <strong>free Gemini key</strong> comes with Google’s unpaid terms: what you send may be used to improve Google’s products and read by human reviewers. A paid project doesn’t, and in the EEA, Switzerland and the UK the paid terms apply either way. AutoPaper’s Settings say so.</li>
         <li>Your keywords, moods, history, taste, timings, spending and images stay on your computer. With local models, nothing leaves your network at all.</li>
@@ -313,7 +313,7 @@ description: A free desktop app for macOS, Windows and Linux. Give it a few keyw
 
 <section class="section narrow" id="atmosphere">
   <h2>Later: Atmosphere</h2>
-  <p>After the first version, AutoPaper is meant to set more than the picture: an accent colour, light or dark mode, and sounds to go with each wallpaper, wherever each system allows it. That’s planned for version 2. The first version is the wallpaper, the lock screen, moods, memory and echoes.</p>
+  <p>Today AutoPaper already paints wallpapers that suit your light or dark mode (<strong>Match my appearance</strong>, on by default). After the first version, it is meant to set more than the picture: an accent colour, switching your computer’s own light or dark mode, and sounds to go with each wallpaper, wherever each system allows it. That’s planned for version 2. The first version is the wallpaper, the lock screen, moods, memory and echoes.</p>
 </section>
 
 <section class="section" id="examples">

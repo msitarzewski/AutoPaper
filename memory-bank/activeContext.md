@@ -196,15 +196,13 @@
 - Persistent review patch: `.scratch/autopaper-console-review.patch`; regenerate after source/documentation changes.
   Task record: `tasks/2026-10/261007_console-budget-transparency.md`.
 
-**State (2026-10-08): v0.1.1 RELEASED** (v0.1.0 on 2026-10-07) for macOS, Windows and Linux. Public repo https://github.com/msitarzewski/AutoPaper
-(MIT, branch `main`, tags `v0.1.0`, `v0.1.1`), site https://msitarzewski.github.io/AutoPaper/. CI green. Next work is optional
+**State (2026-10-09): v0.1.2 RELEASED** (v0.1.1 on 2026-10-08, v0.1.0 on 2026-10-07) for macOS, Windows and Linux. Public repo https://github.com/msitarzewski/AutoPaper
+(MIT, branch `main`, tags `v0.1.0`, `v0.1.1`, `v0.1.2`), site https://msitarzewski.github.io/AutoPaper/. CI green. Next work is optional
 polish and the backlog (below); the implemented Console/Moods/native form follow-ups are documented above. Spec for every app: `docs/app-spec.md`;
 design: `systemPatterns.md`; toolchains/VMs/infrastructure: `techContext.md`; history: `progress.md`,
 `tasks/2026-10/`; decisions: `decisions.md`.
 
-**Commit rule for this repo:** historical authorization covered the v0.1.0 release. The current batch remains
-uncommitted and unpublished; do not infer renewed commit/push/release approval from the reboot documentation request. Commit trailer: `Co-Authored-By: Claude <model> <noreply@anthropic.com>`; never put Claude session
-URLs anywhere.
+**Commit rule for this repo:** the user authorized the v0.1.0, v0.1.1 and v0.1.2 releases (commits + pushes); anything after needs fresh approval. Commit trailer: `Co-Authored-By: Claude <model> <noreply@anthropic.com>`; never put Claude session URLs anywhere.
 
 ## What shipped (all verified end to end)
 - **macOS** — notarized DMG + Sparkle 2.10.0 zip on the GitHub release; feed `https://msitarzewski.github.io/AutoPaper/appcast.xml`
@@ -232,6 +230,19 @@ URLs anywhere.
   Other projects), SECURITY, CONTRIBUTING, THIRD-PARTY-NOTICES (generated crate list), AGENTS.md copy, FUNDING, issue
   templates. Settings: Issues/Wiki/Projects on, Discussions off, Pages = Actions, Dependabot alerts on, private vulnerability
   reporting on, secret scanning + push protection on, default workflow permissions read.
+
+## v0.1.2 (2026-10-09) — released on all three platforms
+Contents: **Match my appearance** (`Settings.match_system_theme`, default on; hosts report light/dark through `Engine::set_system_appearance`; when on and known,
+`composer.rs` adds one prompt line asking for light-toned/airy or dark-toned/moody scenes with legible icons and "only the keywords can override this"; privacy
+docs list it as sent to the writer; Mac `AppModel.reportAppearance` observes `NSApp.effectiveAppearance`, Windows `UISettings.ColorValuesChanged`, Linux
+`adw::StyleManager` dark notify; toggles in each General settings). **Mac polish** the user asked for: Moods list is the native inset `List` (separators hidden
+per row via `.listRowSeparator(.hidden)` on the row; the selected row is blue only while the list has focus, gray otherwise: native, decided over a hand-drawn
+highlight), a Use / In Use button in the mood header, and Dock click / Show AutoPaper / Show Console raise the windows (`AppModel.raiseWorkWindows`, also
+un-minimizes; `applicationShouldHandleReopen` calls it when a window is already open). Versions: Cargo/csproj 0.1.2, appxmanifest 0.1.2.0, Mac 0.1.2 build 7, Linux
+metainfo entry. Verified: core 400 + 69 tests, clippy clean; Mac builds + test target compiles; Linux builds + 35 tests (Scratch VM); Windows core + app build, 86 tests.
+Lessons: syncing to the Scratch VM: only tar `core/src core/tests apps/linux/src` (the repo's `build/` is 4.5 GB), `touch` the .rs files after extracting (the
+archive's older mtimes make cargo think nothing changed), and never delete the archive while an extract may still run; `scripts/windows-app.ps1 -Test` does NOT
+rebuild the core or compile the app: run `scripts\build-core-windows.ps1` and `dotnet build` the app first.
 
 ## v0.1.1 (2026-10-08) — released on all three platforms
 https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.1 (main at 8d9ab17). Contents: **Console** (native date → runs → outcomes diagnostics with a

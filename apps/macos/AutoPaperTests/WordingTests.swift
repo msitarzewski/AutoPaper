@@ -1041,7 +1041,7 @@ struct ProvenanceTests {
             textProvider: ProviderSelection(kind: .google, model: "", baseUrl: nil),
             imageProvider: ProviderSelection(kind: .google, model: "", baseUrl: nil),
             imageQuality: .standard, monthlyBudgetCents: 500, fallback: .revisitLiked, replaceDisliked: true,
-            setLockScreen: false, storageLimitMb: 2_048, comfyuiWorkflow: nil
+            setLockScreen: false, matchSystemTheme: true, storageLimitMb: 2_048, comfyuiWorkflow: nil
         )
         ProviderChoice.choose(model: "gemini-3-pro-image", for: .images, in: &settings)
         #expect(settings.imageProvider == ProviderSelection(kind: .google, model: "gemini-3-pro-image", baseUrl: nil))

@@ -24,6 +24,7 @@
   checks remain open. Public release stays v0.1.0; new packaging/signing/publication deliberately deferred.
 
 ## Done (public release history)
+- 2026-10-09: **v0.1.2** on all three platforms: Match my appearance (core setting + prompt line + reporting and toggles on Mac/Windows/Linux), native Mac Moods list with Use / In Use, Dock/menu raise the windows.
 - 2026-10-05: Plan approved (shared Rust core + native SwiftUI / WinUI 3 / GTK4 apps). Repo scaffolded: licence, ignore
   rules, secret scanning config, memory bank, core design (`systemPatterns.md`). Toolchains proven on all three platforms
   (Swift/C# UniFFI round trips; WinUI MSIX sideload; GTK4 on Scratch). Website built (AudioPaper style, red, Lighthouse 100s),

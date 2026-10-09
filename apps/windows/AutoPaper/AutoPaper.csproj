@@ -28,7 +28,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Program.cs owns Main: single instance and redirected activations (notifications, a second launch). -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <Product>AutoPaper</Product>
     <Company>Michael Sitarzewski</Company>
     <Copyright>© 2026 Michael Sitarzewski</Copyright>

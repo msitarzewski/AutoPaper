@@ -76,8 +76,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Clicking the Dock icon (or opening AutoPaper again from Finder) opens the main window. The desktop overlay's
     /// windows are always visible, so what counts is a window the person works in (one that can be main).
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        if !NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) {
+        if !NSApp.windows.contains(where: { ($0.isVisible || $0.isMiniaturized) && $0.canBecomeMain }) {
             AppModel.shared.showMainWindow()
+        } else {
+            NSApp.activate()
+            AppModel.raiseWorkWindows()
         }
         return true
     }

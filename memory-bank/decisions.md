@@ -148,6 +148,9 @@ native manual/echo actions consume the new Shown-returning APIs.
 **References**: `systemPatterns.md#Service availability before wallpaper generation`, `core/src/engine.rs:2021`;
 `core/tests/engine.rs:2393`.
 
+### 2026-10-09: Wallpapers match the computer's light/dark mode (on by default); native selection only
+**Status**: Approved (user). **Context**: "account for the user's system theme… allow the preference, and enable it by default": the app UI already follows the system, so the request was read as the wallpapers themselves. **Decision**: `Settings.match_system_theme` (default true); hosts report the appearance (`set_system_appearance`), the engine adds one prompt line only when the setting is on and the appearance is known; keywords can override it. **Alternatives**: switch the computer's own light/dark mode to suit the wallpaper (that stays the planned v2 "Atmosphere"). **Consequences**: the writer is told light or dark mode (documented in PRIVACY.md, README, site); no extra provider call. Also: the Mac Moods list keeps Apple's default selection (blue only when the list has focus), no custom highlight.
+
 ### 2026-10-08: Local servers wait 10 minutes, and longer when their history says so (no timeout setting)
 **Status**: Approved (user: "make it up to 10 minutes… preloading can take a while from scratch… or an input field? thoughts?" → "build 1 to 3")
 **Context**: Ollama and OpenAI-compatible text had a fixed 180 s and compat painting 300 s; a model loaded from scratch can exceed that.

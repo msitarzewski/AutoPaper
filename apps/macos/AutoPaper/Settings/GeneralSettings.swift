@@ -27,6 +27,10 @@ struct GeneralSettings: View {
                     Text("Replace wallpapers I dislike")
                     Text("Disliking the wallpaper on your desktop makes a new one right away, within the budget.")
                 }
+                Toggle(isOn: model.setting(\.matchSystemTheme, true)) {
+                    Text("Match my Mac's appearance")
+                    Text("New wallpapers suit light or dark mode, whichever your Mac is in. Your keywords still come first.")
+                }
                 Picker(selection: model.setting(\.fallback, .revisitLiked)) {
                     Text(Fallback.revisitLiked.title).tag(Fallback.revisitLiked)
                     Text(Fallback.keepCurrent.title).tag(Fallback.keepCurrent)

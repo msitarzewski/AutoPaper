@@ -155,6 +155,7 @@ final class AppModel {
     @ObservationIgnored let desktop = DesktopService()
     @ObservationIgnored private var scheduler: Scheduler?
     @ObservationIgnored var openWindowAction: OpenWindowAction?
+    @ObservationIgnored private var appearanceObservation: NSKeyValueObservation?
     @ObservationIgnored var dismissWindowAction: DismissWindowAction?
     @ObservationIgnored var openSettingsAction: OpenSettingsAction?
     @ObservationIgnored private var readyWaiters: [CheckedContinuation<Void, Never>] = []
@@ -208,6 +209,7 @@ final class AppModel {
             do {
                 let core = try await CoreBridge.open(secrets: .shared, detail: detail)
                 self.core = core
+                reportAppearance()
                 await opened(core)
             } catch {
                 log.error("The engine didn't open: \(String(describing: error), privacy: .public)")
@@ -216,6 +218,19 @@ final class AppModel {
                 readyWaiters.forEach { $0.resume() }
                 readyWaiters.removeAll()
             }
+        }
+    }
+
+    /// Tells the engine whether the Mac is in light or dark mode (so wallpapers can suit it, when the person has that
+    /// on), now and whenever the system's appearance changes.
+    private func reportAppearance() {
+        guard let core else { return }
+        let dark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let appearance: Appearance = dark ? .dark : .light
+        Task { _ = try? await core.call { $0.setSystemAppearance(appearance: appearance) } }
+        guard appearanceObservation == nil else { return }
+        appearanceObservation = NSApp.observe(\.effectiveAppearance) { _, _ in
+            Task { @MainActor in AppModel.shared.reportAppearance() }
         }
     }
 
@@ -1460,6 +1475,19 @@ final class AppModel {
     func showMainWindow() {
         NSApp.activate()
         openWindowAction?(id: WindowID.main)
+        Self.raiseWorkWindows()
+    }
+
+    /// Brings the windows the person works in (not the desktop overlay) in front of other apps' and un-minimizes
+    /// them: `openWindow` on a window that's already open doesn't raise it. Deferred a turn so a window opened just
+    /// now exists.
+    static func raiseWorkWindows() {
+        DispatchQueue.main.async {
+            for window in NSApp.windows where window.canBecomeMain && (window.isVisible || window.isMiniaturized) {
+                if window.isMiniaturized { window.deminiaturize(nil) }
+                window.makeKeyAndOrderFront(nil)
+            }
+        }
     }
 
     // MARK: Refreshing

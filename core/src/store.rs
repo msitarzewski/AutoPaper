@@ -2365,6 +2365,7 @@ mod tests {
             fallback: Fallback::KeepCurrent,
             replace_disliked: false,
             set_lock_screen: false,
+            match_system_theme: false,
             storage_limit_mb: 512,
             comfyui_workflow: Some(r#"{"3": {"inputs": {"text": "{{prompt}}"}}}"#.into()),
         }

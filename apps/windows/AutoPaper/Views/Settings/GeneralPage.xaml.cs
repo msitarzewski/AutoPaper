@@ -112,6 +112,7 @@ public sealed partial class GeneralPage : Page
         CadenceBox.SelectedIndex = Array.IndexOf(Cadences, settings.Cadence);
         Paused.IsOn = settings.Paused;
         ReplaceDisliked.IsOn = settings.ReplaceDisliked;
+        MatchTheme.IsOn = settings.MatchSystemTheme;
         FallbackBox.SelectedIndex = settings.Fallback == Core.Fallback.RevisitLiked ? 0 : 1;
         LockScreen.IsOn = settings.SetLockScreen && LockScreen.IsEnabled;
         loading = was;
@@ -262,6 +263,12 @@ public sealed partial class GeneralPage : Page
     {
         var replace = ReplaceDisliked.IsOn;
         await SaveAsync(ReplaceDislikedCard, settings => settings with { ReplaceDisliked = replace });
+    }
+
+    private async void OnMatchThemeToggled(object sender, RoutedEventArgs e)
+    {
+        var match = MatchTheme.IsOn;
+        await SaveAsync(MatchThemeCard, settings => settings with { MatchSystemTheme = match });
     }
 
     private async void OnFallbackChanged(object sender, SelectionChangedEventArgs e)

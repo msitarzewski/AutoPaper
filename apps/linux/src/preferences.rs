@@ -181,6 +181,7 @@ struct General {
     cadence: adw::ComboRow,
     pause: adw::SwitchRow,
     replace: adw::SwitchRow,
+    theme: adw::SwitchRow,
     fallback: adw::ComboRow,
     lock_screen: adw::SwitchRow,
     updating: Cell<bool>,
@@ -198,6 +199,10 @@ impl General {
             .title("Replace wallpapers I dislike")
             .subtitle("A new one replaces it right away, within the budget.")
             .build();
+        let theme = adw::SwitchRow::builder()
+            .title("Match my appearance")
+            .subtitle("New wallpapers suit light or dark mode, whichever your desktop is in. Your keywords still come first.")
+            .build();
         let fallback_labels: Vec<&str> = strings::FALLBACKS.iter().map(|(_, label)| *label).collect();
         let fallback = combo(
             "When a new one can't be made",
@@ -208,6 +213,7 @@ impl General {
         making.add(&cadence);
         making.add(&pause);
         making.add(&replace);
+        making.add(&theme);
         making.add(&fallback);
 
         let lock_screen = adw::SwitchRow::builder().title("Also set the lock screen").build();
@@ -269,6 +275,7 @@ impl General {
             cadence,
             pause,
             replace,
+            theme,
             fallback,
             lock_screen,
             updating: Cell::new(false),
@@ -298,6 +305,7 @@ impl General {
         }
         self.pause.set_active(settings.paused);
         self.replace.set_active(settings.replace_disliked);
+        self.theme.set_active(settings.match_system_theme);
         if let Some(index) = strings::FALLBACKS.iter().position(|(fallback, _)| *fallback == settings.fallback) {
             self.fallback.set_selected(index as u32);
         }
@@ -336,6 +344,11 @@ impl General {
         self.replace.connect_active_notify(move |row| {
             let replace = row.is_active();
             g(&|app, dialog| save(app, dialog, move |settings| settings.replace_disliked = replace));
+        });
+        let g = guard.clone();
+        self.theme.connect_active_notify(move |row| {
+            let theme = row.is_active();
+            g(&|app, dialog| save(app, dialog, move |settings| settings.match_system_theme = theme));
         });
         let g = guard.clone();
         self.fallback.connect_selected_notify(move |row| {

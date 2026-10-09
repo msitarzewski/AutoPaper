@@ -84,6 +84,11 @@
     <keyword>lock screen</keyword>
   </keywords>
   <releases>
+    <release version="0.1.2" date="2026-10-09">
+      <description>
+        <p>Wallpapers that suit your light or dark mode, with a setting to turn it off. On a Mac, AutoPaper's windows come forward from the Dock and menu, and the Moods list is native.</p>
+      </description>
+    </release>
     <release version="0.1.1" date="2026-10-08">
       <description>
         <p>A Console that shows every wallpaper run and what happened, clearer explanations when the monthly budget blocks a new wallpaper (your current wallpaper stays), and local models that need minutes to load now get time to start.</p>

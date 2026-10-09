@@ -473,6 +473,14 @@ pub enum Fallback {
     KeepCurrent,
 }
 
+/// The computer's light or dark appearance, as the host reports it (`Engine::set_system_appearance`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
+#[serde(rename_all = "snake_case")]
+pub enum Appearance {
+    Light,
+    Dark,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, uniffi::Record)]
 pub struct Settings {
     /// 0 = faithful to the keywords, 1 = wild. The active mood's (`Mood::surprise`): reading it reads that mood's,
@@ -490,6 +498,8 @@ pub struct Settings {
     pub fallback: Fallback,
     pub replace_disliked: bool,
     pub set_lock_screen: bool,
+    /// Ask for wallpapers that suit the computer's light or dark appearance (on by default).
+    pub match_system_theme: bool,
     /// Image files beyond this are pruned, oldest unliked first. Memory is always kept.
     pub storage_limit_mb: u32,
     /// ComfyUI workflow (API format) with `{{prompt}}`, `{{width}}`, `{{height}}`, `{{seed}}`.
@@ -511,6 +521,7 @@ impl Default for Settings {
             fallback: Fallback::RevisitLiked,
             replace_disliked: true,
             set_lock_screen: true,
+            match_system_theme: true,
             storage_limit_mb: 2048,
             comfyui_workflow: None,
         }

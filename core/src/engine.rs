@@ -281,6 +281,8 @@ struct Inner {
     detail: Mutex<Option<Arc<dyn ProgressDetailObserver>>>,
     /// Demo's slow mode, in milliseconds (0: off).
     demo_delay_ms: AtomicU64,
+    /// The computer's appearance, as the host last reported it (`set_system_appearance`).
+    appearance: Mutex<Option<Appearance>>,
 }
 
 #[derive(Debug, Clone)]
@@ -775,6 +777,12 @@ impl Engine {
         *lock(&self.inner.detail) = observer;
     }
 
+    /// The computer's light or dark appearance (`None`: unknown). Hosts report it at launch and whenever it changes;
+    /// while `Settings::match_system_theme` is on, new ideas are asked to suit it.
+    pub fn set_system_appearance(&self, appearance: Option<Appearance>) {
+        *lock(&self.inner.appearance) = appearance;
+    }
+
     /// This month's (UTC) estimated spend, and estimates for one more wallpaper (a typical compose call
     /// plus one image at the size the current settings would request) and for a month at the cadence.
     pub fn spend_summary(&self) -> Result<SpendSummary> {
@@ -952,6 +960,7 @@ impl Engine {
                 stats: Mutex::new(EngineStats::default()),
                 detail: Mutex::new(None),
                 demo_delay_ms: AtomicU64::new(0),
+                appearance: Mutex::new(None),
             }),
         }))
     }
@@ -2389,6 +2398,7 @@ impl Inner {
                 axes: echo.axes.clone(),
             }),
             gentler,
+            appearance: if job.settings.match_system_theme { *lock(&self.appearance) } else { None },
         })
     }
 

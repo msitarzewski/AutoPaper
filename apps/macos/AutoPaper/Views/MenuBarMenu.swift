@@ -7,7 +7,6 @@ import SwiftUI
 /// HIG: "Display a menu — not a popover — when people click your menu bar extra."
 struct MenuBarMenu: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
@@ -37,13 +36,11 @@ struct MenuBarMenu: View {
             .disabled(!model.autoPaperShowing)
         Divider()
         Button("Show AutoPaper") {
-            NSApp.activate()
-            openWindow(id: WindowID.main)
+            model.showMainWindow()
         }
         Button("Show Console") {
             model.section = .console
-            NSApp.activate()
-            openWindow(id: WindowID.main)
+            model.showMainWindow()
         }
         // As AudioPaper's menu: a menu bar app's app menu is only there while one of its windows is in front.
         Button("Check for Updates…") { Updates.shared.checkForUpdates() }
@@ -101,8 +98,7 @@ struct MenuBarMenu: View {
                 Button("Edit Moods…") {
                     model.section = .moods
                     model.moodSelection = model.activeMood?.id ?? model.moodSelection
-                    NSApp.activate()
-                    openWindow(id: WindowID.main)
+                    model.showMainWindow()
                 }
             }
             Divider()

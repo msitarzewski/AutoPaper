@@ -396,6 +396,9 @@ Show on desktop</value></data>
   <data name="GeneralReplaceDisliked.Header" xml:space="preserve"><value>Replace wallpapers I dislike</value></data>
   <data name="GeneralReplaceDisliked.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Replace wallpapers I dislike</value></data>
   <data name="GeneralReplaceDisliked.Description" xml:space="preserve"><value>Makes a new one straight away when you dislike the one showing, if the budget allows.</value></data>
+  <data name="GeneralMatchTheme.Header" xml:space="preserve"><value>Match my appearance</value></data>
+  <data name="GeneralMatchTheme.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Match my appearance</value></data>
+  <data name="GeneralMatchTheme.Description" xml:space="preserve"><value>New wallpapers suit light or dark mode, whichever Windows is in. Your keywords still come first.</value></data>
   <data name="GeneralFallback.Header" xml:space="preserve"><value>When a new one can't be made</value></data>
   <data name="GeneralFallback.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>When a new one can't be made</value></data>
   <data name="GeneralFallback.Description" xml:space="preserve"><value>Service checks that fail show the latest saved wallpaper from the current mood. Budget blocks keep the current wallpaper. This choice applies to other scheduled failures.</value></data>

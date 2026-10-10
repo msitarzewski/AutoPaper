@@ -18,6 +18,7 @@ internal static class Text
         ProviderKind.Ollama => "Ollama",
         ProviderKind.OpenAiCompatible => Loc.Get("Provider_CompatibleInSentence"),
         ProviderKind.ComfyUi => "ComfyUI",
+        ProviderKind.System => "The on-device model",
         _ => Loc.Get("Provider_Demo"),
     };
 
@@ -29,6 +30,7 @@ internal static class Text
         ProviderKind.Ollama => "Ollama",
         ProviderKind.OpenAiCompatible => Loc.Get("Provider_Compatible"),
         ProviderKind.ComfyUi => "ComfyUI",
+        ProviderKind.System => "On-device model",
         _ => Loc.Get("Provider_DemoOption"),
     };
 
@@ -415,8 +417,20 @@ internal static class Text
 
     public static string RunRate(double? fraction) => fraction?.ToString("P0", CultureInfo.CurrentCulture) ?? "—";
 
-    public static string RunSeconds(double? seconds) => seconds is { } value
-        ? Loc.Format("Console_Seconds", value.ToString("0.######", CultureInfo.CurrentCulture)) : "—";
+    public static string RunSeconds(double? seconds)
+    {
+        if (seconds is not { } value || !double.IsFinite(value) || value < 0) return "—";
+        // "8.4 s", "35 s", "5 min 22 s": a chart label, not a measurement printout.
+        if (value < 0.1) return Loc.Format("Console_Seconds", value.ToString("0.###", CultureInfo.CurrentCulture));
+        if (value < 10) return Loc.Format("Console_Seconds", value.ToString("0.0", CultureInfo.CurrentCulture));
+        var whole = (long)Math.Round(value);
+        if (whole < 60) return Loc.Format("Console_Seconds", whole.ToString(CultureInfo.CurrentCulture));
+        var minutes = whole / 60;
+        var rest = whole % 60;
+        var hours = minutes / 60;
+        var text = hours > 0 ? $"{hours} hr {minutes % 60} min" : $"{minutes} min";
+        return rest > 0 && hours == 0 ? $"{text} {Loc.Format("Console_Seconds", rest.ToString(CultureInfo.CurrentCulture))}" : text;
+    }
 
     /// <summary>The Console's outcomes include requests stopped before any provider was contacted.</summary>
     public static string RunOutcome(RunStatus status) => Loc.Get("ConsoleStatus_" + status);

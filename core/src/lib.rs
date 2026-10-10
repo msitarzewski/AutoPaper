@@ -29,6 +29,6 @@ pub use composer::surprise_band;
 pub use engine::{Engine, EngineConfig, MemoryStatus, RevisitReason, Shown};
 pub use error::{AutoPaperError, InvalidInputReason, ProviderUnavailableReason, Result};
 pub use model::*;
-pub use ports::{ProgressDetailObserver, ProgressObserver, SecretStore};
+pub use ports::{ProgressDetailObserver, ProgressObserver, SecretStore, SystemModel};
 pub use pricing::prices_as_of;
 pub use providers::registry::{default_base_url, default_model};

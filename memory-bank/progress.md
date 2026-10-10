@@ -25,6 +25,7 @@
 
 ## Done (public release history)
 - 2026-10-09: **v0.1.2** on all three platforms: Match my appearance (core setting + prompt line + reporting and toggles on Mac/Windows/Linux), native Mac Moods list with Use / In Use, Dock/menu raise the windows.
+- 2026-10-10: **v0.1.3**: Mac "On this Mac" writer (Apple Foundation Models via the core's `SystemModel` port; default on the welcome when available), Console charts, details-first events, JSON/instructions disclosures; `docs/research/built-in-models.md` section 7.
 - 2026-10-05: Plan approved (shared Rust core + native SwiftUI / WinUI 3 / GTK4 apps). Repo scaffolded: licence, ignore
   rules, secret scanning config, memory bank, core design (`systemPatterns.md`). Toolchains proven on all three platforms
   (Swift/C# UniFFI round trips; WinUI MSIX sideload; GTK4 on Scratch). Website built (AudioPaper style, red, Lighthouse 100s),

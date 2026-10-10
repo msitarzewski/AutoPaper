@@ -20,6 +20,26 @@ pub trait SecretStore: Send + Sync {
     fn delete(&self, account: String);
 }
 
+/// The model built into the computer's operating system, which only the host can call (Apple's Foundation Models on a
+/// Mac). Registered with `Engine::set_system_model`. Both methods are synchronous (async foreign calls don't build in
+/// Swift 6) and may block for a while: the core calls `compose` on a blocking thread, never on the host's UI thread.
+#[uniffi::export(with_foreign)]
+pub trait SystemModel: Send + Sync {
+    /// Whether the model can be used now, and how big its context window is.
+    fn status(&self) -> crate::model::SystemModelStatus;
+    /// One structured request: `system` instructions, the `user` prompt, `schema_json` (the composer's JSON Schema),
+    /// the temperature (0–2; hosts clamp to what the model takes) and the most tokens to write. Returns the JSON text
+    /// the model wrote, or the problem.
+    fn compose(
+        &self,
+        system: String,
+        user: String,
+        schema_json: String,
+        temperature: f32,
+        max_output_tokens: u32,
+    ) -> crate::model::SystemComposeOutcome;
+}
+
 /// Progress of one generation. Called on the thread running the generation (whichever thread polls the
 /// async call; not necessarily the UI thread), so hosts marshal to their UI thread.
 #[uniffi::export(with_foreign)]

@@ -39,6 +39,22 @@ const MAX_HINTS: usize = 6;
 /// Longest remembered summary quoted back to the model (characters).
 const MAX_QUOTED_CHARS: usize = 400;
 
+/// What the composer needs to know about a built-in model: how much it can read and write in one request.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct OnDevice {
+    /// Tokens in the model's context window, 0 when the host couldn't say (treated as the smaller 4,096).
+    pub context_tokens: u32,
+}
+
+/// How many candidates a request asks for: `CANDIDATES`, or 2 from a built-in model whose window is under 8,000 tokens
+/// (four candidates and their answers wouldn't fit).
+pub fn candidate_count(context: &ComposeContext) -> usize {
+    match context.on_device {
+        Some(device) if device.context_tokens < 8_000 => 2,
+        _ => CANDIDATES,
+    }
+}
+
 /// Everything the composer needs for one request.
 #[derive(Debug, Clone, Default)]
 pub struct ComposeContext {
@@ -60,6 +76,8 @@ pub struct ComposeContext {
     pub echo: Option<EchoBrief>,
     /// The provider declined the last attempt (content policy): ask for gentler, plainly described scenes.
     pub gentler: bool,
+    /// Set when the writer is the computer's built-in model: shorter instructions, fewer candidates, and `repair`.
+    pub on_device: Option<OnDevice>,
     /// The computer's appearance when the person asked for wallpapers to suit it (`Settings::match_system_theme`).
     pub appearance: Option<crate::model::Appearance>,
 }
@@ -145,6 +163,11 @@ const ECHO_NOTE: (&str, &str) =
 /// strings only. With `echo`, each candidate also has `echo_note`. Besides structure it uses only
 /// `description`, `minItems` and `maxItems`, which both providers accept.
 pub fn schema(echo: bool) -> Value {
+    schema_for(echo, CANDIDATES)
+}
+
+/// `schema` for a request that asks for `count` candidates.
+pub fn schema_for(echo: bool, count: usize) -> Value {
     let mut properties = Map::new();
     let mut required = Vec::new();
     let mut add = |name: &str, kind: FieldKind, description: &str| {
@@ -167,7 +190,7 @@ pub fn schema(echo: bool) -> Value {
             "candidates": {
                 "type": "array",
                 "minItems": 1,
-                "maxItems": CANDIDATES,
+                "maxItems": count,
                 "items": {
                     "type": "object",
                     "properties": properties,
@@ -233,18 +256,23 @@ pub fn score(novelty: f32, taste: f32, surprise: f32, jitter: f32) -> f32 {
 pub fn build_request(context: &ComposeContext, model: &str) -> ComposeRequest {
     let brief = Brief::new(context);
     let echo = context.echo.is_some();
+    let count = candidate_count(context);
     ComposeRequest {
         model: model.to_string(),
-        system: system_instructions(&brief.avoids, echo),
-        user: user_instructions(context, &brief),
-        schema: schema(echo),
+        system: if context.on_device.is_some() {
+            compact_instructions(&brief.avoids, echo, count)
+        } else {
+            system_instructions(&brief.avoids, echo, count)
+        },
+        user: user_instructions(context, &brief, count),
+        schema: schema_for(echo, count),
         temperature: temperature(context.surprise),
         inputs: ComposeInputs {
             musts: brief.musts.clone(),
             maybes: brief.maybes.clone(),
             avoids: brief.avoids.clone(),
             surprise: brief.surprise,
-            candidates: CANDIDATES,
+            candidates: count,
             echo_of: context.echo.as_ref().map(|echo| echo.original.clone()),
         },
         expected_secs: None,
@@ -346,7 +374,7 @@ const CALM_AREAS: [&str; 4] = ["open negative space", "soft gradients", "gentle 
 
 const EXAMPLES_SHOWN: usize = 2;
 
-fn system_instructions(avoids: &[String], echo: bool) -> String {
+fn system_instructions(avoids: &[String], echo: bool, count: usize) -> String {
     let listed = |items: &[&str], last: &str| -> String {
         match without_avoided(items, avoids).as_slice() {
             [] => String::new(),
@@ -367,7 +395,7 @@ fn system_instructions(avoids: &[String], echo: bool) -> String {
             || "an inflected form counts".to_string(),
             |(form, base)| format!("an inflected form, such as \"{form}\" for \"{base}\", counts"),
         );
-    let n = CANDIDATES;
+    let n = count;
     let mut out = format!(
         "You are the scene composer inside AutoPaper, an app that makes a new desktop wallpaper for one person \
 from their keywords, on a schedule. Your only job is to invent {n} candidate wallpaper scenes and describe each \
@@ -485,6 +513,149 @@ candidates."
 
 /// What Surprise means for reading the keywords, indexed by `wildcard_limit` (which shares Surprise's
 /// thresholds: below 0.25, 0.5, 0.75, and above).
+/// The built-in model's instructions: a short list of the rules that matter, since its context window is small and it
+/// follows a long list of rules less well than a long list of examples of the thing itself. The composer repairs what
+/// it still gets wrong (`repair`).
+fn compact_instructions(avoids: &[String], echo: bool, count: usize) -> String {
+    let mut out = format!(
+        "You invent {count} candidate desktop-wallpaper scenes as structured JSON. For each, write a title (at most 5 words), \
+a one-line summary of the scene, and an image prompt of 40 to 90 words.\n\nRules for every image prompt:\n\
+- A wide landscape picture that fills the frame, with a calm, quiet area where desktop icons can sit.\n\
+- No text, letters, logos, watermarks or interface, and never the words wallpaper, desktop, screen or background.\n\
+- The prompt is plain flowing prose: the medium and the main subject first, then the light, colours and mood. Never write name: value pairs or repeat the other fields in it.\n\
+- Every Must keyword appears in the prompt exactly as written.\n\
+- Write the prompt in English; the title and summary in the language asked for."
+    );
+    if !avoids.is_empty() {
+        out.push_str("\n- Never mention an Avoid keyword in any field, not even to say it is absent (no \"no people\").");
+    }
+    if echo {
+        out.push_str("\n- Each candidate is a new version of the original scene: keep its feeling and change what is asked.");
+    }
+    out.push_str("\nFill every field of the JSON; the other fields describe the scene in a few words each.");
+    out
+}
+
+/// Puts right what a built-in model gets wrong too often to ask again: a Must keyword left out of the prompt is added
+/// to its start, and a way of denying an Avoid keyword ("no people", "without people") is taken out. Returns what it
+/// changed, in words, one line per candidate that changed, for the Console.
+pub fn repair(candidates: &mut [Composed], keywords: &[Keyword]) -> Vec<String> {
+    let mut ordered: Vec<&Keyword> = keywords.iter().filter(|k| !k.text.trim().is_empty()).collect();
+    ordered.sort_by_key(|k| k.position);
+    let mut notes = Vec::new();
+    for (index, candidate) in candidates.iter_mut().enumerate() {
+        let mut changes = Vec::new();
+        if let Some(cleaned) = without_field_labels(&candidate.concept.prompt) {
+            candidate.concept.prompt = cleaned;
+            changes.push("took field labels out of the prompt".to_string());
+        }
+        for keyword in ordered.iter().filter(|k| k.weight == KeywordWeight::Avoid) {
+            if let Some(cleaned) = without_denials(&candidate.concept.prompt, keyword.text.trim()) {
+                candidate.concept.prompt = cleaned;
+                changes.push(format!("removed a denial of “{}”", keyword.text.trim()));
+            }
+        }
+        let missing: Vec<&str> = ordered
+            .iter()
+            .filter(|k| k.weight == KeywordWeight::Must && !text::mentions(&candidate.concept.prompt, &k.text))
+            .map(|k| k.text.trim())
+            .collect();
+        if !missing.is_empty() {
+            let added = missing.join(", ");
+            let first = candidate.concept.prompt.trim_start();
+            let rest = match first.chars().next() {
+                Some(c) if c.is_uppercase() && !first.chars().nth(1).is_some_and(char::is_uppercase) => {
+                    format!("{}{}", c.to_lowercase(), &first[c.len_utf8()..])
+                }
+                _ => first.to_string(),
+            };
+            candidate.concept.prompt = format!("{added}, {rest}");
+            changes.push(format!("added “{added}”"));
+        }
+        if !changes.is_empty() {
+            notes.push(format!("Candidate {}: {}", index + 1, changes.join("; ")));
+        }
+    }
+    notes
+}
+
+/// The prompt with "name: value" labels taken out: the value stays ("season: early summer" becomes "early summer"),
+/// except for the fields that repeat other parts of the idea (title, summary, wildcards), which go. `None` when there
+/// were no labels. Built-in models sometimes write their other fields into the prompt.
+fn without_field_labels(prompt: &str) -> Option<String> {
+    const KEPT: [&str; 10] =
+        ["season", "setting", "style", "subject", "time of day", "weather", "mood", "palette", "composition", "elements"];
+    const DROPPED: [&str; 4] = ["title", "summary", "wildcards", "keywords used"];
+    let mut changed = false;
+    let mut kept: Vec<String> = Vec::new();
+    for part in prompt.split(',') {
+        let trimmed = part.trim();
+        // "the season is spring, the setting is …": the model reciting its other fields; it and what follows go.
+        if !kept.is_empty() && recites_a_field(trimmed) {
+            changed = true;
+            break;
+        }
+        let label = trimmed.split_once(':').map(|(label, value)| (label.trim().to_lowercase().replace('_', " "), value.trim()));
+        match label {
+            Some((label, _)) if DROPPED.contains(&label.as_str()) => changed = true,
+            Some((label, value)) if KEPT.contains(&label.as_str()) => {
+                changed = true;
+                if !value.is_empty() {
+                    kept.push(value.to_string());
+                }
+            }
+            _ => {
+                if !trimmed.is_empty() {
+                    kept.push(trimmed.to_string());
+                }
+            }
+        }
+    }
+    changed.then(|| kept.join(", "))
+}
+
+/// "the season is spring", "the summary: …": a part that starts by naming one of the idea's other fields.
+fn recites_a_field(part: &str) -> bool {
+    const FIELDS: [&str; 12] =
+        ["season", "setting", "style", "subject", "summary", "title", "mood", "palette", "composition", "wildcards", "time of day", "weather"];
+    let lower = part.to_lowercase();
+    let Some(rest) = lower.strip_prefix("the ") else { return false };
+    FIELDS.iter().any(|field| {
+        rest.strip_prefix(field).is_some_and(|after| after.starts_with(" is") || after.starts_with(" are") || after.starts_with(':'))
+    })
+}
+
+/// `prompt` without the comma- or semicolon-separated parts that deny `term` ("no people", "empty, without any people
+/// in view"): each such part is cut from its negating word on. `None` when nothing was denied.
+fn without_denials(prompt: &str, term: &str) -> Option<String> {
+    const NEGATORS: [&str; 7] = ["no", "without", "zero", "absent", "free", "not", "nobody"];
+    let mut changed = false;
+    let mut kept: Vec<String> = Vec::new();
+    for part in prompt.split([',', ';']) {
+        let words: Vec<&str> = part.split_whitespace().collect();
+        let negator = words.iter().position(|word| {
+            let word = word.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase();
+            NEGATORS.contains(&word.as_str())
+        });
+        match negator {
+            Some(at) if text::mentions(part, term) => {
+                changed = true;
+                let before = words[..at].join(" ");
+                if !before.is_empty() {
+                    kept.push(before);
+                }
+            }
+            _ => {
+                let part = part.trim();
+                if !part.is_empty() {
+                    kept.push(part.to_string());
+                }
+            }
+        }
+    }
+    changed.then(|| kept.join(", "))
+}
+
 const SURPRISE_BANDS: [&str; 4] = [
     "faithful and literal: each keyword as anyone would picture it, in a natural, believable scene",
     "fresh but believable: natural scenes, each with one unexpected choice of viewpoint, light, season, era or medium",
@@ -501,13 +672,13 @@ const ECHO_DISTANCE: [&str; 4] = [
     "reimagine it boldly and push every change far, while the place and its key elements stay recognisable",
 ];
 
-fn user_instructions(context: &ComposeContext, brief: &Brief) -> String {
+fn user_instructions(context: &ComposeContext, brief: &Brief, count: usize) -> String {
     let band = wildcard_limit(brief.surprise).min(SURPRISE_BANDS.len() - 1);
     let mut lines: Vec<String> = Vec::new();
 
     match &context.echo {
-        Some(echo) => echo_section(&mut lines, echo, &brief.avoids),
-        None => keyword_section(&mut lines, brief),
+        Some(echo) => echo_section(&mut lines, echo, &brief.avoids, count),
+        None => keyword_section(&mut lines, brief, count),
     }
 
     lines.push(String::new());
@@ -621,8 +792,8 @@ other and from the recent wallpapers."
     lines.join("\n")
 }
 
-fn keyword_section(lines: &mut Vec<String>, brief: &Brief) {
-    lines.push(format!("Compose {CANDIDATES} wallpaper candidates."));
+fn keyword_section(lines: &mut Vec<String>, brief: &Brief, count: usize) {
+    lines.push(format!("Compose {count} wallpaper candidates."));
     if brief.musts.is_empty() && brief.maybes.is_empty() {
         lines.push(
             "The person has no Must or Maybe keywords right now: choose varied scenes with broad appeal.".to_string(),
@@ -633,10 +804,10 @@ fn keyword_section(lines: &mut Vec<String>, brief: &Brief) {
     list_section(lines, "Avoid (never part of any candidate, never mentioned in any field):", &brief.avoids);
 }
 
-fn echo_section(lines: &mut Vec<String>, echo: &EchoBrief, avoids: &[String]) {
+fn echo_section(lines: &mut Vec<String>, echo: &EchoBrief, avoids: &[String], count: usize) {
     let original = &echo.original;
     let age = one_line(&echo.age, 60);
-    lines.push(format!("Compose {CANDIDATES} echo candidates."));
+    lines.push(format!("Compose {count} echo candidates."));
     lines.push(String::new());
     lines.push(if age.is_empty() {
         "The original wallpaper:".to_string()
@@ -1539,6 +1710,90 @@ mod tests {
             let user = build_request(&ComposeContext { appearance: Some(appearance), ..context(&["harbour"], &[], &[], 0.3) }, "").user;
             assert!(user.contains(word), "{user}");
         }
+    }
+
+    #[test]
+    fn a_built_in_model_gets_short_instructions_and_fewer_candidates_when_its_window_is_small() {
+        let keywords = vec![keyword("misty mountains", KeywordWeight::Must, 0), keyword("people", KeywordWeight::Avoid, 1)];
+        let base = ComposeContext { keywords, surprise: 0.3, locale: "en-US".into(), ..Default::default() };
+        let hosted = build_request(&base, "");
+        assert_eq!(hosted.inputs.candidates, CANDIDATES);
+
+        let small = build_request(&ComposeContext { on_device: Some(OnDevice { context_tokens: 4096 }), ..base.clone() }, "");
+        assert_eq!(small.inputs.candidates, 2);
+        assert_eq!(small.schema["properties"]["candidates"]["maxItems"], json!(2));
+        assert!(small.user.contains("Compose 2 wallpaper candidates."), "{}", small.user);
+        assert!(small.system.len() * 3 < hosted.system.len(), "{} vs {}", small.system.len(), hosted.system.len());
+        assert!(small.system.contains("not even to say it is absent"), "the Avoid rule is there when there is an Avoid");
+
+        let large = build_request(&ComposeContext { on_device: Some(OnDevice { context_tokens: 8192 }), ..base }, "");
+        assert_eq!(large.inputs.candidates, CANDIDATES);
+        assert_eq!(large.system, small.system.replace("2 candidate", "4 candidate"));
+    }
+
+    #[test]
+    fn repair_adds_a_missing_must_and_removes_denials_of_an_avoid() {
+        let keywords = vec![
+            keyword("misty mountains", KeywordWeight::Must, 0),
+            keyword("lighthouse", KeywordWeight::Maybe, 1),
+            keyword("people", KeywordWeight::Avoid, 2),
+        ];
+        let candidate = |prompt: &str| Composed {
+            concept: Concept { title: "Ridge".into(), summary: "A ridge.".into(), prompt: prompt.into(), ..Concept::default() },
+            echo_note: None,
+        };
+        let mut candidates = vec![
+            candidate("A wide landscape photograph of a distant ridge in low cloud, no people, calm light"),
+            candidate("A painting of misty mountains at dawn, calm light"),
+            candidate("A render of a quiet shore, without any people in view; soft haze"),
+        ];
+        let notes = repair(&mut candidates, &keywords);
+        assert_eq!(
+            candidates[0].concept.prompt,
+            "misty mountains, a wide landscape photograph of a distant ridge in low cloud, calm light"
+        );
+        assert_eq!(candidates[1].concept.prompt, "A painting of misty mountains at dawn, calm light", "nothing to repair");
+        assert!(candidates[2].concept.prompt.starts_with("misty mountains, a render of a quiet shore"), "{}", candidates[2].concept.prompt);
+        assert!(!candidates[2].concept.prompt.contains("people"), "{}", candidates[2].concept.prompt);
+        assert_eq!(notes.len(), 2, "{notes:?}");
+        for repaired in [&candidates[0], &candidates[1], &candidates[2]] {
+            assert!(check(&repaired.concept, &keywords, false).is_empty(), "{:?}", check(&repaired.concept, &keywords, false));
+        }
+    }
+
+    #[test]
+    fn repair_takes_field_labels_out_of_a_prompt() {
+        let prompt = "A wide landscape with misty mountains, golden light, season: early summer, setting: forested riverbank, \
+subject: riverbank with misty peaks, summary: a quiet river flows, time of day: golden hour, title: Whispers by the River, wildcards: leaf";
+        assert_eq!(
+            without_field_labels(prompt).as_deref(),
+            Some("A wide landscape with misty mountains, golden light, early summer, forested riverbank, riverbank with misty peaks, golden hour")
+        );
+        assert_eq!(without_field_labels("A calm lake at dawn, soft haze"), None);
+    }
+
+    #[test]
+    fn repair_cuts_a_prompt_where_the_model_starts_reciting_its_fields() {
+        let prompt = "A sweeping coastal view with misty mountains, soft golden light, the season is spring, the setting is rugged coastline, the style is watercolor wash, the summary: light dances";
+        assert_eq!(
+            without_field_labels(prompt).as_deref(),
+            Some("A sweeping coastal view with misty mountains, soft golden light")
+        );
+        assert_eq!(without_field_labels("The season is changing, a quiet lake"), None, "only the field names are cut");
+    }
+
+    #[test]
+    fn a_denial_is_cut_only_where_the_avoid_keyword_is_named() {
+        assert_eq!(without_denials("a calm lake, no buildings, soft haze", "people"), None);
+        assert_eq!(without_denials("a calm lake, no people, soft haze", "people").as_deref(), Some("a calm lake, soft haze"));
+        assert_eq!(without_denials("empty shore without people", "people").as_deref(), Some("empty shore"));
+    }
+
+    #[test]
+    fn a_window_of_unknown_size_is_treated_as_the_small_one() {
+        let context = ComposeContext { on_device: Some(OnDevice::default()), ..Default::default() };
+        assert_eq!(candidate_count(&context), 2);
+        assert_eq!(candidate_count(&ComposeContext::default()), CANDIDATES);
     }
 
     #[test]

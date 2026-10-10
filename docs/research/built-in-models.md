@@ -381,3 +381,18 @@ Linux
 Probe sources (scratchpad, not in the repo): `probe/fm*.swift` (Foundation Models), `probe/sb.swift` + `ProbeFM.app`
 (sandboxed background agent), `probe/ip*.swift` (Image Playground), `probe/vt.swift` (VideoToolbox). The composer request
 was captured from `target/debug/autopaper compose` against a local capture server, using a temporary data dir.
+
+---
+
+## 7. Test through AutoPaper's real composer (2026-10-09)
+
+- **macOS 27.2, AFM 3 Core Advanced** (a throwaway OpenAI-compatible shim over Foundation Models, run with `autopaper compose` on Must "misty mountains",
+  Maybe "lighthouse", Avoid "people"): **4 valid candidates in 39 s, $0**, through the unchanged OpenAI-compatible provider path. **0 of 4 put the Must keyword in
+  the prompt** (the composer's own check rejected all four), and one wrote "no people" (the Avoid check also flags a negated mention). Confirms section 1.4: the
+  composer needs an on-device profile (repair missing Musts, shorter instructions) before this can be a default writer.
+- **Windows 11 ARM64 VM, Foundry Local 0.11.0** (`winget install Microsoft.FoundryLocal`): installs and starts a server on a **dynamic port** (`foundry server status`),
+  `GET /v1/models` works (every GPU and CPU variant listed, so a model picker works), and the id to use is the variant id (e.g. `Phi-3-mini-128k-instruct-generic-cpu:3`).
+  phi-4-mini only has a GPU variant: it downloaded but **would not load** (no Direct3D 12 GPU in the VM: Dawn error). CPU variants exist for Phi-3 mini, Mistral,
+  OLMo, DeepSeek, gpt-oss. Phi-3-mini 128k on the VM CPU: a composer request took 212 s and returned no readable candidate; small direct requests (with and without a
+  JSON schema) timed out at 240 s and 600 s. **The VM can't judge Foundry Local's quality or `response_format` support**; that needs a real PC with a GPU or NPU.
+- Phi Silica and the other Windows AI APIs were not tried (no NPU in the VM).

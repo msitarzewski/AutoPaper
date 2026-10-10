@@ -76,7 +76,7 @@ use crate::model::*;
 use crate::net::{self, HostPolicy, ReqwestClient};
 use crate::novelty::{self, Calibration, NoveltyPolicy, NoveltyReport};
 use crate::perf::{self, PaintTracker, Timing};
-use crate::ports::{Clock, Embedder, HttpClient, HttpMethod, HttpRequest, HttpResponse, Socket, ProgressDetailObserver, ProgressObserver, SecretStore, SystemClock};
+use crate::ports::{Clock, Embedder, HttpClient, HttpMethod, HttpRequest, HttpResponse, Socket, ProgressDetailObserver, ProgressObserver, SecretStore, SystemClock, SystemModel};
 use crate::pricing;
 use crate::providers::demo::{self, Demo};
 use crate::providers::registry::{self, ProviderDeps};
@@ -283,6 +283,8 @@ struct Inner {
     demo_delay_ms: AtomicU64,
     /// The computer's appearance, as the host last reported it (`set_system_appearance`).
     appearance: Mutex<Option<Appearance>>,
+    /// The host's built-in model (`set_system_model`).
+    system_model: Mutex<Option<Arc<dyn SystemModel>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -777,6 +779,17 @@ impl Engine {
         *lock(&self.inner.detail) = observer;
     }
 
+    /// Registers the host's built-in model (Apple's Foundation Models on a Mac), which `ProviderKind::System` calls; `None`
+    /// removes it. Hosts without one never call this, and the choice stays unavailable there.
+    pub fn set_system_model(&self, model: Option<Arc<dyn SystemModel>>) {
+        *lock(&self.inner.system_model) = model;
+    }
+
+    /// Whether the built-in model can be used now (`None`: this host has none).
+    pub fn system_model_status(&self) -> Option<SystemModelStatus> {
+        lock(&self.inner.system_model).as_ref().map(|model| model.status())
+    }
+
     /// The computer's light or dark appearance (`None`: unknown). Hosts report it at launch and whenever it changes;
     /// while `Settings::match_system_theme` is on, new ideas are asked to suit it.
     pub fn set_system_appearance(&self, appearance: Option<Appearance>) {
@@ -961,6 +974,7 @@ impl Engine {
                 detail: Mutex::new(None),
                 demo_delay_ms: AtomicU64::new(0),
                 appearance: Mutex::new(None),
+                system_model: Mutex::new(None),
             }),
         }))
     }
@@ -1532,6 +1546,7 @@ impl Inner {
             http: self.http.clone(),
             secrets: self.secrets.clone(),
             comfyui_workflow: settings.comfyui_workflow.clone(),
+            system: lock(&self.system_model).clone(),
         }
     }
 
@@ -2399,6 +2414,9 @@ impl Inner {
             }),
             gentler,
             appearance: if job.settings.match_system_theme { *lock(&self.appearance) } else { None },
+            on_device: (job.text_kind == ProviderKind::System).then(|| composer::OnDevice {
+                context_tokens: lock(&self.system_model).as_ref().map_or(0, |model| model.status().context_tokens),
+            }),
         })
     }
 
@@ -2459,6 +2477,13 @@ impl Inner {
             }
         };
         job.answers_read = job.answers_read.saturating_add(1);
+        let mut candidates = candidates;
+        if context.on_device.is_some() && context.echo.is_none() {
+            let notes = composer::repair(&mut candidates, &job.keywords);
+            if !notes.is_empty() {
+                self.console.event(None, "CheckingMemory", Some(job.text_kind), &model, "repaired", &notes.join("\n"));
+            }
+        }
         let jitters: Vec<f32> = {
             let mut rng = lock(&self.rng);
             candidates.iter().map(|_| rng.random::<f32>()).collect()
@@ -2929,7 +2954,7 @@ fn origin_of(selection: &ProviderSelection) -> String {
                 .map(|url| url.origin().ascii_serialization())
                 .unwrap_or_default()
         }
-        ProviderKind::OpenAi | ProviderKind::Google | ProviderKind::Demo => String::new(),
+        ProviderKind::OpenAi | ProviderKind::Google | ProviderKind::Demo | ProviderKind::System => String::new(),
     }
 }
 

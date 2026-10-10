@@ -243,10 +243,6 @@ private struct RunDetails: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
-                if let statistics, statistics.total > 0 {
-                    ConsoleCharts(statistics: statistics)
-                    Divider()
-                }
                 Label(RunPresentation.outcome(run.status), systemImage: RunPresentation.symbol(run.status))
                     .font(.title2.weight(.semibold))
                     .accessibilityAddTraits(.isHeader)
@@ -293,6 +289,12 @@ private struct RunDetails: View {
                         RunEventDetails(event: event, number: index + 1)
                     }
                 }
+                // The selected run comes first (it's what a click asks for); the overview of every run is below it, shut
+                // until opened, and stays as the person left it.
+                if let statistics, statistics.total > 0 {
+                    Divider()
+                    ConsoleCharts(statistics: statistics)
+                }
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -306,7 +308,7 @@ private struct RunDetails: View {
 /// is substituted when a recorded run has no call timing.
 private struct ConsoleCharts: View {
     let statistics: ConsoleStatistics
-    @State private var expanded = true
+    @AppStorage("consoleOverviewExpanded") private var expanded = false
 
     var body: some View {
         DisclosureGroup("Run overview", isExpanded: $expanded) {
@@ -317,7 +319,7 @@ private struct ConsoleCharts: View {
                         metric("Success", rate.formatted(.percent.precision(.fractionLength(0...1))))
                     }
                     if let seconds = statistics.averageRunSecs {
-                        metric("Average run", RunPresentation.seconds(seconds))
+                        metric("Average run", RunPresentation.brief(seconds))
                     }
                 }
                 .font(.callout)
@@ -358,12 +360,18 @@ private struct ConsoleCharts: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Outcomes").accessibilityAddTraits(.isHeader)
             Chart(Array(recordedOutcomes.enumerated()), id: \.offset) { _, outcome in
-                BarMark(x: .value("Runs", Int(outcome.count)), y: .value("Outcome", RunPresentation.outcome(outcome.status)))
+                BarMark(x: .value("Runs", Int(outcome.count)), y: .value("Outcome", RunPresentation.outcome(outcome.status)),
+                        height: .fixed(18))
                     .foregroundStyle(color(outcome.status))
+                    .annotation(position: .top, alignment: .leading, spacing: 3) {
+                        Text(RunPresentation.outcome(outcome.status)).font(.caption)
+                    }
                     .annotation(position: .trailing) { Text("\(outcome.count)").font(.caption).monospacedDigit() }
                     .accessibilityLabel(RunPresentation.outcome(outcome.status))
                     .accessibilityValue("\(outcome.count) runs")
             }
+            // The outcome's name sits above its bar (the axis would put long names over the bars).
+            .chartYAxis(.hidden)
             .chartXScale(domain: 0...(outcomeTicks.last ?? 1))
             .chartXAxis { AxisMarks(values: outcomeTicks) { value in
                 AxisGridLine()
@@ -371,7 +379,7 @@ private struct ConsoleCharts: View {
                     Text("\(count)").foregroundStyle(Color.primary.opacity(0.7))
                 } }
             } }
-            .frame(height: CGFloat(max(1, recordedOutcomes.count)) * 34 + 28)
+            .frame(height: CGFloat(max(1, recordedOutcomes.count)) * 50 + 28)
             .accessibilityLabel("Run outcomes")
         }
     }
@@ -404,17 +412,24 @@ private struct ConsoleCharts: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Average call time").accessibilityAddTraits(.isHeader)
             Chart(Array(statistics.models.enumerated()), id: \.offset) { _, timing in
-                BarMark(x: .value("Seconds", timing.averageSecs), y: .value("Model", RunPresentation.modelTimingTitle(timing)))
-                    .foregroundStyle(timing.job == .concepts ? Color.accentColor : Color.purple)
+                BarMark(x: .value("Seconds", timing.averageSecs), y: .value("Model", RunPresentation.modelTimingTitle(timing)),
+                        height: .fixed(18))
+                    .foregroundStyle(by: .value("Step", timing.job == .concepts ? "Writing" : "Painting"))
+                    .annotation(position: .top, alignment: .leading, spacing: 3) {
+                        Text(RunPresentation.modelName(timing)).font(.caption).lineLimit(1)
+                    }
                     .annotation(position: .trailing) {
-                        Text("\(RunPresentation.seconds(timing.averageSecs)) · \(RunPresentation.calls(timing.calls))")
+                        Text("\(RunPresentation.brief(timing.averageSecs)) · \(RunPresentation.calls(timing.calls))")
                             .font(.caption).monospacedDigit()
                     }
                     .accessibilityLabel(RunPresentation.modelTimingTitle(timing))
                     .accessibilityValue("\(RunPresentation.seconds(timing.averageSecs)) average, \(RunPresentation.calls(timing.calls))")
             }
+            .chartForegroundStyleScale(["Writing": Color.accentColor, "Painting": Color.purple])
+            .chartLegend(position: .top, alignment: .leading)
+            .chartYAxis(.hidden)
             .chartXAxisLabel("Seconds")
-            .frame(height: CGFloat(max(1, statistics.models.count)) * 40 + 32)
+            .frame(height: CGFloat(max(1, statistics.models.count)) * 54 + 56)
             .accessibilityLabel("Average provider call times by used model")
         }
     }
@@ -475,7 +490,18 @@ private struct RunEventDetails: View {
                         .textSelection(.enabled)
                 }
             }
-            if !event.detail.isEmpty {
+            if let instructions = InstructionsDetail(detail: event.detail) {
+                InstructionsDisclosures(instructions: instructions)
+            } else if let body = EventBody(detail: event.detail, kind: event.kind) {
+                if !body.head.isEmpty {
+                    Text(verbatim: body.head)
+                        .font(.callout.monospaced())
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                JSONDisclosure(body: body)
+            } else if !event.detail.isEmpty {
                 Text(verbatim: event.detail)
                     .font(.callout.monospaced())
                     .textSelection(.enabled)
@@ -486,6 +512,119 @@ private struct RunEventDetails: View {
         .padding(12)
         .background(.background.secondary, in: RoundedRectangle(cornerRadius: 8))
         .accessibilityElement(children: .contain)
+    }
+}
+
+/// What a writing call was sent, each part shut until opened: the instructions and the prompt as formatted text, the
+/// schema as JSON.
+private struct InstructionsDisclosures: View {
+    let instructions: InstructionsDetail
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            MarkdownDisclosure(title: "System instructions", text: instructions.system)
+            MarkdownDisclosure(title: "User prompt", text: instructions.user)
+            JSONDisclosure(body: EventBody(json: instructions.schema, title: "Schema"))
+            if let temperature = instructions.temperature {
+                Text("Temperature (where supported): \(temperature)").font(.caption)
+            }
+        }
+    }
+}
+
+private struct MarkdownDisclosure: View {
+    let title: String
+    let text: String
+    @State private var expanded = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $expanded) {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(Array(MarkdownBlock.parse(text).enumerated()), id: \.offset) { _, block in
+                    MarkdownBlockView(block: block)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .textSelection(.enabled)
+            .padding(.top, 6)
+        } label: {
+            Text("\(title) · \(ByteCountFormatter.string(fromByteCount: Int64(text.utf8.count), countStyle: .file))")
+                .font(.callout.weight(.medium))
+        }
+    }
+}
+
+private struct MarkdownBlockView: View {
+    let block: MarkdownBlock
+
+    var body: some View {
+        switch block {
+        case .heading(let level, let text):
+            Text(inline(text))
+                .font(level <= 1 ? .title3.weight(.semibold) : .headline)
+                .padding(.top, 4)
+                .accessibilityAddTraits(.isHeader)
+        case .bullet(let text):
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("•")
+                Text(inline(text)).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.leading, 8)
+        case .numbered(let marker, let text):
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(marker).monospacedDigit()
+                Text(inline(text)).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.leading, 8)
+        case .paragraph(let text):
+            Text(inline(text)).fixedSize(horizontal: false, vertical: true)
+        case .space:
+            Spacer().frame(height: 4)
+        }
+    }
+
+    /// `**bold**`, `*italic*` and `code` inside a line.
+    private func inline(_ text: String) -> AttributedString {
+        (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text)
+    }
+}
+
+private struct JSONDisclosure: View {
+    let content: EventBody
+    @State private var expanded = false
+    @State private var highlighted: AttributedString?
+
+    init(body: EventBody) { content = body }
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $expanded) {
+            VStack(alignment: .leading, spacing: 8) {
+                if !content.valid {
+                    Label(content.truncated ? "Cut off at 65,536 bytes, so this isn't complete JSON."
+                                            : "This isn't valid JSON; shown as it was recorded.",
+                          systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                }
+                Text(highlighted ?? AttributedString(content.json))
+                    .font(.callout.monospaced())
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button("Copy \(content.title)", systemImage: "doc.on.doc") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(content.json, forType: .string)
+                }
+                .controlSize(.small)
+            }
+            .padding(.top, 6)
+        } label: {
+            Text("\(content.title) · \(content.size)")
+                .font(.callout.weight(.medium))
+        }
+        // Coloured the first time it's opened: a long body costs nothing while it's shut.
+        .onChange(of: expanded) { _, open in
+            if open, highlighted == nil { highlighted = JSONColors.highlight(content.json) }
+        }
     }
 }
 

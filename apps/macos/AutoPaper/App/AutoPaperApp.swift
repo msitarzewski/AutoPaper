@@ -111,6 +111,8 @@ extension AppModel {
             openSettings(.providers)
         case .budget:
             openSettings(.budget)
+        case .appleIntelligence:
+            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!)
         case .systemWallpaper:
             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Wallpaper-Settings.extension")!)
         case .mood(let id, let keyword):

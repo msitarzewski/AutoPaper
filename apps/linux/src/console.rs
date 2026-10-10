@@ -772,7 +772,20 @@ fn bar_row(title: &str, value: &str, amount: f64, maximum: f64) -> gtk::Box {
 }
 
 fn duration(seconds: f64) -> String {
-    if seconds < 0.1 { format!("{seconds:.3} s") } else { format!("{seconds:.1} s") }
+    if seconds < 0.1 {
+        return format!("{seconds:.3} s");
+    }
+    if seconds < 10.0 {
+        return format!("{seconds:.1} s");
+    }
+    // "35 s", "5 min 22 s": a chart label, not a measurement printout.
+    let whole = seconds.round() as u64;
+    match (whole / 3600, whole / 60 % 60, whole % 60) {
+        (0, 0, secs) => format!("{secs} s"),
+        (0, mins, 0) => format!("{mins} min"),
+        (0, mins, secs) => format!("{mins} min {secs} s"),
+        (hours, mins, _) => format!("{hours} hr {mins} min"),
+    }
 }
 
 /// Preserve every retained UTC day, including zero-run gaps; the shared chart owns drawing and tooltip text.
@@ -933,6 +946,9 @@ mod tests {
     fn duration_preserves_fast_actual_calls() {
         assert_eq!(duration(0.004), "0.004 s");
         assert_eq!(duration(3.25), "3.2 s");
-        assert_eq!(duration(120.0), "120.0 s");
+        assert_eq!(duration(35.2), "35 s");
+        assert_eq!(duration(120.0), "2 min");
+        assert_eq!(duration(322.4), "5 min 22 s");
+        assert_eq!(duration(3750.0), "1 hr 2 min");
     }
 }

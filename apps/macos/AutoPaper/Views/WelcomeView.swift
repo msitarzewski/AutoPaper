@@ -53,7 +53,12 @@ struct WelcomeView: View {
         }
         .frame(width: 560)
         .fixedSize(horizontal: false, vertical: true)
-        .onAppear { keywordFocused = true }
+        .onAppear {
+            keywordFocused = true
+            preferOnThisMac()
+        }
+        // The status arrives after launch; until the person has picked something else, the free, private writer leads.
+        .onChange(of: model.systemModel?.available) { preferOnThisMac() }
     }
 
     /// The tallest the steps may be: the screen's visible height less the title bar and the buttons (a 1280 × 800
@@ -64,7 +69,7 @@ struct WelcomeView: View {
 
     private var stepTitle: String {
         switch start {
-        case .demo: "Nothing else to add"
+        case .demo, .onThisMac: "Nothing else to add"
         case .local: "Set up Ollama and ComfyUI"
         case .openAI, .gemini: "Add your key"
         }
@@ -126,7 +131,7 @@ struct WelcomeView: View {
 
             step(2, "Choose who writes and paints") {
                 Picker("Who writes and paints", selection: $start) {
-                    ForEach(AppModel.Start.allCases) { choice in
+                    ForEach(AppModel.Start.allCases.filter { $0 != .onThisMac || model.systemModel?.available == true }) { choice in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(choice.title)
                             Text(choice.detail).font(.callout)
@@ -169,6 +174,9 @@ struct WelcomeView: View {
                         }
                         .padding(6)
                     }
+                case .onThisMac:
+                    Text("Apple Intelligence runs on this Mac: nothing to add and nothing is sent anywhere. Choose a painter any time in Settings → Providers.")
+                        .fixedSize(horizontal: false, vertical: true)
                 case .demo:
                     Text("The Demo needs no key and costs nothing. Choose real providers any time in Settings → Providers.")
                         .fixedSize(horizontal: false, vertical: true)
@@ -229,6 +237,10 @@ struct WelcomeView: View {
     }
 
     /// The chosen provider needs a key and none has been entered yet.
+    private func preferOnThisMac() {
+        if model.systemModel?.available == true, start == .openAI { start = .onThisMac }
+    }
+
     private var needsKey: Bool {
         start.keyAccount != nil && keyEntered[start] != true
     }

@@ -495,6 +495,7 @@ impl ProviderGroup {
                 ProviderKind::OpenAiCompatible => "OpenAI-compatible",
                 ProviderKind::ComfyUi => "ComfyUI",
                 ProviderKind::Demo => "Demo (no AI)",
+                ProviderKind::System => "Built-in model",
             })
             .collect();
         let title = if painting { "Painting" } else { "Writing ideas" };
@@ -729,6 +730,7 @@ impl ProviderGroup {
             ProviderKind::OpenAi | ProviderKind::Google => "Hosted: needs a key, costs a little per wallpaper.",
             ProviderKind::Ollama | ProviderKind::ComfyUi => "Runs on this computer: free and private.",
             ProviderKind::OpenAiCompatible => "Your own server, such as LM Studio or LocalAI.",
+            ProviderKind::System => "Built into this computer.",
         });
         let own = settings.comfyui_workflow.as_deref().is_some_and(|text| !text.trim().is_empty());
         let comfy = kind == ProviderKind::ComfyUi;

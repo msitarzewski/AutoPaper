@@ -1723,6 +1723,7 @@ text_enum!(ProviderKind {
     OpenAiCompatible => "open_ai_compatible",
     ComfyUi => "comfy_ui",
     Demo => "demo",
+    System => "system",
 });
 
 /// Ratings are stored as -1, 0, 1 (a CHECK constraint keeps them there).

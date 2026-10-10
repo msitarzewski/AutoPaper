@@ -103,6 +103,7 @@ struct SettingsProblemLink: View {
         case .accounts: "Opens Accounts in Settings."
         case .providers: "Opens Providers in Settings."
         case .budget: "Opens Budget in Settings."
+        case .appleIntelligence: "Opens Apple Intelligence in System Settings."
         case .systemWallpaper: "Opens Wallpaper in System Settings."
         case .mood: "Opens the mood in Moods."
         }

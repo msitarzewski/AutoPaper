@@ -14,7 +14,7 @@ use autopaper_core::error::{AutoPaperError, InvalidInputReason, ProviderUnavaila
 use autopaper_core::model::*;
 use autopaper_core::novelty::Calibration;
 use autopaper_core::ports::{
-    Clock, Embedder, HttpClient, HttpRequest, HttpResponse, ProgressDetailObserver, ProgressObserver, SecretStore,
+    Clock, Embedder, HttpClient, HttpRequest, HttpResponse, ProgressDetailObserver, ProgressObserver, SecretStore, SystemModel,
 };
 use autopaper_core::store::{MemoryRow, Store};
 use autopaper_core::testing::{FixedClock, SocketStep, StubHttp, StubSecrets};
@@ -1196,6 +1196,70 @@ async fn a_local_writer_is_given_ten_minutes_for_a_cold_start() {
     let chats: Vec<_> = h.http.requests().into_iter().filter(|request| request.url.ends_with("/api/chat")).collect();
     assert_eq!(chats.len(), 1);
     assert_eq!(chats[0].timeout_secs, 600, "nothing learned yet: Ollama may take 10 minutes to load a model and answer");
+}
+
+struct FakeSystemModel {
+    answer: Mutex<String>,
+    asked: Mutex<Vec<(String, u32)>>,
+    available: bool,
+}
+
+impl SystemModel for FakeSystemModel {
+    fn status(&self) -> SystemModelStatus {
+        SystemModelStatus {
+            available: self.available,
+            reason: (!self.available).then_some(SystemModelReason::NotEnabled),
+            name: "Apple Intelligence".into(),
+            context_tokens: 4096,
+        }
+    }
+    fn compose(&self, system: String, _user: String, schema_json: String, _temperature: f32, _max: u32) -> SystemComposeOutcome {
+        let max_items = serde_json::from_str::<serde_json::Value>(&schema_json).unwrap()["properties"]["candidates"]["maxItems"].as_u64().unwrap() as u32;
+        self.asked.lock().unwrap().push((system, max_items));
+        SystemComposeOutcome { json: self.answer.lock().unwrap().clone(), input_tokens: 700, output_tokens: 400, problem: None }
+    }
+}
+
+#[tokio::test]
+async fn the_built_in_model_writes_an_idea_the_composer_repairs_and_the_engine_uses() {
+    let h = Harness::new();
+    healthy_services(&h.http);
+    h.keywords(&["misty mountains"], &[], &["people"]);
+    // The model leaves the Must keyword out and denies the Avoid one, as Apple's model does.
+    let idea = candidate(
+        "Fog ridge",
+        "A ridge in low fog.",
+        "a high valley",
+        &["ridge", "fog"],
+        &["grey", "slate"],
+        "A wide landscape photograph of a distant ridge in low cloud, no people, calm light.",
+    );
+    let model = Arc::new(FakeSystemModel { answer: Mutex::new(json!({ "candidates": [idea] }).to_string()), asked: Mutex::new(Vec::new()), available: true });
+    h.engine.set_system_model(Some(model.clone()));
+    h.update(|s| s.text_provider = ProviderSelection { kind: ProviderKind::System, model: String::new(), base_url: None });
+    let made = h.generate().await;
+    assert!(made.concept.prompt.starts_with("misty mountains, a wide landscape photograph"), "{}", made.concept.prompt);
+    assert!(!made.concept.prompt.contains("people"), "{}", made.concept.prompt);
+    let asked = model.asked.lock().unwrap();
+    assert_eq!(asked.len(), 1);
+    assert_eq!(asked[0].1, 2, "a 4,096-token window asks for two ideas");
+    assert!(asked[0].0.len() < 2000, "short instructions: {}", asked[0].0.len());
+    let stored = h.engine.generation(made.id.clone()).unwrap();
+    assert_eq!(stored.text_provider, ProviderKind::System);
+    assert_eq!(stored.cost_microusd, 0);
+}
+
+#[tokio::test]
+async fn an_unavailable_built_in_model_stops_before_anything_is_made() {
+    let h = Harness::new();
+    healthy_services(&h.http);
+    h.keywords(&["lighthouse"], &[], &[]);
+    let model = Arc::new(FakeSystemModel { answer: Mutex::new(String::new()), asked: Mutex::new(Vec::new()), available: false });
+    h.engine.set_system_model(Some(model.clone()));
+    h.update(|s| s.text_provider = ProviderSelection { kind: ProviderKind::System, model: String::new(), base_url: None });
+    let error = h.engine.generate(Trigger::Manual, None).await.expect_err("unavailable");
+    assert!(matches!(error, AutoPaperError::ProviderUnavailable { provider: ProviderKind::System, .. }), "{error:?}");
+    assert!(model.asked.lock().unwrap().is_empty());
 }
 
 #[tokio::test]

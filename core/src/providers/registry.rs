@@ -5,10 +5,11 @@ use std::sync::Arc;
 use crate::error::{AutoPaperError, InvalidInputReason, Result};
 use crate::model::{ProviderJob, ProviderKind, ProviderSelection};
 use crate::net::{HostPolicy, check_url};
-use crate::ports::{HttpClient, SecretStore};
+use crate::ports::{HttpClient, SecretStore, SystemModel};
 
 use super::comfyui::ComfyUi;
 use super::demo::Demo;
+use super::system::System;
 use super::google::Google;
 use super::ollama::Ollama;
 use super::openai::OpenAi;
@@ -22,6 +23,8 @@ pub struct ProviderDeps {
     pub secrets: Arc<dyn SecretStore>,
     /// The person's ComfyUI workflow (API format with placeholders), if they set one.
     pub comfyui_workflow: Option<String>,
+    /// The host's built-in model (`Engine::set_system_model`), when it has one.
+    pub system: Option<Arc<dyn SystemModel>>,
 }
 
 /// A provider that writes concepts. `Unsupported` for kinds that can't (ComfyUI). Local kinds use
@@ -38,6 +41,14 @@ pub fn text_provider(selection: &ProviderSelection, deps: &ProviderDeps) -> Resu
             Ok(Arc::new(OpenAiCompatible::new(deps.http.clone(), deps.secrets.clone(), base_url(selection)?)))
         }
         ProviderKind::Demo => Ok(Arc::new(Demo::new(rand::random()))),
+        ProviderKind::System => match &deps.system {
+            Some(model) => Ok(Arc::new(System::new(model.clone()))),
+            None => Err(AutoPaperError::unavailable(
+                ProviderKind::System,
+                crate::error::ProviderUnavailableReason::NotRunning,
+                "This computer has no built-in model that AutoPaper can use.",
+            )),
+        },
         kind @ ProviderKind::ComfyUi => Err(unsupported(kind, "write concepts")),
     }
 }
@@ -54,7 +65,7 @@ pub fn image_provider(selection: &ProviderSelection, deps: &ProviderDeps) -> Res
         }
         ProviderKind::ComfyUi => Ok(Arc::new(ComfyUi::new(deps.http.clone(), base_url(selection)?, deps.comfyui_workflow.clone()))),
         ProviderKind::Demo => Ok(Arc::new(Demo::new(rand::random()))),
-        kind @ ProviderKind::Ollama => Err(unsupported(kind, "make images")),
+        kind @ (ProviderKind::Ollama | ProviderKind::System) => Err(unsupported(kind, "make images")),
     }
 }
 
@@ -89,6 +100,8 @@ pub fn default_model(kind: ProviderKind, job: ProviderJob) -> String {
         (ProviderKind::Google, ProviderJob::Images) => super::google::DEFAULT_IMAGE_MODEL,
         (ProviderKind::ComfyUi, ProviderJob::Images) => return super::comfyui::bundled_model().unwrap_or_default(),
         (ProviderKind::Demo, _) => super::demo::MODEL,
+        (ProviderKind::System, ProviderJob::Concepts) => super::system::MODEL,
+        (ProviderKind::System, ProviderJob::Images) => "",
         (ProviderKind::Ollama | ProviderKind::OpenAiCompatible, _) | (ProviderKind::ComfyUi, ProviderJob::Concepts) => "",
     };
     model.to_string()
@@ -119,6 +132,7 @@ mod tests {
             http: Arc::new(StubHttp::new()),
             secrets: Arc::new(StubSecrets::default()),
             comfyui_workflow: workflow.map(String::from),
+            system: None,
         }
     }
 

@@ -307,11 +307,29 @@ pub enum ProviderKind {
     ComfyUi,
     /// Draws gradients locally; tests, `autopaper simulate`, and trying the app without a key.
     Demo,
+    /// The model built into the computer's operating system (Apple Foundation Models on a Mac), called through the
+    /// host (`SystemModel`). Writes ideas only; it never paints.
+    System,
+}
+
+/// The provider as a person names it ("OpenAI-compatible"), for the sentences errors carry into logs and the Console.
+impl std::fmt::Display for ProviderKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::OpenAi => "OpenAI",
+            Self::Google => "Google Gemini",
+            Self::Ollama => "Ollama",
+            Self::OpenAiCompatible => "OpenAI-compatible",
+            Self::ComfyUi => "ComfyUI",
+            Self::Demo => "Demo",
+            Self::System => "The on-device model",
+        })
+    }
 }
 
 impl ProviderKind {
     pub fn writes_concepts(self) -> bool {
-        matches!(self, Self::OpenAi | Self::Google | Self::Ollama | Self::OpenAiCompatible | Self::Demo)
+        matches!(self, Self::OpenAi | Self::Google | Self::Ollama | Self::OpenAiCompatible | Self::Demo | Self::System)
     }
 
     pub fn makes_images(self) -> bool {
@@ -320,7 +338,7 @@ impl ProviderKind {
 
     /// Runs on the person's own machine or network: no key, no cost.
     pub fn is_local(self) -> bool {
-        matches!(self, Self::Ollama | Self::ComfyUi | Self::Demo)
+        matches!(self, Self::Ollama | Self::ComfyUi | Self::Demo | Self::System)
     }
 
     /// The `SecretStore` account holding a hosted provider's key. OpenAI-compatible keys belong to one server,
@@ -329,7 +347,7 @@ impl ProviderKind {
         match self {
             Self::OpenAi => Some("openai.api_key"),
             Self::Google => Some("google.api_key"),
-            Self::OpenAiCompatible | Self::Ollama | Self::ComfyUi | Self::Demo => None,
+            Self::OpenAiCompatible | Self::Ollama | Self::ComfyUi | Self::Demo | Self::System => None,
         }
     }
 }
@@ -461,6 +479,54 @@ pub enum ImageQuality {
     Standard,
     /// The provider's best.
     High,
+}
+
+/// Why the computer's built-in model can't be used right now (`SystemModelStatus`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
+#[serde(rename_all = "snake_case")]
+pub enum SystemModelReason {
+    /// This computer can't run it (an older Mac, no Apple Intelligence).
+    DeviceNotEligible,
+    /// It's there, but switched off in the system's settings.
+    NotEnabled,
+    /// The system is still downloading or preparing it.
+    NotReady,
+    /// Anything else the host couldn't say better.
+    Other,
+}
+
+/// Whether the built-in model can be used, and what it is, as the host reports it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, uniffi::Record)]
+pub struct SystemModelStatus {
+    pub available: bool,
+    /// Set when `available` is false.
+    pub reason: Option<SystemModelReason>,
+    /// The model in words ("Apple Intelligence"), empty when not known.
+    pub name: String,
+    /// How many tokens the model can read and write in one request; 0 when not known.
+    pub context_tokens: u32,
+}
+
+/// What went wrong with one call to the built-in model.
+#[derive(Debug, Clone, PartialEq, uniffi::Enum)]
+pub enum SystemModelProblem {
+    Unavailable { reason: SystemModelReason },
+    /// The request and its answer didn't fit the model's context window.
+    ContextTooSmall,
+    /// The model declined (its own safety rules).
+    Refused,
+    /// The system asked for fewer requests.
+    RateLimited,
+    Failed { detail: String },
+}
+
+/// The built-in model's answer: the JSON text it wrote and its token counts, or what went wrong (`problem`).
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct SystemComposeOutcome {
+    pub json: String,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub problem: Option<SystemModelProblem>,
 }
 
 /// What to show when a provider can't make a wallpaper (offline/provider down).

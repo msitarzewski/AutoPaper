@@ -34,6 +34,7 @@ final class CoreBridge: Sendable {
                 continuation.resume(with: Result {
                     let engine = try Engine.open(config: config, secrets: secrets)
                     engine.setProgressDetailObserver(observer: detail)
+                    engine.setSystemModel(model: AppleSystemModel())
                     return CoreBridge(engine: engine)
                 })
             }

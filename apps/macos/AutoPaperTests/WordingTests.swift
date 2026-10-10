@@ -1269,3 +1269,93 @@ struct ConsoleTests {
         #expect(SettingsProblem.budget(status) == nil)
     }
 }
+
+@Suite("Chart durations")
+struct ChartDurationTests {
+    @Test("Durations read as a person says them, and fast calls keep their precision")
+    func brief() {
+        #expect(RunPresentation.brief(0.004) == "0.004 sec")
+        #expect(RunPresentation.brief(2.124) == "2.1 sec")
+        #expect(RunPresentation.brief(35.2) == "35 sec")
+        #expect(RunPresentation.brief(322.43662) == "5 min, 22 sec")
+        #expect(RunPresentation.brief(.nan) == "—")
+    }
+}
+
+@Suite("Console JSON bodies")
+struct EventBodyTests {
+    @Test("A request or response detail splits into its lines and a formatted JSON body")
+    func splitsAndFormats() throws {
+        let detail = "POST https://api.example.com/v1/chat/completions\nHTTP 200 · 1.23 s\n{\"b\":1,\"a\":[true,null,\"x\"]}"
+        let body = try #require(EventBody(detail: detail, kind: "response"))
+        #expect(body.head == "POST https://api.example.com/v1/chat/completions\nHTTP 200 · 1.23 s")
+        #expect(body.valid)
+        #expect(body.title == "Response body")
+        #expect(body.json.contains("\n"), "one-line JSON is formatted")
+        #expect(body.json.range(of: "\"a\"")!.lowerBound < body.json.range(of: "\"b\"")!.lowerBound, "keys are sorted when formatting")
+    }
+
+    @Test("An already formatted body is kept as the core wrote it, and a cut-off one is flagged")
+    func keepsAndFlags() throws {
+        let kept = try #require(EventBody(detail: "GET http://127.0.0.1/x\n{\n  \"z\": 1,\n  \"a\": 2\n}", kind: "request"))
+        #expect(kept.valid && kept.json == "{\n  \"z\": 1,\n  \"a\": 2\n}")
+        let cut = try #require(EventBody(detail: "POST http://x\n{\n  \"a\": \"long\n[Console detail truncated at 65,536 bytes]", kind: "response"))
+        #expect(!cut.valid && cut.truncated)
+        #expect(!cut.json.contains("truncated"))
+    }
+
+    @Test("Details with no JSON stay plain, and colouring never changes the text")
+    func plainAndHighlight() {
+        #expect(EventBody(detail: "The server isn't running.", kind: "error") == nil)
+        let text = "{\n  \"a\": [1, 2.5, -3e2, true, null, \"q\\\"uote\"]\n}"
+        #expect(String(JSONColors.highlight(text).characters) == text)
+    }
+}
+
+@Suite("Apple's on-device model")
+struct AppleSystemModelTests {
+    @Test("It reports whether it can be used, and when it can, answers a structured request with JSON that fits the schema")
+    func answersAStructuredRequest() throws {
+        let model = AppleSystemModel()
+        let status = model.status()
+        guard status.available else {
+            // Not every Mac (or test run) has Apple Intelligence on: the reason must then be said.
+            #expect(status.reason != nil)
+            return
+        }
+        #expect(status.contextTokens >= 4096)
+        let schema = #"{"type":"object","properties":{"candidates":{"type":"array","minItems":1,"maxItems":1,"items":{"type":"object","properties":{"title":{"type":"string"},"prompt":{"type":"string"}},"required":["title","prompt"],"additionalProperties":false}}},"required":["candidates"],"additionalProperties":false}"#
+        let outcome = model.compose(system: "You write wallpaper ideas as JSON.", user: "One idea about misty mountains.",
+                                    schemaJson: schema, temperature: 1.2, maxOutputTokens: 400)
+        #expect(outcome.problem == nil, "\(String(describing: outcome.problem))")
+        let object = try #require(JSONSerialization.jsonObject(with: Data(outcome.json.utf8)) as? [String: Any])
+        let candidates = try #require(object["candidates"] as? [[String: Any]])
+        #expect(candidates.count == 1)
+        #expect((candidates[0]["prompt"] as? String)?.isEmpty == false)
+        #expect(outcome.outputTokens > 0)
+    }
+}
+
+@Suite("Console instructions")
+struct InstructionsDetailTests {
+    private let detail = "System instructions:\nYou are the composer.\n\n## Rules\n1. Wide.\n- Must: rain.\n\nUser prompt:\nCompose 2 candidates.\n\nSchema:\n{\"type\":\"object\"}\n\nTemperature (where supported): 0.7"
+
+    @Test("An instructions event splits into its parts")
+    func splits() throws {
+        let parts = try #require(InstructionsDetail(detail: detail))
+        #expect(parts.system == "You are the composer.\n\n## Rules\n1. Wide.\n- Must: rain.")
+        #expect(parts.user == "Compose 2 candidates.")
+        #expect(parts.schema == "{\"type\":\"object\"}")
+        #expect(parts.temperature == "0.7")
+        #expect(InstructionsDetail(detail: "POST https://example.com\nHTTP 200") == nil)
+    }
+
+    @Test("Headings, lists and paragraphs are told apart")
+    func blocks() {
+        #expect(MarkdownBlock.parse("You are.\n\n\n## Rules\n1. Wide.\n- Must: rain.\n") == [
+            .paragraph(text: "You are."), .space, .heading(level: 2, text: "Rules"),
+            .numbered(marker: "1.", text: "Wide."), .bullet(text: "Must: rain."),
+        ])
+        #expect(MarkdownBlock.parse("3.5 degrees warmer") == [.paragraph(text: "3.5 degrees warmer")])
+    }
+}

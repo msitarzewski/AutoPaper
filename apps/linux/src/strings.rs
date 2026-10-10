@@ -18,6 +18,8 @@ pub fn provider_name(kind: ProviderKind) -> &'static str {
         ProviderKind::OpenAiCompatible => "Your OpenAI-compatible server",
         ProviderKind::ComfyUi => "ComfyUI",
         ProviderKind::Demo => "Demo",
+        // Linux has no built-in model to offer; the name is for settings that came from another computer's copy.
+        ProviderKind::System => "The built-in model",
     }
 }
 

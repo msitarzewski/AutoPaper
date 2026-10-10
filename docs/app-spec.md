@@ -162,6 +162,7 @@ button in the Now page's command bar / header bar that turns into a stop button 
 **General**: New wallpaper (Every hour · 3 hours · 6 hours · 12 hours · **Every day** · Every week · Only when I ask);
 Pause; Also set the lock screen (where supported; otherwise explain why it's unavailable); Replace wallpapers I dislike; Match my appearance (on by default: wallpapers suit light or dark mode);
 When a new one can't be made (**Bring back one I liked** · Keep the current one); Open at login; macOS: Show in menu bar;
+macOS: when Apple Intelligence can run, *On this Mac* is a writing choice (no key, address or model; its status and a link to System Settings when it isn't ready), and a first-run choice;
 Windows/Linux: Notify me about new wallpapers (on by default there; macOS has no notifications by default).
 **Providers**: two groups, **Writing ideas** and **Painting**: provider picker (OpenAI · Google Gemini · Ollama (writing
 only) · OpenAI-compatible · ComfyUI (painting only) · Demo (no AI, gradients — for trying the app)); model picker filled

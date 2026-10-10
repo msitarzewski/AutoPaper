@@ -33,7 +33,7 @@ pub fn image_cost(kind: ProviderKind, model: &str, width: u32, height: u32, qual
     match kind {
         ProviderKind::OpenAi => openai_image_cost(&model_id(model), width, height, quality),
         ProviderKind::Google => google_image_cost(&model_id(model), width, height),
-        ProviderKind::Ollama | ProviderKind::OpenAiCompatible | ProviderKind::ComfyUi | ProviderKind::Demo => 0,
+        ProviderKind::Ollama | ProviderKind::OpenAiCompatible | ProviderKind::ComfyUi | ProviderKind::Demo | ProviderKind::System => 0,
     }
 }
 
@@ -43,7 +43,7 @@ pub fn text_cost(kind: ProviderKind, model: &str, usage: &Usage) -> u64 {
     let price = match kind {
         ProviderKind::OpenAi => lookup(OPENAI_TEXT, &model_id(model), openai::DEFAULT_TEXT_MODEL),
         ProviderKind::Google => lookup(GOOGLE_TEXT, &model_id(model), google::DEFAULT_TEXT_MODEL),
-        ProviderKind::Ollama | ProviderKind::OpenAiCompatible | ProviderKind::ComfyUi | ProviderKind::Demo => None,
+        ProviderKind::Ollama | ProviderKind::OpenAiCompatible | ProviderKind::ComfyUi | ProviderKind::Demo | ProviderKind::System => None,
     };
     let Some(price) = price else { return 0 };
     let micro_millionths = u128::from(usage.input_tokens) * u128::from(price.input)

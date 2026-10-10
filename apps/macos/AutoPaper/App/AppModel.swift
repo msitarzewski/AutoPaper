@@ -156,6 +156,8 @@ final class AppModel {
     @ObservationIgnored private var scheduler: Scheduler?
     @ObservationIgnored var openWindowAction: OpenWindowAction?
     @ObservationIgnored private var appearanceObservation: NSKeyValueObservation?
+    /// Whether Apple's on-device model can write ideas (nil until the engine has said).
+    var systemModel: SystemModelStatus?
     @ObservationIgnored var dismissWindowAction: DismissWindowAction?
     @ObservationIgnored var openSettingsAction: OpenSettingsAction?
     @ObservationIgnored private var readyWaiters: [CheckedContinuation<Void, Never>] = []
@@ -234,6 +236,13 @@ final class AppModel {
         }
     }
 
+    /// Asks the engine whether Apple Intelligence can write ideas: at launch, and again when Settings → Providers shows,
+    /// since the person may have just turned it on.
+    func refreshSystemModel() async {
+        guard let core else { return }
+        systemModel = try? await core.call { $0.systemModelStatus() }
+    }
+
     /// Waits until the engine is open (App Intents can run before it is). False when it couldn't open.
     func ready() async -> Bool {
         if phase == .ready { return true }
@@ -244,6 +253,7 @@ final class AppModel {
 
     private func opened(_ core: CoreBridge) async {
         await sendDisplayHint()
+        await refreshSystemModel()
         await refreshAll()
         phase = .ready
         readyWaiters.forEach { $0.resume() }
@@ -1380,7 +1390,7 @@ final class AppModel {
     // MARK: First run
 
     enum Start: String, CaseIterable, Identifiable {
-        case openAI, gemini, local, demo
+        case openAI, gemini, local, onThisMac, demo
         var id: Self { self }
 
         var title: String {
@@ -1388,6 +1398,7 @@ final class AppModel {
             case .openAI: "OpenAI"
             case .gemini: "Google Gemini"
             case .local: "Local"
+            case .onThisMac: "On this Mac"
             case .demo: "Try it without AI"
             }
         }
@@ -1397,6 +1408,7 @@ final class AppModel {
             case .openAI: "Writes ideas and paints with your OpenAI API key."
             case .gemini: "Writes ideas and paints with your Gemini API key."
             case .local: "Ollama writes ideas and ComfyUI paints, on this Mac. Free."
+            case .onThisMac: "Apple Intelligence writes ideas on this Mac, free and private. Paintings are gradients until you choose a painter."
             case .demo: "Gradients instead of paintings, for trying AutoPaper. Free."
             }
         }
@@ -1406,6 +1418,7 @@ final class AppModel {
             case .openAI: .openAi
             case .gemini: .google
             case .local: .ollama
+            case .onThisMac: .system
             case .demo: .demo
             }
         }
@@ -1415,6 +1428,7 @@ final class AppModel {
             case .openAI: .openAi
             case .gemini: .google
             case .local: .comfyUi
+            case .onThisMac: .demo
             case .demo: .demo
             }
         }

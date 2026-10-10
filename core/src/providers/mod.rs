@@ -14,6 +14,7 @@ pub mod ollama;
 pub mod openai;
 pub mod openai_compat;
 pub mod registry;
+pub mod system;
 
 use crate::error::Result;
 use crate::model::{ImageQuality, ModelInfo, ProviderKind};

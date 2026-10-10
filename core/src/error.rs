@@ -9,17 +9,17 @@ use crate::model::{KeywordWeight, ProviderKind};
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum AutoPaperError {
-    #[error("no API key for {provider:?}")]
+    #[error("no API key for {provider}")]
     MissingKey { provider: ProviderKind },
-    #[error("{provider:?} rejected the API key")]
+    #[error("{provider} rejected the API key")]
     InvalidKey { provider: ProviderKind },
-    #[error("{provider:?} is unavailable: {detail}")]
+    #[error("{provider} is unavailable: {detail}")]
     ProviderUnavailable { provider: ProviderKind, reason: ProviderUnavailableReason, detail: String },
-    #[error("{provider:?} is rate-limiting requests")]
+    #[error("{provider} is rate-limiting requests")]
     RateLimited { provider: ProviderKind, retry_after_secs: u32 },
-    #[error("{provider:?} declined to make this image")]
+    #[error("{provider} declined to make this image")]
     Refused { provider: ProviderKind },
-    #[error("{provider:?} can't {job}")]
+    #[error("{provider} can't {job}")]
     Unsupported { provider: ProviderKind, job: String },
     #[error("the monthly budget is spent")]
     BudgetReached { budget_cents: u32 },
@@ -33,7 +33,7 @@ pub enum AutoPaperError {
     /// it (not transient): hosts say so in one line and link to Settings → Providers. `model` is the model in
     /// words as Settings lists it ("Qwen-Image 2.1"; a person's own workflow: its model file without the
     /// extension), empty when it isn't known; `detail` is English, for logs.
-    #[error("{provider:?} couldn't paint with {model}: {detail}")]
+    #[error("{provider} couldn't paint with {model}: {detail}")]
     PaintingFailed { provider: ProviderKind, model: String, detail: String },
     /// The writing model kept breaking one of the mood's keywords: no idea it wrote, on any retry, could be used,
     /// and most were turned down for leaving out this Must keyword (`weight` Must) or bringing in this Avoid one
@@ -167,3 +167,19 @@ impl From<serde_json::Error> for AutoPaperError {
 }
 
 pub type Result<T, E = AutoPaperError> = std::result::Result<T, E>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn errors_name_providers_the_way_people_do() {
+        let unavailable = AutoPaperError::ProviderUnavailable {
+            provider: ProviderKind::OpenAiCompatible,
+            reason: ProviderUnavailableReason::Other,
+            detail: "The service isn't there.".into(),
+        };
+        assert_eq!(unavailable.to_string(), "OpenAI-compatible is unavailable: The service isn't there.");
+        assert_eq!(AutoPaperError::MissingKey { provider: ProviderKind::Google }.to_string(), "no API key for Google Gemini");
+    }
+}

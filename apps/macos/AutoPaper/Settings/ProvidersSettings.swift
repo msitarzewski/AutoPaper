@@ -96,7 +96,11 @@ private struct ProviderSection: View {
     }
 
     private var kinds: [ProviderKind] {
-        job == .concepts ? ProviderKind.writers : ProviderKind.painters
+        guard job == .concepts else { return ProviderKind.painters }
+        // Apple's model is offered where the Mac can run it at all (and always while it's the chosen one).
+        return ProviderKind.writers.filter { kind in
+            kind != .system || selection.kind == .system || (model.systemModel.map { $0.available || $0.reason != .deviceNotEligible } ?? false)
+        }
     }
 
     /// ComfyUI painting with the person's own workflow file.
@@ -138,7 +142,12 @@ private struct ProviderSection: View {
             if selection.kind == .comfyUi {
                 workflowRow
             }
-            modelRow
+            if selection.kind != .system { modelRow }
+            if selection.kind == .system, let status = model.systemModel, !status.available {
+                SettingsProblemLink(problem: SettingsProblem(
+                    sentence: "Apple Intelligence isn't ready on this Mac.", linkTitle: "Open Apple Intelligence settings",
+                    place: .appleIntelligence, symbol: "apple.intelligence"))
+            }
             // Only OpenAI and Gemini paint differently by quality; ComfyUI always paints at the largest size its model
             // supports, and Demo and OpenAI-compatible servers aren't sent it.
             if job == .images && (selection.kind == .openAi || selection.kind == .google) {
@@ -195,7 +204,7 @@ private struct ProviderSection: View {
             Text(footer)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .onAppear { address = selection.baseUrl ?? "" }
+        .onAppear { address = selection.baseUrl ?? ""; Task { await model.refreshSystemModel() } }
         .onChange(of: selection.baseUrl) { _, url in if !addressFocused { address = url ?? "" } }
         .onChange(of: selection.kind) {
             status = nil
@@ -251,6 +260,7 @@ private struct ProviderSection: View {
         switch (job, selection.kind) {
         case (.concepts, .demo): "No AI: Demo writes simple ideas from your keywords. Free, for trying AutoPaper."
         case (.images, .demo): "No AI: Demo paints soft gradients. Free, for trying AutoPaper."
+        case (.concepts, .system): "Apple Intelligence writes ideas on this Mac, free and private: nothing is sent anywhere. It follows keywords less closely than larger models, so AutoPaper helps it along."
         case (.concepts, _): "Writes a scene from your keywords; only your keywords and its own ideas are sent."
         case (.images, .comfyUi):
             workflow == nil
@@ -265,6 +275,7 @@ private struct ProviderSection: View {
         case .demo: "Demo (no AI, gradients — for trying the app)"
         case .ollama: "Ollama (on this Mac)"
         case .comfyUi: "ComfyUI (on this Mac)"
+        case .system: "On this Mac (Apple Intelligence)"
         default: kind.name
         }
     }

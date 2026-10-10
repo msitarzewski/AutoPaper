@@ -85,6 +85,7 @@ Every one of these came from a handful of keywords, composed the way AutoPaper c
 
 - **Moods.** Named sets of keywords, each with its own Surprise: *Rainy beach*, *Night city*, *Winter forest*. One is current, and switching never makes a wallpaper by itself. A **Your Moods** summary shows what each one has made. On a Mac, each mood has a **Use** button (**In Use** for the current one) in its header.
 - **Light or dark, to match.** *Match my appearance* (on by default, in Settings → General) asks for wallpapers that suit your computer's light or dark mode: bright and airy on a light desktop, deep and moody on a dark one. Your keywords still come first.
+- **A writer that needs no key.** On a Mac with Apple Intelligence, *On this Mac* writes ideas with Apple's on-device model: free, private, offline. AutoPaper asks it for fewer ideas with shorter instructions and fixes what it gets wrong, such as a keyword left out. Painting still needs a painter (or Demo's gradients). [Foundry Local](https://msitarzewski.github.io/AutoPaper/help.html#foundry) works the same way on Windows through *OpenAI-compatible*.
 - **Memory.** Each new idea is compared, on your computer, with everything from your quiet period (a month to two years). Ideas too close to one you've had are asked for again, so the same scene doesn't come back next week.
 - **Echoes.** Once the quiet period has passed, an old idea can return seen differently (other weather, another hour or season, years of decay), linked to the original.
 - **Taste.** Like or Dislike any wallpaper and AutoPaper leans towards what you like. Taste is a hint; Avoid is the rule.
@@ -275,7 +276,7 @@ Found a bug or have an idea? [Open an issue](https://github.com/msitarzewski/Aut
 ## Roadmap
 
 - **Atmosphere:** let the wallpaper set the mood beyond the picture: your accent colour, switching your computer between light and dark to suit it, and gentle sounds.
-- **Writers that come with your computer:** Apple's on-device Foundation Models on a Mac, and Foundry Local on Windows.
+- **More built-in writers:** Foundry Local and Windows' own models as one-click choices on Windows (today Foundry Local works as an OpenAI-compatible server).
 - **Sign in with ChatGPT**, so a ChatGPT plan can do the writing without an API key.
 - **Image Playground** on a Mac, to paint a wallpaper by hand when you want to.
 

@@ -231,6 +231,9 @@ design: `systemPatterns.md`; toolchains/VMs/infrastructure: `techContext.md`; hi
   templates. Settings: Issues/Wiki/Projects on, Discussions off, Pages = Actions, Dependabot alerts on, private vulnerability
   reporting on, secret scanning + push protection on, default workflow permissions read.
 
+## After v0.1.2 (uncommitted, 2026-10-09)
+Built, not committed or released: **On this Mac** writer (core `ProviderKind::System`, `SystemModel` trait, `providers/system.rs`, on-device composer profile + `repair`; Mac host `AppleSystemModel`, Settings/Welcome/error wording; real end-to-end run on this Mac: 7-30 s per wallpaper, Must keywords present; see `decisions.md`), Console polish (chart labels, friendly durations on all three platforms, provider names in error text via `Display for ProviderKind`, run detail first with the overview below, JSON bodies and instructions behind disclosures with colouring/markdown), and the chart/duration fixes. Tests: core 409 + 71, Mac 115, Linux 35, Windows 86 (re-run after the last Windows edit). The e2e harness is `.scratch/e2e` (SwiftPM, real engine + Apple model).
+
 ## v0.1.2 (2026-10-09) — released on all three platforms
 Contents: **Match my appearance** (`Settings.match_system_theme`, default on; hosts report light/dark through `Engine::set_system_appearance`; when on and known,
 `composer.rs` adds one prompt line asking for light-toned/airy or dark-toned/moody scenes with legible icons and "only the keywords can override this"; privacy
@@ -278,7 +281,7 @@ timeout of Never helps during releases); when two sessions share a working tree,
   confirmed this is done) and the Sparkle private key (login Keychain, account "AutoPaper"; loss = no Mac updates).
 - winget submission (user decides); Linux own-wallpaper restore picker; extra empty Azure subscription "Michael - App
   Signing" (user: leave it); user feedback on the installed native list/form build.
-- Backlog awaiting the user's go-ahead: **"On this Mac" writer** (Apple Foundation Models, text only), **ChatGPT-plan writer**
+- Backlog awaiting the user's go-ahead: **ChatGPT-plan writer**
   (Sign in with ChatGPT: Responses API only, streaming, no temperature, no image generation — `docs/research/built-in-models.md`),
   **Foundry Local** preset on Windows, manual "Paint with Image Playground…" (ImageCreator is deprecated in macOS 27; verified).
 - Known gaps/ideas: the user's failing mood's keywords (the "ideas didn't follow the keywords" report) were never identified, only

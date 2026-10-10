@@ -5,7 +5,7 @@ members = ["core", "cli", "uniffi-bindgen", "apps/linux"]
 default-members = ["core", "cli"]
 
 [workspace.package]
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 license = "MIT"
 rust-version = "1.92"

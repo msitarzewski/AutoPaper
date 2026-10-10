@@ -61,6 +61,8 @@ struct SettingsProblem: Equatable {
         case providers(job: ProviderJob?, address: Bool)
         /// Settings → Budget.
         case budget
+        /// macOS's own Apple Intelligence settings: the built-in model isn't ready.
+        case appleIntelligence
         /// macOS's own Wallpaper settings: a picture of the person's that AutoPaper couldn't put back.
         case systemWallpaper
         /// A mood in the main window's Moods, with this keyword (its text, as the engine reported it) selected.
@@ -137,6 +139,10 @@ struct SettingsProblem: Equatable {
             return
         case .BudgetReached:
             self = .overBudget(bringingBack: false)
+            return
+        case .ProviderUnavailable(.system, _, _):
+            self.init(sentence: "Apple Intelligence isn't ready on this Mac.", linkTitle: "Open Apple Intelligence settings",
+                      place: .appleIntelligence, symbol: "apple.intelligence")
             return
         case .Unsupported(let provider, _):
             // Worded from what the provider can do, not the core's English `job`.

@@ -15,6 +15,7 @@ extension ProviderKind {
         case .openAiCompatible: "OpenAI-compatible"
         case .comfyUi: "ComfyUI"
         case .demo: "Demo"
+        case .system: "On this Mac"
         }
     }
 
@@ -23,6 +24,7 @@ extension ProviderKind {
         switch self {
         case .openAiCompatible: "Your OpenAI-compatible server"
         case .demo: "The Demo provider"
+        case .system: "Apple Intelligence"
         default: name
         }
     }
@@ -65,7 +67,7 @@ extension ProviderKind {
 
     /// Providers for writing ideas, in the order Settings lists them (spec: OpenAI · Google Gemini · Ollama ·
     /// OpenAI-compatible · Demo).
-    static let writers: [ProviderKind] = [.openAi, .google, .ollama, .openAiCompatible, .demo]
+    static let writers: [ProviderKind] = [.openAi, .google, .ollama, .openAiCompatible, .demo, .system]
     /// Providers for painting (OpenAI · Google Gemini · OpenAI-compatible · ComfyUI · Demo).
     static let painters: [ProviderKind] = [.openAi, .google, .openAiCompatible, .comfyUi, .demo]
 }
@@ -282,6 +284,8 @@ enum Sentences {
             }
         case .InvalidKey(let provider):
             return "\(provider.subject) didn't accept your key. Check it in Settings → Accounts."
+        case .ProviderUnavailable(.system, _, _):
+            return "Apple Intelligence isn't ready on this Mac." + later
         case .ProviderUnavailable(let provider, let reason, _):
             switch reason {
             case .notRunning:
@@ -301,6 +305,8 @@ enum Sentences {
         case .RateLimited(let provider, let retryAfterSecs):
             let minutes = max(1, Int((Double(retryAfterSecs) / 60).rounded(.up)))
             return "\(provider.name) asked AutoPaper to wait; it'll try again in \(minutes == 1 ? "1 minute" : "\(minutes) minutes")."
+        case .Refused(.system):
+            return "Apple Intelligence declined to write these ideas." + later
         case .Refused(let provider):
             return "\(provider.subject) declined to paint this idea; AutoPaper tried a gentler one, and it declined that too."
         case .Unsupported(let provider, _):
@@ -582,7 +588,7 @@ enum Formatting {
         /// default), else this Mac for Demo, else hosted.
         init(_ selection: ProviderSelection) {
             switch selection.kind {
-            case .demo:
+            case .demo, .system:
                 self = .thisMac
             case .ollama, .comfyUi, .openAiCompatible:
                 let address = selection.baseUrl ?? selection.kind.defaultAddress ?? ""
@@ -766,12 +772,27 @@ enum RunPresentation {
         "\(seconds.formatted(.number.precision(.fractionLength(0...6)))) sec"
     }
 
+    /// A duration for charts and summaries: "8.4 sec", "35 sec", "5 min 22 sec". `seconds(_:)` keeps every digit for
+    /// the table and the details.
+    static func brief(_ seconds: Double) -> String {
+        guard seconds.isFinite, seconds >= 0 else { return "—" }
+        if seconds < 0.1 { return "\(seconds.formatted(.number.precision(.fractionLength(0...3)))) sec" }
+        if seconds < 10 { return "\(seconds.formatted(.number.precision(.fractionLength(1)))) sec" }
+        return Duration.seconds(Int(seconds.rounded()))
+            .formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated))
+    }
+
     static func calls(_ calls: UInt64) -> String { calls == 1 ? "1 call" : "\(calls) calls" }
 
     static func utcDay(_ unix: Int64) -> String {
         var format = Date.FormatStyle(date: .abbreviated, time: .omitted)
         format.timeZone = TimeZone(secondsFromGMT: 0)!
         return Date(timeIntervalSince1970: TimeInterval(unix)).formatted(format)
+    }
+
+    /// The model and who runs it, without the job ("qwen3.6-35b-a3b (OpenAI-compatible)").
+    static func modelName(_ timing: ConsoleModel) -> String {
+        Provenance.who(timing.provider, model: timing.model)
     }
 
     static func modelTimingTitle(_ timing: ConsoleModel) -> String {

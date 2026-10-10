@@ -168,8 +168,11 @@ public sealed class WordingTests
         Assert.AreEqual("100%", Text.RunRate(1));
         Assert.AreEqual("—", Text.RunSeconds(null));
         Assert.AreEqual("0 s", Text.RunSeconds(0));
-        Assert.AreEqual("2.124 s", Text.RunSeconds(2.124));
-        Assert.AreEqual("0.000001 s", Text.RunSeconds(0.000001));
+        Assert.AreEqual("0.004 s", Text.RunSeconds(0.004));
+        Assert.AreEqual("2.1 s", Text.RunSeconds(2.124));
+        Assert.AreEqual("35 s", Text.RunSeconds(35.2));
+        Assert.AreEqual("5 min 22 s", Text.RunSeconds(322.4));
+        Assert.AreEqual("2 min", Text.RunSeconds(120));
     }
 
     /// <summary>An OpenAI-compatible server's key is the one for the address in Settings (secret_account_for).</summary>

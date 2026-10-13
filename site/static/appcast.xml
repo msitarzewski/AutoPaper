@@ -1,10 +1,20 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><!-- sparkle-sign-warning:
+IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
+--><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <title>AutoPaper</title>
     <link>https://msitarzewski.github.io/AutoPaper/appcast.xml</link>
     <description>AutoPaper updates</description>
     <language>en</language>
+    <item>
+      <title>AutoPaper 0.1.4</title>
+      <pubDate>Tue, 13 Oct 2026 10:52:26 GMT</pubDate>
+      <sparkle:version>9</sparkle:version>
+      <sparkle:shortVersionString>0.1.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <sparkle:fullReleaseNotesLink>https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.4</sparkle:fullReleaseNotesLink>
+      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.4/AutoPaper-0.1.4.zip" length="96056192" type="application/octet-stream" sparkle:edSignature="L6gb4zEcHPEg05oveactgTg437fTtbdcEYGLD094uYA9OlvSrLBVQturMP/ecxqkYEOuKBv+9QWHq73dhwbRDQ=="></enclosure>
+    </item>
     <item>
       <title>AutoPaper 0.1.3</title>
       <pubDate>Sat, 10 Oct 2026 05:37:40 GMT</pubDate>
@@ -12,7 +22,7 @@
       <sparkle:shortVersionString>0.1.3</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
       <sparkle:fullReleaseNotesLink>https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.3</sparkle:fullReleaseNotesLink>
-      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.3/AutoPaper-0.1.3.zip" length="96031617" type="application/octet-stream" sparkle:edSignature="xm3iV5FuLw9TYEpN0N/22suEXAfPtD27DwqOIWSkQsfwTV9/sdgAhRs9QVYuFgRYUsteXXCMpHB/pFmy3z+iAA=="/>
+      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.3/AutoPaper-0.1.3.zip" length="96031617" type="application/octet-stream" sparkle:edSignature="xm3iV5FuLw9TYEpN0N/22suEXAfPtD27DwqOIWSkQsfwTV9/sdgAhRs9QVYuFgRYUsteXXCMpHB/pFmy3z+iAA=="></enclosure>
     </item>
     <item>
       <title>AutoPaper 0.1.2</title>
@@ -27,7 +37,7 @@
 <li>A native Moods list with a Use / In Use button.</li>
 <li>The Dock and menu bring AutoPaper's windows to the front.</li>
 </ul>]]></description>
-      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.2/AutoPaper-0.1.2.zip" length="95905211" type="application/octet-stream" sparkle:edSignature="8a2FxyQFg7WwvqAr6+VE1ZUx6BMI6W+ievQVtliUkts5GOMGMn5svSMsTswmTf4itGSyRRGu9q2358dAlCVvDg=="/>
+      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.2/AutoPaper-0.1.2.zip" length="95905211" type="application/octet-stream" sparkle:edSignature="8a2FxyQFg7WwvqAr6+VE1ZUx6BMI6W+ievQVtliUkts5GOMGMn5svSMsTswmTf4itGSyRRGu9q2358dAlCVvDg=="></enclosure>
     </item>
     <item>
       <title>AutoPaper 0.1.1</title>
@@ -36,7 +46,7 @@
       <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
       <sparkle:fullReleaseNotesLink>https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.1</sparkle:fullReleaseNotesLink>
-      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.1/AutoPaper-0.1.1.zip" length="95890469" type="application/octet-stream" sparkle:edSignature="4++WGpsf2APD5gIRaDolEEKS8OemfFp0sGj9vt4z/stuSE6cQFAENPvcgYaPEA2lNrcvD+PT4sTk/PtOut+vAA=="/>
+      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.1/AutoPaper-0.1.1.zip" length="95890469" type="application/octet-stream" sparkle:edSignature="4++WGpsf2APD5gIRaDolEEKS8OemfFp0sGj9vt4z/stuSE6cQFAENPvcgYaPEA2lNrcvD+PT4sTk/PtOut+vAA=="></enclosure>
     </item>
     <item>
       <title>AutoPaper 0.1.0</title>
@@ -45,7 +55,10 @@
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
       <sparkle:fullReleaseNotesLink>https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.0</sparkle:fullReleaseNotesLink>
-      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.0/AutoPaper-0.1.0.zip" length="95496470" type="application/octet-stream" sparkle:edSignature="eESZcMh7rH9y9KToh1GE8DCCIKKjLObLU+jrhDpRvQuFCyGpQTqKizm3DwzZSbXJfVFHOVoAZDG+asZIpyEpAw=="/>
+      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.0/AutoPaper-0.1.0.zip" length="95496470" type="application/octet-stream" sparkle:edSignature="eESZcMh7rH9y9KToh1GE8DCCIKKjLObLU+jrhDpRvQuFCyGpQTqKizm3DwzZSbXJfVFHOVoAZDG+asZIpyEpAw=="></enclosure>
     </item>
   </channel>
-</rss>
+</rss><!-- sparkle-signatures:
+edSignature: SyLuDQcG7QvAz132mg6UctDcMap+04/w/7r0J1b7bZfUd8Iacso6ujL8RXAzsDE9tqYZDSRZyM+zVMA4F3BYAw==
+length: 4509
+-->

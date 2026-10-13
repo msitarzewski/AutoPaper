@@ -20,7 +20,7 @@ candle-transformers = "0.11.0"
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "webp"] }
 image_hasher = "3.1.1"
-rand = "0.9"
+rand = "0.10"
 reqwest = { version = "0.13.5" }
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }

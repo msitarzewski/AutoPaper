@@ -7,12 +7,13 @@ served from msitarzewski.com) and its winget manifests.
 Run it INSIDE Windows (the "Windows 11" VM), from a local copy of the repository (Windows can't build packages
 reliably from the Parallels share; memory-bank/techContext.md), with Windows PowerShell 5.1:
 
-    robocopy \\Mac\Home\Clean\autopaper C:\Users\michael\dev\autopaper-release /MIR /XD .git bin obj target AppX AppPackages .scratch _site build /XF .env .env.*
+    (on the Mac) scripts/vm-exchange.sh push, then in the VM:
+    robocopy \\Mac\Exchange\src C:\Users\michael\dev\autopaper-release /E /XD bin obj target AppX AppPackages Generated /XF .env .env.*
     $env:AUTOPAPER_SIGN_ENDPOINT = 'https://eus.codesigning.azure.net/'
     $env:AUTOPAPER_SIGN_ACCOUNT  = '<Artifact Signing account>'
     $env:AUTOPAPER_SIGN_PROFILE  = '<certificate profile>'
     az login                                  # or AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET
-    powershell -File scripts\windows-release.ps1 -Version 0.1.0 -CopyTo \\Mac\Home\Clean\autopaper
+    powershell -File scripts\windows-release.ps1 -Version 0.1.0 -CopyTo \\Mac\Exchange\out
 
 then, on the Mac, scripts/publish-windows.sh 0.1.0 puts the bundle and the App Installer file on the update server.
 
@@ -97,7 +98,7 @@ Use the core already in apps\windows\Generated (both architectures must be there
 The signing certificate's exact subject, overriding what's read from the certificate profile (Artifact Signing).
 
 .PARAMETER CopyTo
-A repository folder to copy the release into after a successful run, e.g. \\Mac\Home\Clean\autopaper: the bundle and
+A repository folder to copy the release into after a successful run, e.g. \\Mac\Exchange\out (the VM shares only ~/vm-exchange with the Mac, see scripts/vm-exchange.sh): the bundle and
 the App Installer file to build\windows\<Version>\ there (git-ignored; scripts/publish-windows.sh uploads them from
 there), and the winget manifests to packaging\winget\.
 
@@ -137,6 +138,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$env:AUTOPAPER_RELEASE = 'true'   # NuGet restores exactly what apps/windows/*/packages.lock.json records
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 

@@ -2,14 +2,14 @@
 
 Every network request AutoPaper makes: host, trigger, what's sent, and the limits. For what this means for your privacy, see [PRIVACY.md](./PRIVACY.md).
 
-This page describes AutoPaper 0.1.0, and changes with the code.
+This page describes AutoPaper 0.1.4, and changes with the code.
 
 All requests for wallpapers are made by AutoPaper's shared core, the same code on macOS, Windows and Linux, through one HTTP client (`core/src/net.rs`: reqwest, with rustls and your system's own certificate checks). The apps themselves make no requests, apart from the Mac app's update check ([below](#checking-for-updates)): otherwise they only open links in your browser when you click them. The client keeps **no cookies and no cache, and sends no Referer**. Every request carries the User-Agent `AutoPaper/<version> (<system>/<version> AutoPaper/<version>; +https://github.com/msitarzewski/AutoPaper)`, for example `AutoPaper/0.1.0 (macOS/26.6 AutoPaper/0.1.0; +https://github.com/msitarzewski/AutoPaper)`. Outgoing connections only; AutoPaper opens no listening sockets.
 
 The same client enforces:
 
 - **Hosted providers only at their API host**: `https` to `api.openai.com` or `generativelanguage.googleapis.com`, by name, on the standard port. No other host, no IP addresses.
-- **Your own servers** (Ollama, OpenAI-compatible servers such as LM Studio, ComfyUI): `https` to any address you give, but plain `http` only to your own computer or local network: `localhost` and loopback addresses, names ending in `.local`, the private ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and `fc00::/7`, and link-local addresses. Anything else over `http` is refused before it's sent.
+- **Your own servers** (Ollama, OpenAI-compatible servers such as LM Studio, ComfyUI): `https` to any address you give, but plain `http` only to your own computer or local network: `localhost` and loopback addresses, names ending in `.local` or `.localhost` (only when the name resolves to a local address: one that resolves to a public address is refused), the private ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and `fc00::/7`, and link-local addresses. Anything else over `http` is refused before it's sent.
 - **Redirects** are followed by AutoPaper itself, at most 3, only to the same host, never from `https` to `http`. If the scheme or port changes, the key is removed from the request first.
 - **Keys go in headers** (`Authorization`, or `x-goog-api-key` for Google), never in a URL, and only to the service they belong to.
 - **Proxies:** your system's proxy settings apply to hosts on the internet; addresses on your own computer or network are always reached directly.
@@ -106,7 +106,7 @@ The Mac app uses [Sparkle](https://sparkle-project.org) 2.10.0, not the core's H
 | Host | Request | When | Sends |
 |---|---|---|---|
 | `msitarzewski.github.io` | `GET /AutoPaper/appcast.xml` (the update feed) | About once a day if you allowed automatic checks; whenever you choose **Check for Updates…** | Your IP address and Sparkle's User-Agent, `AutoPaper/<version> Sparkle/<version>`. **No system profile**: Sparkle's optional one is never offered (the app doesn't set `SUEnableSystemProfiling`) and never sent |
-| `github.com` → GitHub's download servers | The update's `.zip` | Only when you choose to install an update | — |
+| `github.com` → GitHub's download servers | The update's `.zip` | When you choose to install an update, or, if you turned on automatic downloads in Settings → About, when a check finds one | — |
 
 Every update is verified against the EdDSA public key built into the app (`SUPublicEDKey`) before it's installed; a feed or file that doesn't match is refused. **Version History** in Sparkle's window opens the release's page on GitHub in your browser.
 

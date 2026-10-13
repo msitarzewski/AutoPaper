@@ -1219,7 +1219,7 @@ fn run_failure(entry: &Value, graph: &Graph) -> AutoPaperError {
 
 /// First `DETAIL_CHARS` characters, redacted.
 fn short(text: &str) -> String {
-    redact(&text.chars().take(DETAIL_CHARS).collect::<String>())
+    redact(text).chars().take(DETAIL_CHARS).collect()
 }
 
 fn invalid(detail: impl Into<String>) -> AutoPaperError {

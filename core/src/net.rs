@@ -69,6 +69,47 @@ pub fn check_url(url: &str, policy: &HostPolicy) -> Result<url::Url> {
     Ok(parsed)
 }
 
+/// Resolves the names the direct client is given (`localhost`, `studio.local`) and refuses an answer that isn't this
+/// computer or the local network. A name is trusted as local only by its spelling, so without this a resolver that
+/// answers `studio.local` with a public address (a hostile network, a split-DNS setup) would be sent the key in
+/// clear text, past the proxy rules.
+struct LocalNames;
+
+impl reqwest::dns::Resolve for LocalNames {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
+        let host = name.as_str().to_string();
+        Box::pin(async move {
+            let addresses = local_addresses(&host, 0).await?;
+            Ok(Box::new(addresses.into_iter()) as reqwest::dns::Addrs)
+        })
+    }
+}
+
+/// Where a vetted URL's socket may connect: its literal IP (brackets and all), or the local addresses its name resolves to.
+async fn socket_addresses(url: &url::Url, port: u16) -> std::io::Result<Vec<std::net::SocketAddr>> {
+    match url.host() {
+        Some(url::Host::Ipv4(ip)) => Ok(vec![std::net::SocketAddr::new(IpAddr::V4(ip), port)]),
+        Some(url::Host::Ipv6(ip)) => Ok(vec![std::net::SocketAddr::new(IpAddr::V6(ip), port)]),
+        Some(url::Host::Domain(name)) => local_addresses(name, port).await,
+        None => Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "no host")),
+    }
+}
+
+/// The loopback, private or link-local addresses `host` resolves to; an error if it has none.
+async fn local_addresses(host: &str, port: u16) -> std::io::Result<Vec<std::net::SocketAddr>> {
+    // Only the local answers are used: a machine on the LAN often also has a global IPv6 address, and the connection
+    // is made to the vetted list alone, so the other answers can't be reached.
+    let addresses: Vec<std::net::SocketAddr> =
+        tokio::net::lookup_host((host, port)).await?.filter(|address| is_local_ip(address.ip())).collect();
+    if addresses.is_empty() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "the name doesn't resolve to this computer or your local network",
+        ));
+    }
+    Ok(addresses)
+}
+
 /// Loopback, private (RFC 1918 / unique local) or link-local.
 fn is_local_ip(ip: IpAddr) -> bool {
     match ip {
@@ -161,7 +202,9 @@ impl ReqwestClient {
             Some(proxy) => builder().proxy(proxy),
             None => builder(),
         };
-        Ok(Self { proxied: start(proxied)?, direct: start(builder().no_proxy())?, user_agent })
+        // The direct client only reaches local destinations, so a name it resolves must resolve to one (see `LocalNames`).
+        let direct = builder().no_proxy().dns_resolver(std::sync::Arc::new(LocalNames));
+        Ok(Self { proxied: start(proxied)?, direct: start(direct)?, user_agent })
     }
 
     fn client_for(&self, url: &url::Url) -> &reqwest::Client {
@@ -232,7 +275,6 @@ impl HttpClient for ReqwestClient {
         if url.scheme() != "http" || !is_local_destination(&url) {
             return Err(AutoPaperError::Offline);
         }
-        let host = url.host_str().unwrap_or_default().to_string();
         let port = url.port_or_known_default().unwrap_or(80);
         let mut address = url.clone();
         address.set_scheme("ws").map_err(|()| AutoPaperError::Offline)?;
@@ -242,7 +284,7 @@ impl HttpClient for ReqwestClient {
             .max_message_size(Some(request.max_response_bytes))
             .max_frame_size(Some(request.max_response_bytes));
         let connect = async {
-            let stream = tokio::net::TcpStream::connect(format!("{host}:{port}")).await.map_err(|error| {
+            let stream = async { tokio::net::TcpStream::connect(socket_addresses(&url, port).await?.as_slice()).await }.await.map_err(|error| {
                 tracing::debug!(%error, "couldn't connect a WebSocket");
                 AutoPaperError::Offline
             })?;
@@ -356,7 +398,7 @@ async fn read_body(mut response: reqwest::Response, max_bytes: usize) -> Result<
     if declared.is_some_and(|length| length > max_bytes) {
         return Err(too_large());
     }
-    let mut body = Vec::with_capacity(declared.unwrap_or(0));
+    let mut body = Vec::with_capacity(declared.unwrap_or(0).min(1 << 20));
     while let Some(chunk) = response.chunk().await.map_err(transport_error)? {
         if chunk.len() > max_bytes.saturating_sub(body.len()) {
             return Err(too_large());
@@ -461,12 +503,42 @@ pub fn error_message(body: &[u8]) -> Option<String> {
         .or_else(|| json.get("error").filter(|e| e.is_string()))
         .or_else(|| json.get("message"))
         .and_then(|m| m.as_str())?;
-    let short: String = message.chars().take(200).collect();
-    Some(redact(&short))
+    // Scrubbed before it is cut: a key an error echoes across the cut would otherwise survive as a prefix.
+    let scrubbed = redact(message);
+    Some(scrubbed.chars().take(200).collect())
+}
+
+/// The credentials this process has handed to providers (the secret store's answers, the values sent in credential
+/// headers). Every `redact` removes them by exact value, whatever their shape, which the pattern-based pass can't.
+static KNOWN_SECRETS: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+const MAX_KNOWN_SECRETS: usize = 64;
+
+/// Remembers `value` as a credential. Values too short to be a key (under 10 characters, such as a placeholder like `lm-studio`) are ignored: replacing them would mangle text.
+pub(crate) fn remember_secret(value: &str) {
+    let value = value.trim();
+    if value.len() < 10 { return }
+    let mut known = KNOWN_SECRETS.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if known.iter().any(|existing| existing == value) { return }
+    if known.len() >= MAX_KNOWN_SECRETS { known.remove(0); }
+    known.push(value.to_string());
+}
+
+fn scrub_known(text: &str) -> String {
+    let known = KNOWN_SECRETS.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut ordered: Vec<&String> = known.iter().collect();
+    ordered.sort_by_key(|secret| std::cmp::Reverse(secret.len()));
+    let mut out = text.to_string();
+    for secret in ordered { out = out.replace(secret.as_str(), "[redacted]"); }
+    out
+}
+
+/// Replaces every credential this process has used, and anything that looks like one, with `[redacted]`.
+pub fn redact(text: &str) -> String {
+    redact_patterns(&scrub_known(text))
 }
 
 /// Replaces anything that looks like a credential with `[redacted]`.
-pub fn redact(text: &str) -> String {
+fn redact_patterns(text: &str) -> String {
     let is_token_char = |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '+' | '/' | '=' | '.');
     // Words and numbers joined by `-`, `_` or `/` ("models/gemini-3-pro-image-preview") name things; a key's
     // random characters mix letters and digits within its parts.
@@ -1033,6 +1105,38 @@ mod client_tests {
         assert!(landed.header("authorization").is_none());
         assert!(landed.header("x-goog-api-key").is_none());
         assert_eq!(landed.header("x-other").as_deref(), Some("kept"));
+    }
+
+    #[tokio::test]
+    async fn a_socket_to_an_ip_literal_connects_to_that_address_brackets_and_all() {
+        let v6 = url::Url::parse("http://[::1]:8188").unwrap();
+        assert_eq!(socket_addresses(&v6, 8188).await.unwrap(), vec!["[::1]:8188".parse().unwrap()]);
+        let v4 = url::Url::parse("http://192.168.4.25:8188").unwrap();
+        assert_eq!(socket_addresses(&v4, 8188).await.unwrap(), vec!["192.168.4.25:8188".parse().unwrap()]);
+        let public = url::Url::parse("http://studio.invalid:8188").unwrap();
+        assert!(socket_addresses(&public, 8188).await.is_err(), "a name that doesn't resolve locally is refused");
+    }
+
+    #[test]
+    fn a_credential_the_process_used_is_removed_wherever_an_error_echoes_it() {
+        remember_secret("zz.shortish-key-9");
+        let padded = format!("{} zz.shortish-key-9 and more words", "x".repeat(185));
+        let body = format!(r#"{{"error":{{"message":"{padded}"}}}}"#);
+        let message = error_message(body.as_bytes()).unwrap();
+        assert!(!message.contains("zz.shortish"), "{message}");
+        assert!(message.chars().count() <= 200);
+        remember_secret("abc");
+        assert_eq!(redact("abc stays"), "abc stays", "values too short to be keys are not replaced");
+    }
+
+    #[tokio::test]
+    async fn a_name_is_only_reached_directly_when_it_resolves_to_a_local_address() {
+        assert!(local_addresses("127.0.0.1", 80).await.is_ok());
+        assert!(local_addresses("localhost", 80).await.is_ok());
+        assert!(local_addresses("192.168.4.25", 8188).await.is_ok());
+        let public = local_addresses("8.8.8.8", 80).await.unwrap_err();
+        assert_eq!(public.kind(), std::io::ErrorKind::PermissionDenied);
+        assert!(!is_local_ip("2001:4860:4860::8888".parse().unwrap()));
     }
 
     #[tokio::test]

@@ -163,3 +163,9 @@ OpenAI-compatible text and images; `ComposeRequest.expected_secs` (new) is fille
 **Alternatives**: a per-provider input field (three apps + the settings format, and nobody can guess the number); a "loading the model"
 progress stage (needs an FFI enum change and text in all three apps — left for a UI round); background warm-up (not built).
 **Consequences**: compat servers that are remote hosts also wait up to 10 minutes (Stop works at any time); core-only change, ships with the next release.
+
+### 2026-10-10: Security review and hardening round
+**Status**: Shipped in 0.1.4 (2026-10-13)
+**Context**: No pen test had been done. Nine reviewers (core, secrets, macOS, Windows, Linux, release chain, dependencies, privacy claims) plus verifiers; then two re-review passes attacking the fixes. Report: `docs/security-review-2026-10.md`.
+**Decision**: No critical/high vulnerabilities found. Fixed the medium/low items (exact-value credential scrubbing via a process-wide registry, keywords out of logs, owner-only data folder, local-address-only `.local` names, SHA-pinned Actions, attestation-bound Flatpak publishing, locked NuGet, accurate privacy docs). Deferred: signed Sparkle feed, Flatpak/Sparkle key rotation, VM share isolation, image-decode memory.
+**Consequences**: `publish-flatpak.sh` needs `--tag` (or `--no-attestation` for pre-attestation bundles such as 0.1.3); `release.sh` supports `APPLE_NOTARY_PROFILE`.

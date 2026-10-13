@@ -4,6 +4,8 @@
 //! Everything that decides *what* to make lives here; hosts own the UI, timers and OS integration.
 //! Design: `memory-bank/systemPatterns.md`.
 
+#![forbid(unsafe_code)]
+
 uniffi::setup_scaffolding!();
 
 pub mod composer;

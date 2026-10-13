@@ -1,0 +1,15 @@
+# Pinned GitHub Actions, the Rust crates and the NuGet packages are updated by reviewed pull requests, not floating tags.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: cargo
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: nuget
+    directory: /apps/windows/AutoPaper
+    schedule: { interval: weekly }
+  - package-ecosystem: nuget
+    directory: /apps/windows/AutoPaper.Tests
+    schedule: { interval: weekly }

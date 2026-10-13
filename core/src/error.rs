@@ -39,7 +39,8 @@ pub enum AutoPaperError {
     /// and most were turned down for leaving out this Must keyword (`weight` Must) or bringing in this Avoid one
     /// (`weight` Avoid). Not the provider's fault, and asking again rarely helps: hosts name the keyword in one line
     /// and link to the mood (`mood_id`), where it can be reworded, made a Maybe or removed.
-    #[error("none of the text model's ideas followed the keywords: {weight:?} keyword {keyword:?}")]
+    // The keyword is a typed field for the hosts to word; the message names none, as it reaches logs.
+    #[error("none of the text model's ideas followed the keywords ({weight:?})")]
     KeywordNotFollowed { keyword: String, weight: KeywordWeight, mood_id: String },
     #[error("invalid input: {detail}")]
     InvalidInput { reason: InvalidInputReason, detail: String },

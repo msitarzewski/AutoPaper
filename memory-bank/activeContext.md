@@ -1,5 +1,11 @@
 # Active Context
 
+## Current: v0.1.4 (2026-10-13) [RELEASED]
+- Public release is **v0.1.4** (security round; see `progress.md` and `decisions.md#2026-10-10-security-review-and-hardening-round`). Earlier sections below are historical task records.
+- Release recipe: commit; Windows via `scripts/vm-exchange.sh push` then the VM build/sign (`windows-release.ps1 -SkipCore`, Azure CLI login must be live) then `publish-windows.sh X --from ~/vm-exchange/out/build/windows/X`; Mac `release.sh` (Sparkle key + appcast signing prompt: choose Allow); push the tag, then `publish-flatpak.sh --tag vX` (Keychain passphrase prompt); `gh release create`; push main last.
+- Flatpak repository key rotated 2026-10-13 (fingerprint F4562E1A6706E16CFBFA5DAEF91A07754E829612); Linux installs re-add the remote.
+- Still open: remove Keychain auto-trust for the Sparkle and Flatpak key items (Keychain Access); first run of the attest job and `pages.yml` is watched after the 0.1.4 tag push.
+
 ## Service availability preflight (2026-10-07 local / 2026-10-08 UTC) [COMPLETE; MAC INSTALLED]
 
 - State: DOCS complete, implementation authorized directly by the user. Started 02:31:58 UTC; completed
@@ -267,10 +273,10 @@ timeout of Never helps during releases); when two sessions share a working tree,
 ## Release recipes (next release; versions in `Cargo.toml` workspace, `apps/macos/project.yml`, Linux metainfo `<release>`)
 1. **Mac:** `set -a; source ~/.config/brew-browser/signing.env; set +a; scripts/release.sh` → `build/release/AutoPaper-X.dmg|zip|sha256`
    and the feed entry in `site/static/appcast.xml` (leave it uncommitted until the GitHub release exists).
-2. **Windows:** in the Windows VM `scripts\windows-release.ps1 -Version X -CopyTo \\Mac\Home\Clean\autopaper` with
+2. **Windows:** `scripts/vm-exchange.sh push` on the Mac (the VM sees only `~/vm-exchange`, as `\\Mac\Exchange`; the Mac home is not shared with it), then in the VM robocopy `\\Mac\Exchange\src` to `C:\Users\michael\dev\autopaper-release` and `scripts\windows-release.ps1 -Version X -CopyTo \\Mac\Exchange\out` with
    `AUTOPAPER_SIGN_ENDPOINT/ACCOUNT/PROFILE` and `AUTOPAPER_SIGN_PUBLISHER` set and `az login --use-device-code` done in the
    VM (user approves in a browser; Azure CLI 2.91 + x64 .NET 8 runtime are installed there); then on the Mac
-   `scripts/publish-windows.sh X` (bundle first, feed last; keeps 3 bundles; refuses dev feeds).
+   `scripts/publish-windows.sh X --from ~/vm-exchange/out/build/windows/X` (bundle first, feed last; keeps 3 bundles; refuses dev feeds).
 3. **Linux:** tag `vX` and push (the `Flatpak` workflow builds x86_64 + aarch64), then `scripts/publish-flatpak.sh --tag vX`
    (Docker signs with `~/.config/autopaper/flatpak-gnupg`, rsyncs to pipx in four passes), upload `build/flatpak/release/*`.
 4. `gh release create vX` with the DMG, zip, sha256s, flatpaks, msixbundle, appinstaller; THEN commit + push the appcast and

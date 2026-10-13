@@ -585,7 +585,7 @@ private struct MarkdownBlockView: View {
 
     /// `**bold**`, `*italic*` and `code` inside a line.
     private func inline(_ text: String) -> AttributedString {
-        (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text)
+        MarkdownBlock.inline(text)
     }
 }
 

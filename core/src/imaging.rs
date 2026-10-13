@@ -58,8 +58,9 @@ impl Default for DecodeLimits {
     }
 }
 
-/// The widest pixel any accepted format decodes to (16-bit RGBA PNG), for image's allocation limit.
-const MAX_BYTES_PER_PIXEL: u64 = 8;
+/// The widest pixel an accepted image decodes to (8-bit RGBA), for image's allocation limit. Images with more
+/// than 8 bits a channel are refused: no provider returns one, and they double what a crafted file can ask for.
+const MAX_BYTES_PER_PIXEL: u64 = 4;
 /// Decoders' working memory beyond the pixels (row buffers, metadata chunks).
 const DECODER_HEADROOM: u64 = 16 * 1024 * 1024;
 const THUMBNAIL_WIDTH: u32 = 640;
@@ -118,6 +119,9 @@ pub fn decode(bytes: &[u8], limits: &DecodeLimits) -> Result<(ImageFormat, Dynam
     let mut decoder = reader.into_decoder().map_err(decode_error)?;
     let (width, height) = decoder.dimensions();
     check_dimensions(width, height, limits)?;
+    if u64::from(decoder.color_type().bytes_per_pixel()) > MAX_BYTES_PER_PIXEL {
+        return Err(invalid("the image has more than 8 bits a channel, which isn't supported"));
+    }
     let orientation = decoder.orientation().unwrap_or(Orientation::NoTransforms);
     let mut image = DynamicImage::from_decoder(decoder).map_err(decode_error)?;
     image.apply_orientation(orientation);
@@ -389,6 +393,25 @@ fn pixels((width, height): (u32, u32)) -> u64 {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_image_with_more_than_eight_bits_a_channel_is_refused_and_an_ordinary_one_is_not() {
+        use image::{ImageBuffer, ImageEncoder, Rgba};
+        let wide: ImageBuffer<Rgba<u16>, Vec<u16>> = ImageBuffer::from_pixel(8, 8, Rgba([1000, 2000, 3000, 65535]));
+        let mut png = Vec::new();
+        let raw: Vec<u8> = wide.as_raw().iter().flat_map(|v| v.to_ne_bytes()).collect();
+        image::codecs::png::PngEncoder::new(&mut png)
+            .write_image(&raw, 8, 8, image::ExtendedColorType::Rgba16)
+            .unwrap();
+        let error = decode(&png, &DecodeLimits::default()).unwrap_err();
+        assert!(error.to_string().contains("8 bits"), "{error}");
+        let plain: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::from_pixel(8, 8, Rgba([1, 2, 3, 255]));
+        let mut ok = Vec::new();
+        image::codecs::png::PngEncoder::new(&mut ok)
+            .write_image(plain.as_raw(), 8, 8, image::ExtendedColorType::Rgba8)
+            .unwrap();
+        assert!(decode(&ok, &DecodeLimits::default()).is_ok());
+    }
+
     use super::*;
     use image::codecs::png::PngEncoder;
     use image::codecs::webp::WebPEncoder;

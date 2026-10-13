@@ -84,6 +84,11 @@
     <keyword>lock screen</keyword>
   </keywords>
   <releases>
+    <release version="0.1.4" date="2026-10-11">
+      <description>
+        <p>A security round: credentials never reach logs or error messages, the data folder is private to you, updates on the Mac are signed end to end, and unusually large or deep-colour images are refused instead of exhausting memory. The Linux repository has a new signing key, so add the remote again.</p>
+      </description>
+    </release>
     <release version="0.1.3" date="2026-10-10">
       <description>
         <p>On a Mac, an on-device writer: Apple Intelligence can write the ideas, free and private. The Console now has charts that read at a glance, event details that open first, and the model's answer, the instructions and the prompt behind disclosures.</p>

@@ -941,6 +941,16 @@ fn language_label(locale: &str) -> String {
         .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
         .take(35)
         .collect();
+    // Language, script and region only: a tag's extensions (`-u-ca-…-hc-…`, `-x-…`) carry the person's calendar, hour
+    // cycle, units and private use, which the writer has no need of.
+    let tag: String = {
+        let mut kept: Vec<&str> = Vec::new();
+        for part in tag.split('-') {
+            if part.len() == 1 { break }
+            kept.push(part);
+        }
+        kept.join("-")
+    };
     let subtags: Vec<String> = tag.split('-').filter(|s| !s.is_empty()).map(str::to_ascii_lowercase).collect();
     let Some(primary) = subtags.first() else { return "English".to_string() };
     let has = |subtag: &str| subtags.iter().skip(1).any(|s| s == subtag);
@@ -1123,10 +1133,14 @@ fn read_list(value: Option<&Value>) -> Vec<String> {
     items.into_iter().filter(|item| !item.is_empty()).take(MAX_ITEMS).collect()
 }
 
+/// The most characters kept of any one field a model writes.
+const MAX_FIELD_CHARS: usize = 4_000;
+
 /// A model's text with control characters (terminal escapes, line breaks, tabs) as spaces, trimmed: it is
 /// stored, shown and logged, and must not be able to drive a terminal.
 fn clean(text: &str) -> String {
-    let spaced: String = text.chars().map(|c| if c.is_control() { ' ' } else { c }).collect();
+    // Bounded: a field is stored, embedded and shown in full, and a hostile or runaway model can send megabytes.
+    let spaced: String = text.chars().take(MAX_FIELD_CHARS).map(|c| if c.is_control() { ' ' } else { c }).collect();
     spaced.trim().to_string()
 }
 
@@ -1208,6 +1222,24 @@ pub fn check(concept: &Concept, keywords: &[Keyword], echo: bool) -> Vec<Problem
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_field_a_model_writes_is_bounded() {
+        let huge = "word ".repeat(100_000);
+        let value = serde_json::json!({ "title": "T", "summary": huge, "prompt": "p" });
+        let composed = read_candidate(&value, false);
+        if let Some(composed) = composed {
+            assert!(composed.concept.summary.chars().count() <= MAX_FIELD_CHARS);
+        }
+        assert!(clean(&huge).chars().count() <= MAX_FIELD_CHARS);
+    }
+
+    #[test]
+    fn the_locale_tag_loses_its_extensions_before_it_reaches_a_writer() {
+        assert_eq!(language_label("en-US-u-ca-gregory-hc-h23-ms-ussystem-mu-celsius"), "English (en-US)");
+        assert_eq!(language_label("de-DE-x-private"), "German (de-DE)");
+        assert_eq!(language_label("fr_FR.UTF-8"), "French (fr-FR)");
+    }
+
     use super::*;
 
     #[test]

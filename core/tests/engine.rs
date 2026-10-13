@@ -2358,6 +2358,85 @@ async fn console_never_retains_an_opaque_key_echoed_in_a_provider_error() {
 }
 
 #[tokio::test]
+async fn a_key_echoed_in_a_provider_error_is_kept_out_of_the_stored_failure_whatever_its_shape() {
+    let h = Harness::new();
+    healthy_services(&h.http);
+    h.keywords(&["lighthouse"], &[], &[]);
+    // Short, dotted: none of the shapes the pattern-based scrubber knows.
+    let secrets = Arc::new(StubSecrets::with(&[("openai.api_key", "gw.key-7")]));
+    let engine = Engine::open_with(EngineConfig {
+        data_dir: h.dir.path().to_string_lossy().into_owned(), model_dir: String::new(),
+        locale: "en-US".into(), client: "test".into(),
+    }, secrets, Deps {
+        clock: h.clock.clone(), http: h.http.clone(), embedder: Arc::new(HashingEmbedder), rng_seed: 1,
+    }).unwrap();
+    let mut settings = engine.settings().unwrap();
+    settings.text_provider.kind = ProviderKind::OpenAi;
+    engine.update_settings(settings).unwrap();
+    h.http.always("/v1/responses", 400, br#"{"error":{"message":"The request with gw.key-7 was malformed"}}"#.to_vec());
+    assert!(engine.generate(Trigger::Manual, None).await.is_err());
+    let connection = rusqlite::Connection::open(h.dir.path().join("autopaper.sqlite3")).unwrap();
+    let stored: Vec<String> = connection.prepare("SELECT error FROM generations WHERE error IS NOT NULL").unwrap()
+        .query_map([], |row| row.get(0)).unwrap().map(Result::unwrap).collect();
+    assert!(!stored.is_empty(), "the failed attempt is recorded");
+    assert!(stored.iter().all(|error| !error.contains("gw.key-7")), "stored failure: {stored:?}");
+    let run = engine.runs(1, 0).unwrap().remove(0);
+    assert!(!run.detail.contains("gw.key-7"), "{}", run.detail);
+}
+
+#[tokio::test]
+async fn an_error_handed_to_the_host_never_carries_a_credential_the_app_used() {
+    let h = Harness::new();
+    healthy_services(&h.http);
+    h.keywords(&["lighthouse"], &[], &[]);
+    let secrets = Arc::new(StubSecrets::with(&[("openai.api_key", "host.key-4242")]));
+    let engine = Engine::open_with(EngineConfig {
+        data_dir: h.dir.path().to_string_lossy().into_owned(), model_dir: String::new(),
+        locale: "en-US".into(), client: "test".into(),
+    }, secrets, Deps {
+        clock: h.clock.clone(), http: h.http.clone(), embedder: Arc::new(HashingEmbedder), rng_seed: 1,
+    }).unwrap();
+    let mut settings = engine.settings().unwrap();
+    settings.text_provider.kind = ProviderKind::OpenAi;
+    engine.update_settings(settings).unwrap();
+    h.http.always("/v1/responses", 400, br#"{"error":{"message":"bad host.key-4242 here"}}"#.to_vec());
+    let error = engine.generate(Trigger::Manual, None).await.unwrap_err();
+    assert!(!error.to_string().contains("host.key-4242"), "{error}");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn the_data_folder_is_private_to_its_owner_but_a_folder_that_is_not_ours_is_left_alone() {
+    use std::os::unix::fs::PermissionsExt;
+    let open = |path: &std::path::Path| {
+        let h = Harness::new();
+        Engine::open_with(EngineConfig {
+            data_dir: path.to_string_lossy().into_owned(), model_dir: String::new(),
+            locale: "en-US".into(), client: "test".into(),
+        }, Arc::new(StubSecrets::with(&[])), Deps {
+            clock: h.clock.clone(), http: h.http.clone(), embedder: Arc::new(HashingEmbedder), rng_seed: 1,
+        }).unwrap()
+    };
+    let mode = |path: &std::path::Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
+    let base = tempfile::tempdir().unwrap();
+
+    let fresh = base.path().join("fresh");
+    let _first = open(&fresh);
+    assert_eq!(mode(&fresh), 0o700, "a folder AutoPaper makes is private");
+    drop(_first);
+    std::fs::set_permissions(&fresh, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let _again = open(&fresh);
+    assert_eq!(mode(&fresh), 0o700, "an earlier install's folder (it holds our database) is tightened");
+
+    let foreign = base.path().join("documents");
+    std::fs::create_dir(&foreign).unwrap();
+    std::fs::write(foreign.join("notes.txt"), "mine").unwrap();
+    std::fs::set_permissions(&foreign, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let _third = open(&foreign);
+    assert_eq!(mode(&foreign), 0o755, "a folder that holds someone's own files is not ours to change");
+}
+
+#[tokio::test]
 async fn console_explains_a_failed_model_lookup_before_any_prompt_is_sent() {
     let h = Harness::new();
     h.keywords(&["lighthouse"], &[], &[]);

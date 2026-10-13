@@ -115,6 +115,10 @@ fn err(error: AutoPaperError) -> String {
             };
             format!("no API key for {provider:?}: set {variable} in .env")
         }
+        // This is the owner's own terminal, so the keyword the message leaves out of logs can be named.
+        AutoPaperError::KeywordNotFollowed { keyword, weight, .. } => {
+            format!("none of the text model's ideas followed the keywords ({weight:?} keyword {keyword:?})")
+        }
         other => other.to_string(),
     }
 }

@@ -300,11 +300,11 @@ description: A free desktop app for macOS, Windows and Linux. Give it a few keyw
     <div>
       <h2>Privacy, in brief</h2>
       <ul class="plain">
-        <li><strong>No account, no telemetry, no analytics, and no AutoPaper server.</strong> AutoPaper talks only to the providers you set up.</li>
-        <li>To write a scene, the provider gets the current mood’s keywords and Surprise, short descriptions of recent wallpapers (so it doesn’t repeat them), a few things you’ve liked or disliked, your language (so titles and descriptions come back in it), and whether your computer is in light or dark mode (while Match my appearance is on). To paint it, the image provider gets the finished prompt, the size and the quality. Each request also names AutoPaper’s version and your system’s, and carries your IP address, as any request online does.</li>
+        <li><strong>No account, no telemetry, no analytics, and no AutoPaper server.</strong> AutoPaper itself talks only to the providers you set up (and, on a Mac, to the update feed if you allow it).</li>
+        <li>To write a scene, the provider gets the current mood’s keywords and Surprise, short descriptions of your 20 most recent wallpapers, from all your moods (so it doesn’t repeat them), a few things you’ve liked or disliked, your language (so titles and descriptions come back in it), and whether your computer is in light or dark mode (while Match my appearance is on). To paint it, the image provider gets the finished prompt, the size and the quality. Each request also names AutoPaper’s version and your system’s, and carries your IP address, as any request online does.</li>
         <li>Requests to OpenAI are sent with <code>store: false</code>, so they aren’t kept as stored conversations; Google’s API keeps no conversation to begin with. Each provider’s own data policy still applies.</li>
         <li>A <strong>free Gemini key</strong> comes with Google’s unpaid terms: what you send may be used to improve Google’s products and read by human reviewers. A paid project doesn’t, and in the EEA, Switzerland and the UK the paid terms apply either way. AutoPaper’s Settings say so.</li>
-        <li>Your keywords, moods, history, taste, timings, spending and images stay on your computer. With local models, nothing leaves your network at all.</li>
+        <li>Your images, history, ratings, timings, spending and settings stay on your computer; what a hosted writer needs to write a scene is listed above. With local models, nothing leaves your network at all.</li>
       </ul>
       <p>The whole account: <a href="privacy.html">who learns what</a>, and <a href="network.html">every request, host by host</a>.</p>
     </div>

@@ -6,7 +6,7 @@ Builds the AutoPaper core for Windows (autopaper_core.dll) and generates its C# 
 Run it INSIDE Windows (the "Windows 11" VM), from a local copy of the repository: Windows can't register
 packages from the Parallels share, and cargo is slow there (memory-bank/techContext.md):
 
-    robocopy \\Mac\Home\Clean\autopaper C:\Users\michael\dev\autopaper /MIR /XD .git bin obj target AppX .scratch /XF .env .env.*
+    robocopy \\Mac\Exchange\src C:\Users\michael\dev\autopaper /E /XD bin obj target AppX Generated /XF .env .env.*   (after scripts/vm-exchange.sh push on the Mac)
     powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\michael\dev\autopaper\scripts\build-core-windows.ps1
 
 It writes (git-ignored; replaced on every run):
@@ -26,7 +26,7 @@ Needs:
   component (Microsoft.VisualStudio.Component.VC.Llvm.Clang) or clang-cl on PATH.
 - x64: NASM on PATH, or else aws-lc-sys's prebuilt NASM objects (allowed here when nasm isn't found).
 - uniffi-bindgen-cs v0.11.0+v0.31.0, the generator that matches the core's UniFFI 0.31:
-  cargo install uniffi-bindgen-cs --git https://github.com/NordSecurity/uniffi-bindgen-cs --tag v0.11.0+v0.31.0
+  cargo install --locked uniffi-bindgen-cs --git https://github.com/NordSecurity/uniffi-bindgen-cs --rev e10ce410eb3a10cc19c7928b93ea8d84e038c034   # v0.11.0+v0.31.0
 
 .PARAMETER Arch
 arm64, x64 or all (the default). With all, ARM64 must build; x64 is built when the toolchain allows and
@@ -104,6 +104,8 @@ function Build-Core([string]$Name) {
         $env:AWS_LC_SYS_PREBUILT_NASM = '1'
     }
     Write-Step "Building the core for $triple (release)"
+    # Control Flow Guard: the DLL parses what providers send, so indirect calls are checked at run time.
+    $env:RUSTFLAGS = '-C control-flow-guard'
     Invoke-Native 'rustup' @('run', 'stable', 'cargo', 'rustc', '-p', 'autopaper-core', '--lib', '--release',
         '--target', $triple, '--crate-type', 'cdylib')
     $dll = Join-Path $TargetDir "$triple\release\autopaper_core.dll"
@@ -116,7 +118,7 @@ function Build-Core([string]$Name) {
 if (-not (Get-Command rustup -ErrorAction SilentlyContinue)) { throw 'rustup isn''t installed (https://rustup.rs).' }
 $Bindgen = Get-Command uniffi-bindgen-cs -ErrorAction SilentlyContinue
 if (-not $Bindgen) {
-    throw ("uniffi-bindgen-cs isn't installed: cargo install uniffi-bindgen-cs --git " +
+    throw ("uniffi-bindgen-cs isn't installed: cargo install --locked uniffi-bindgen-cs --git " +
         "https://github.com/NordSecurity/uniffi-bindgen-cs --tag v$BindgenVersion")
 }
 $listed = @(& rustup run stable cargo install --list) | Where-Object { $_ -match '^uniffi-bindgen-cs v' }

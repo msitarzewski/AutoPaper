@@ -106,6 +106,17 @@ struct InstructionsDetail: Equatable {
 
 /// The few kinds of line the composer's instructions use, so they can be shown as a reader would see them.
 enum MarkdownBlock: Equatable {
+    /// One line as styled text. The text is what a writer or a provider produced, so a Markdown link in it is shown
+    /// as its words and never made clickable.
+    static func inline(_ text: String) -> AttributedString {
+        guard var styled = try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) else {
+            return AttributedString(text)
+        }
+        let linked = styled.runs.filter { $0.link != nil }.map(\.range)
+        for range in linked { styled[range].link = nil }
+        return styled
+    }
+
     case heading(level: Int, text: String)
     case bullet(text: String)
     case numbered(marker: String, text: String)

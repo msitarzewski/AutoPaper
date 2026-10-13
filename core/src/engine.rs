@@ -945,9 +945,13 @@ impl Engine {
         let root = PathBuf::from(&config.data_dir);
         let dirs =
             Dirs { images: root.join("images"), thumbs: root.join("thumbs"), renders: root.join("renders"), root };
+        // Tightened when this call makes the folder or it already holds AutoPaper's database, never on some other
+        // folder a host (the developer CLI's --data-dir) happened to name.
+        let ours = !dirs.root.exists() || dirs.root.join(DATABASE_FILE).exists();
         for dir in [&dirs.root, &dirs.images, &dirs.thumbs, &dirs.renders] {
             fs::create_dir_all(dir)?;
         }
+        if ours { keep_private(&dirs.root); }
         let mut store = Store::open(&dirs.root.join(DATABASE_FILE))?;
         store.interrupt_runs(deps.clock.now())?;
         store.prune_runs(deps.clock.now())?;
@@ -1059,7 +1063,9 @@ impl GuardedSecrets {
 
 impl SecretStore for GuardedSecrets {
     fn get(&self, account: String) -> Option<String> {
-        self.guarded("get", || self.0.get(account)).flatten()
+        let value = self.guarded("get", || self.0.get(account)).flatten();
+        if let Some(value) = &value { net::remember_secret(value); }
+        value
     }
 
     fn set(&self, account: String, value: String) {
@@ -1188,6 +1194,20 @@ struct RunCapture {
     clock: Arc<dyn Clock>,
 }
 
+/// The data folder holds the history, prompts and Console traces: only its owner may enter it (Unix; Windows keeps
+/// it in the person's own profile). A failure to tighten it is logged, not fatal.
+fn keep_private(dir: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Err(error) = fs::set_permissions(dir, fs::Permissions::from_mode(0o700)) {
+            tracing::warn!(%error, "couldn't make the data folder private");
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = dir;
+}
+
 /// A host dropping the future is an interruption too, even if the app itself stays open.
 struct RunGuard {
     console: Arc<RunCapture>,
@@ -1291,6 +1311,7 @@ impl HttpClient for ConsoleHttp {
         let first = request.method != HttpMethod::Get || lock(&self.seen_gets).insert(request.url.clone());
         let address = url::Url::parse(&request.url).map(|url| format!("{}{}", url.origin().ascii_serialization(), url.path())).unwrap_or_default();
         let method = if request.method == HttpMethod::Post { "POST" } else { "GET" };
+        for secret in &secrets { net::remember_secret(secret); }
         if capture {
             self.console.remember_secrets(self.run_id.as_deref(), &secrets);
         }
@@ -1863,7 +1884,7 @@ impl Inner {
         }
         match self.revisit(reason) {
             Ok(shown) => {
-                tracing::info!(?reason, error = %net::redact(&error.to_string()), "revisiting a liked wallpaper");
+                tracing::info!(?reason, error = %self.console.text(&error.to_string()), "revisiting a liked wallpaper");
                 Ok(shown)
             }
             Err(AutoPaperError::NothingToRevisit) => Err(error),
@@ -2330,8 +2351,8 @@ impl Inner {
             let unusable: Vec<Problem> =
                 candidates.iter().filter(|candidate| !candidate.valid).flat_map(|c| c.problems.iter().cloned()).collect();
             if !unusable.is_empty() {
-                let said: Vec<String> = unusable.iter().map(problem_text).collect();
-                tracing::warn!(problems = ?said, "the text model's candidates couldn't be used");
+                // Counted, not quoted: a problem names the person's keywords, which stay out of diagnostic logs.
+                tracing::warn!(problems = unusable.len(), "the text model's candidates couldn't be used");
             }
             job.problems.extend(unusable);
             let too_similar = candidates.iter().filter(|candidate| candidate.valid && !candidate.novel).count();
@@ -2472,7 +2493,7 @@ impl Inner {
             Ok(candidates) => candidates,
             Err(error) => {
                 self.console.event(None, "CheckingMemory", Some(job.text_kind), &model, "rejected", &error.to_string());
-                tracing::warn!(error = %net::redact(&error.to_string()), "the text model's answer couldn't be read");
+                tracing::warn!(error = %self.console.text(&error.to_string()), "the text model's answer couldn't be read");
                 return Ok(Vec::new());
             }
         };
@@ -2624,9 +2645,11 @@ impl Inner {
             AutoPaperError::Refused { .. } => GenerationStatus::Refused,
             _ => GenerationStatus::Failed,
         };
-        let detail = net::redact(&error.to_string());
+        let detail = self.console.text(&error.to_string());
         self.run_cost(job);
-        tracing::warn!(?status, error = %detail, "a wallpaper couldn't be made");
+        // The message names no keyword (the hosts word that from the error's fields); this keeps it so if that changes.
+        let logged = if matches!(error, AutoPaperError::KeywordNotFollowed { .. }) { "the writer left out a Must keyword" } else { detail.as_str() };
+        tracing::warn!(?status, error = %logged, "a wallpaper couldn't be made");
         let generation = Generation {
             id: Uuid::now_v7().to_string(),
             created_at: job.started,

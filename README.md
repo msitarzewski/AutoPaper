@@ -85,7 +85,7 @@ Every one of these came from a handful of keywords, composed the way AutoPaper c
 
 - **Moods.** Named sets of keywords, each with its own Surprise: *Rainy beach*, *Night city*, *Winter forest*. One is current, and switching never makes a wallpaper by itself. A **Your Moods** summary shows what each one has made. On a Mac, each mood has a **Use** button (**In Use** for the current one) in its header.
 - **Light or dark, to match.** *Match my appearance* (on by default, in Settings → General) asks for wallpapers that suit your computer's light or dark mode: bright and airy on a light desktop, deep and moody on a dark one. Your keywords still come first.
-- **A writer that needs no key.** On a Mac with Apple Intelligence, *On this Mac* writes ideas with Apple's on-device model: free, private, offline. AutoPaper asks it for fewer ideas with shorter instructions and fixes what it gets wrong, such as a keyword left out. Painting still needs a painter (or Demo's gradients). [Foundry Local](https://msitarzewski.github.io/AutoPaper/help.html#foundry) works the same way on Windows through *OpenAI-compatible*.
+- **A writer that needs no key.** On a Mac with Apple Intelligence, *On this Mac* writes ideas with Apple's on-device model: free, private, with no key: the writing step stays on your Mac (the finished prompt still goes to your painter). AutoPaper asks it for fewer ideas with shorter instructions and fixes what it gets wrong, such as a keyword left out. Painting still needs a painter (or Demo's gradients). [Foundry Local](https://msitarzewski.github.io/AutoPaper/help.html#foundry) works the same way on Windows through *OpenAI-compatible*.
 - **Memory.** Each new idea is compared, on your computer, with everything from your quiet period (a month to two years). Ideas too close to one you've had are asked for again, so the same scene doesn't come back next week.
 - **Echoes.** Once the quiet period has passed, an old idea can return seen differently (other weather, another hour or season, years of decay), linked to the original.
 - **Taste.** Like or Dislike any wallpaper and AutoPaper leans towards what you like. Taste is a hint; Avoid is the rule.
@@ -160,15 +160,15 @@ Each [release](https://github.com/msitarzewski/AutoPaper/releases/latest) also h
 | ComfyUI | No | Yes, with bundled workflows for Z-Image Turbo, Krea 2 Turbo and Qwen-Image 2.1, or your own | None |
 | Demo | Simple ideas | Soft gradients | None, and no network: try the app without AI |
 
-Keys are kept in your system's secure store, sent only to the service they belong to, and never logged or shown in an error. New to local models? [Brew Browser](https://brew-browser.zerologic.com) has bundles that install Ollama and ComfyUI on macOS and Linux.
+Keys are kept in your system's secure store, sent only to the service they belong to, and kept out of logs and error messages (a key a server echoes back is removed by its exact value, and anything that looks like a key is removed too). New to local models? [Brew Browser](https://brew-browser.zerologic.com) has bundles that install Ollama and ComfyUI on macOS and Linux.
 
 ## Privacy
 
 The full account is in **[PRIVACY.md](./PRIVACY.md)** (who learns what, what's stored) and **[NETWORK.md](./NETWORK.md)** (every host, request and limit). In brief:
 
-- No telemetry, analytics, accounts or AutoPaper server. Out of the box AutoPaper uses Demo and sends nothing.
-- To write a scene, the provider you chose gets the current mood's keywords and Surprise, short descriptions of recent wallpapers, a few things you've liked or disliked, your language, and whether your computer is in light or dark mode (while *Match my appearance* is on). To paint it, the finished prompt, the size and the quality.
-- Your images, history, ratings, spending and settings stay on your computer. Memory runs on your computer with a small bundled model. With local models, nothing leaves your network.
+- No telemetry, analytics, accounts or AutoPaper server. Out of the box AutoPaper uses Demo and sends nothing to a provider (Windows' App Installer and the Mac's update check are the system's and Sparkle's, see PRIVACY.md).
+- To write a scene, the provider you chose gets the current mood's keywords and Surprise, short descriptions of your 20 most recent wallpapers (from all your moods, not only the current one), a few things you've liked or disliked, your language, and whether your computer is in light or dark mode (while *Match my appearance* is on). To paint it, the finished prompt, the size and the quality.
+- Your images, the history and ratings themselves, spending and settings stay on your computer; the descriptions and phrases above are what a hosted writer gets. Memory runs on your computer with a small bundled model. With local models, nothing leaves your network.
 - Updates are checked by Sparkle on a Mac (the feed on this project's GitHub Pages, no system profile), by Windows' App Installer (from msitarzewski.com, the author's own server, which keeps no access logs) or winget, and by Flatpak on Linux (from the same server).
 
 ## Accessibility

@@ -1338,6 +1338,18 @@ struct AppleSystemModelTests {
 
 @Suite("Console instructions")
 struct InstructionsDetailTests {
+    @Test func theSystemLogNeverCarriesAKeyword() {
+        let error = AutoPaperError.KeywordNotFollowed(keyword: "secret-harbour", weight: .must, moodId: "m")
+        #expect(!Sentences.logged(error).contains("secret-harbour"))
+    }
+
+    @Test func aLinkInModelWrittenTextIsShownAsWordsAndNeverClickable() {
+        let styled = MarkdownBlock.inline("A quiet harbour, see [the gallery](https://example.com/x) and <https://example.org>.")
+        #expect(String(styled.characters).contains("the gallery"))
+        #expect(styled.runs.allSatisfy { $0.link == nil })
+        #expect(MarkdownBlock.inline("plain **bold** text").runs.count > 1, "other styling stays")
+    }
+
     private let detail = "System instructions:\nYou are the composer.\n\n## Rules\n1. Wide.\n- Must: rain.\n\nUser prompt:\nCompose 2 candidates.\n\nSchema:\n{\"type\":\"object\"}\n\nTemperature (where supported): 0.7"
 
     @Test("An instructions event splits into its parts")

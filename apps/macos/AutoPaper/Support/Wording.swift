@@ -269,6 +269,14 @@ extension SurpriseBand {
 /// Plain sentences for everything that can go wrong, and for a wallpaper brought back instead of a new one.
 /// Worded from the error's variant and typed reason only: the core's `detail` is English for logs, never shown.
 enum Sentences {
+    /// An error as it may go in the system log: its kind and detail, but never the person's keywords, which a
+    /// keyword error carries.
+    static func logged(_ error: any Error) -> String {
+        if let core = error as? AutoPaperError, case .KeywordNotFollowed = core { return "KeywordNotFollowed" }
+        return String(describing: error)
+    }
+
+
     /// What to tell the person about an engine error; nil for a cancel (they asked for it). `retrying` adds that
     /// AutoPaper tries again later, for errors of making a wallpaper (not for a Test in Settings). `inSettings`:
     /// the sentence is shown in Settings, next to what it's about; elsewhere (Now, the menu bar, a notification) a

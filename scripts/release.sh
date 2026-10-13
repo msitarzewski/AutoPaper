@@ -6,8 +6,9 @@
 #
 # Run on the maintainer's Mac, which holds the "Developer ID Application" certificate for the team in
 # apps/macos/project.yml and the Sparkle signing key (`generate_keys --account AutoPaper`, in the login Keychain;
-# the first time sign_update uses it, macOS asks: choose Always Allow). Needs, in the environment:
-#   APPLE_ID, APPLE_PASSWORD (an app-specific password), APPLE_TEAM_ID   — for notarytool
+# each time sign_update uses it macOS asks: choose Allow, not Always Allow, so only this script can sign an update). Needs, in the environment:
+#   APPLE_NOTARY_PROFILE (a notarytool keychain profile: xcrun notarytool store-credentials …), or else
+#   APPLE_ID, APPLE_PASSWORD (an app-specific password), APPLE_TEAM_ID   — for notarytool (the password is then on its command line)
 #   RELEASE_NOTES_HTML (optional) — a file with an HTML fragment for Sparkle's update window
 #
 #   set -a; source ~/.config/brew-browser/signing.env; set +a   # or wherever your credentials live
@@ -28,13 +29,21 @@ APP_DIR="$ROOT/apps/macos"
 SPEC="$APP_DIR/project.yml"
 cd "$ROOT"
 
-: "${APPLE_ID:?set APPLE_ID (see the header of this script)}"
-: "${APPLE_PASSWORD:?set APPLE_PASSWORD (an app-specific password)}"
-: "${APPLE_TEAM_ID:?set APPLE_TEAM_ID}"
+# notarytool credentials: a stored keychain profile keeps the password out of the process list (xcrun notarytool
+# store-credentials AutoPaper-notary --apple-id … --team-id …, then APPLE_NOTARY_PROFILE=AutoPaper-notary). Without one,
+# the app-specific password goes on notarytool's command line, which other processes of this user can read.
+if [ -n "${APPLE_NOTARY_PROFILE:-}" ]; then
+  NOTARY_AUTH=(--keychain-profile "$APPLE_NOTARY_PROFILE")
+else
+  : "${APPLE_ID:?set APPLE_ID (see the header of this script)}"
+  : "${APPLE_PASSWORD:?set APPLE_PASSWORD (an app-specific password)}"
+  : "${APPLE_TEAM_ID:?set APPLE_TEAM_ID}"
+  NOTARY_AUTH=(--apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID")
+fi
 
 setting() { grep -m1 -E "^ +$1:" "$SPEC" | cut -d: -f2- | tr -d '" '; }
 TEAM="$(setting DEVELOPMENT_TEAM)"
-[ "$TEAM" = "$APPLE_TEAM_ID" ] || { echo "project.yml team ($TEAM) doesn't match APPLE_TEAM_ID"; exit 1; }
+[ -z "${APPLE_TEAM_ID:-}" ] || [ "$TEAM" = "$APPLE_TEAM_ID" ] || { echo "project.yml team ($TEAM) doesn't match APPLE_TEAM_ID"; exit 1; }
 IDENTITY="$(security find-identity -v -p codesigning | grep "Developer ID Application" | grep "($TEAM)" | head -1 | awk '{print $2}')"
 [ -n "$IDENTITY" ] || { echo "No Developer ID Application certificate for team $TEAM in the Keychain"; exit 1; }
 VERSION="$(setting MARKETING_VERSION)"
@@ -59,13 +68,13 @@ rm -rf "$OUT" && mkdir -p "$OUT"
 
 notarize() {
   # The result goes to a file first: read through a pipe, `grep -q` could close it before notarytool is done.
-  xcrun notarytool submit "$1" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" \
+  xcrun notarytool submit "$1" "${NOTARY_AUTH[@]}" \
     --wait --output-format json > "$WORK/notary.json" || true
   local id
   id="$(sed -nE 's/.*"id" *: *"([^"]+)".*/\1/p' "$WORK/notary.json" | head -1)"
   if ! grep -q '"status" *: *"Accepted"' "$WORK/notary.json"; then
     echo "Notarization failed:"; cat "$WORK/notary.json"
-    [ -n "$id" ] && xcrun notarytool log "$id" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID"
+    [ -n "$id" ] && xcrun notarytool log "$id" "${NOTARY_AUTH[@]}"
     exit 1
   fi
   echo "   accepted (submission $id)"
@@ -98,6 +107,12 @@ echo "==> project and packages"
 (cd "$APP_DIR" && xcodegen generate --quiet)
 xcodebuild -project "$APP_DIR/AutoPaper.xcodeproj" -scheme AutoPaper -resolvePackageDependencies \
   -clonedSourcePackagesDirPath "$PACKAGES" -quiet
+# Sparkle is what installs updates, so the commit that resolved must be the one reviewed for 2.10.0, not whatever a
+# moved tag points at (project.yml pins the version; this pins the commit).
+SPARKLE_COMMIT="eef1a539a373c1f1a320624b1130fc5de7b2e100"
+RESOLVED="$(python3 -c 'import json,sys; print(next(p["state"]["revision"] for p in json.load(open(sys.argv[1]))["pins"] if p["identity"]=="sparkle"))' \
+  "$APP_DIR/AutoPaper.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved")"
+[ "$RESOLVED" = "$SPARKLE_COMMIT" ] || { echo "Sparkle resolved to $RESOLVED, not the reviewed $SPARKLE_COMMIT"; exit 1; }
 [ -x "$SPARKLE_BIN/sign_update" ] || { echo "Sparkle tools missing at $SPARKLE_BIN"; exit 1; }
 # The app trusts updates signed with SUPublicEDKey; the key in the Keychain must be its private half.
 KEYCHAIN_KEY="$("$SPARKLE_BIN/generate_keys" --account AutoPaper -p 2>/dev/null)" \
@@ -143,6 +158,11 @@ archs=" $(lipo -archs "$BINARY") "
 unexpected="$(otool -L "$BINARY" | grep -E '^[[:space:]]' | awk '{print $1}' \
   | grep -v -E '^(/usr/lib/|/System/Library/|@rpath/Sparkle\.framework/)' || true)"
 [ -z "$unexpected" ] || { echo "AutoPaper links libraries it doesn't carry: $unexpected"; exit 1; }
+# Sparkle must check an update's signature before it unpacks it.
+[ "$(plutil -extract SUVerifyUpdateBeforeExtraction raw "$APP/Contents/Info.plist" 2>/dev/null)" = true ] \
+  || { echo "app: Sparkle isn't set to verify updates before extracting them"; exit 1; }
+[ "$(plutil -extract SURequireSignedFeed raw "$APP/Contents/Info.plist" 2>/dev/null)" = true ] \
+  || { echo "app: Sparkle isn't set to require a signed feed"; exit 1; }
 # Entitlements: sandboxed, network client, Sparkle's installer channels, and never get-task-allow.
 codesign -d --entitlements - --xml "$APP" > "$WORK/app.entitlements" 2>/dev/null
 [ "$(plist com.apple.security.app-sandbox "$WORK/app.entitlements")" = true ] || { echo "app: not sandboxed"; exit 1; }
@@ -184,11 +204,16 @@ xcrun stapler staple "$DMG"
 spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
 
 echo "==> Sparkle update: zip, EdDSA signature, feed entry"
-echo "   (the first time, macOS asks whether sign_update may use the AutoPaper key: choose Always Allow)"
+echo "   (macOS may ask whether sign_update may use the AutoPaper key: choose Allow, not Always Allow)"
 ditto -c -k --keepParent "$APP" "$ZIP"
 SIGNATURE="$("$SPARKLE_BIN/sign_update" --account AutoPaper -p "$ZIP")"
 [ -n "$SIGNATURE" ] || { echo "sign_update produced no signature"; exit 1; }
 python3 "$ROOT/scripts/appcast.py" "$VERSION" "$BUILD" "$ZIP" "$SIGNATURE" ${RELEASE_NOTES_HTML:+"$RELEASE_NOTES_HTML"}
+# The feed itself is signed too (SURequireSignedFeed): whoever can edit the file on its host can't change the notes,
+# the download address or the version without the key. Nothing may touch the file after this.
+"$SPARKLE_BIN/sign_update" --account AutoPaper "$ROOT/site/static/appcast.xml" >/dev/null
+"$SPARKLE_BIN/sign_update" --account AutoPaper --verify "$ROOT/site/static/appcast.xml" \
+  || { echo "the signed feed doesn't verify"; exit 1; }
 
 (cd "$OUT" && shasum -a 256 "$(basename "$DMG")" "$(basename "$ZIP")" > "AutoPaper-$VERSION.sha256")
 echo

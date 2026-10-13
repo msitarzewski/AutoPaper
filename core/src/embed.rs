@@ -161,13 +161,18 @@ impl Embedder for CandleEmbedder {
     }
 
     fn embed(&self, text: &str) -> Result<Vec<f32>> {
-        let mut vector = self.forward(text).map_err(internal)?;
+        // The model reads a few hundred tokens at most; a longer text (a hostile field of megabytes) only costs memory.
+        let text: String = text.chars().take(MAX_EMBED_CHARS).collect();
+        let mut vector = self.forward(&text).map_err(internal)?;
         if !l2_normalize(&mut vector) {
             return Err(internal("the embedding model returned a vector with no direction"));
         }
         Ok(vector)
     }
 }
+
+/// The most characters of a text the embedding model is given.
+const MAX_EMBED_CHARS: usize = 8_000;
 
 fn read(path: &Path) -> Result<Vec<u8>> {
     std::fs::read(path).map_err(|e| storage(format!("{}: {e}", path.display())))

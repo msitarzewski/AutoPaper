@@ -265,7 +265,8 @@ the VM; nothing appears on the Mac's screen.
   2026-10-05: .NET SDK 10.0.401 arm64, rustup (rustc 1.99.0, aarch64 + x86_64 MSVC targets) for `michael`,
   uniffi-bindgen-cs, winapp 0.7.1, WinUI templates, AxeWindowsCLI 2.4.2 (`C:\Tools\AxeWindowsCLI-2.4.2`),
   Developer Mode on. Already present: VS Build Tools 2022 17.14 (ARM64/x64 C++, Windows SDK 10.0.26100), Git 2.55.
-  - Repo: `\\Mac\Home\Clean\autopaper` (desktop user: `Z:\Clean\autopaper`). **Packages can't be registered
+  - **Since 2026-10-10 the VM shares only `~/vm-exchange` (`\\Mac\Exchange`; `scripts/vm-exchange.sh push`), not the Mac home**, because it builds third-party code next to a live Azure signing session. Older notes below that say `\\Mac\Home\Clean\autopaper` mean `\\Mac\Exchange\src` now. `prlctl set … --isolate-vm on` blocks `prlctl exec`, so it is off.
+  - Repo (old note): `\\Mac\Home\Clean\autopaper` (desktop user: `Z:\Clean\autopaper`). **Packages can't be registered
     from the share (0x80073CFD)**: `robocopy \\Mac\Home\Clean\autopaper C:\Users\michael\dev\autopaper /MIR
     /XD .git bin obj target AppX .scratch /XF .env .env.*` (never copy `.env`), build/run/pack there; `CARGO_TARGET_DIR` on local disk too.
   - `prlctl exec "Windows 11" <cmd>` = SYSTEM (elevated: machine installs, cert trust, HKLM);

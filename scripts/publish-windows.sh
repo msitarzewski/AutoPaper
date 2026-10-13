@@ -6,7 +6,7 @@
 #   scripts/publish-windows.sh 0.1.0 --dry-run    # says what it would do
 #   scripts/publish-windows.sh 0.1.0 --from DIR   # the release from DIR instead of build/windows/0.1.0/
 #
-# Run on the Mac, after scripts/windows-release.ps1 -Version <v> -CopyTo \\Mac\Home\Clean\autopaper (in the Windows VM)
+# Run on the Mac, after scripts/windows-release.ps1 -Version <v> -CopyTo \\Mac\Exchange\out (in the Windows VM), then --from ~/vm-exchange/out/build/windows/<v>
 # has put the release in build/windows/<v>/: AutoPaper_<v>_x64_arm64.msixbundle and the feed (AutoPaper.appinstaller, or
 # a test feed). Where they go comes from the feed itself: its own Uri and its MainBundle Uri must both be under
 # https://msitarzewski.com/app-updates/autopaper/, which is /srv/www/msitarzewski.com/app-updates/autopaper/ on pipx
@@ -54,7 +54,7 @@ done
 
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 RELEASE="${FROM:-$REPO/build/windows/$VERSION}"
-[ -d "$RELEASE" ] || { printf 'no %s: run scripts/windows-release.ps1 -Version %s -CopyTo \\\\Mac\\Home\\Clean\\autopaper in the VM first\n' "$RELEASE" "$VERSION" >&2; exit 1; }
+[ -d "$RELEASE" ] || { printf 'no %s: run scripts/windows-release.ps1 -Version %s -CopyTo \\\\Mac\\Exchange\\out in the VM first (then --from ~/vm-exchange/out/build/windows/%s)\n' "$RELEASE" "$VERSION" "$VERSION" >&2; exit 1; }
 
 step() { printf '\n==> %s\n' "$*"; }
 run() { if [ "$DRY_RUN" = 1 ]; then printf '    would run: %s\n' "$*"; else "$@"; fi; }

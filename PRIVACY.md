@@ -2,15 +2,15 @@
 
 AutoPaper makes new wallpapers with AI: a language model writes each scene, and an image model paints it. Unless both run on your own computer or network, that means some of what you give AutoPaper leaves your computer. This page says exactly what, to whom, and what stays on your computer. For every request, host and limit, see [NETWORK.md](./NETWORK.md).
 
-This page describes AutoPaper 0.1.0 on macOS, Windows and Linux, and changes with the apps.
+This page describes AutoPaper 0.1.4 on macOS, Windows and Linux, and changes with the apps.
 
 ## The short version
 
 - **No telemetry, no analytics, no accounts, no AutoPaper server.** AutoPaper talks only to the providers you set up, and only to make wallpapers or to check that a provider works. The one exception is the Mac app's update check, if you allow it (see [Updates](#updates)); on Windows and Linux, updates are your system's job, from the author's own server, which keeps no access logs.
 - **Out of the box it sends nothing.** Until you choose a provider, AutoPaper uses **Demo**, which writes simple ideas and paints gradients on your computer, without any network.
 - **On this Mac:** if you choose *On this Mac* as the writer, Apple's on-device model writes the ideas, and nothing about your keywords, wallpapers or taste leaves your Mac for that step.
-- **What leaves your computer**, when you use a hosted provider: to write a scene, the current mood's keywords and Surprise, short descriptions of recent wallpapers, a few things you've liked or disliked, your language, and whether your computer is in light or dark mode (only while Match my appearance is on); to paint it, the finished prompt, the size and the quality. Plus AutoPaper's version, your system's name and version, and your IP address, as with any request online.
-- **What never leaves your computer:** your images, history, ratings, mood names, spending, timings and settings. Memory (the check that a new idea isn't one you've had) runs on your computer with a small bundled model.
+- **What leaves your computer**, when you use a hosted provider: to write a scene, the current mood's keywords and Surprise, short descriptions of your 20 most recent wallpapers (from all your moods, not only the current one), a few things you've liked or disliked, your language (the language and region only, never your calendar or other regional preferences), and whether your computer is in light or dark mode (only while Match my appearance is on); to paint it, the finished prompt, the size and the quality. Plus AutoPaper's version, your system's name and version, and your IP address, as with any request online.
+- **What stays on your computer:** your images, the history and ratings themselves, mood names, spending, timings and settings. (Short descriptions of recent wallpapers, from **every** mood and not only the current one, and a few phrases from what you liked or disliked, do go to a hosted writer with each request, as above. A mood is a set of keywords, not a privacy boundary.) Memory (the check that a new idea isn't one you've had) runs on your computer with a small bundled model.
 - **With local models** (Ollama, LM Studio, ComfyUI and the like, on your computer or your own network), nothing leaves your network at all.
 - **Your keys stay in your system's secure store** (Keychain, Credential Manager, Secret Service) and are sent only to the service they belong to.
 
@@ -83,13 +83,14 @@ Everything AutoPaper keeps is in its own data folder, plus a few preferences. No
 | Wallpapers sized for each display | `renders/` | A cache, cleared first |
 | How long each provider took (job, provider, server address, model, size, steps, seconds) | `autopaper.sqlite3` | The newest 50 for each provider and model. Never sent |
 | Your own wallpaper's location (macOS, with **As my wallpaper**), or a copy of it (Windows; Linux on GNOME), so it can be put back | macOS preferences; Windows `own-wallpaper\` in the data folder; Linux `own-wallpaper/` in the data folder | Replaced whenever AutoPaper records it again |
+| Your own lock screen picture (Windows), a copy so it can be put back | `own-lockscreen\` in the data folder | Until you restore it or choose another |
 | A ComfyUI workflow of your own, if you chose one | macOS preferences; Windows `workflows\` in the data folder; Linux GSettings | Until you choose another |
 | App preferences (for example notifications, the last Settings pane) | macOS preferences; Windows app settings; Linux GSettings (`io.github.msitarzewski.AutoPaper`) | Until you change them |
 | API keys | Keychain; Credential Manager; Secret Service | Until you remove them in Settings |
-| Console runs (original mood/keywords/Surprise, prompts, provider/model choices, sanitized requests and responses, retry checks, timing, estimated cost and outcome) | `runs` in `autopaper.sqlite3`; visible in Console | At most 200 runs for 30 days; Clear Console deletes them independently of wallpapers and memory. Each trace is size-limited, with omitted details labeled. Requests made before this version were not recorded |
-| Diagnostics | macOS: the system log (errors, and a line naming the providers and models that made each wallpaper); Windows: `logs\autopaper.log` in the data folder (unexpected errors only, at most 256 KB, plus one older file); Linux: standard error only, no log file | No keys, keywords or prompts in any of them |
+| Console runs (original mood/keywords/Surprise, prompts, provider/model choices, sanitized requests and responses, retry checks, timing, estimated cost and outcome) | `runs` in `autopaper.sqlite3`; visible in Console | At most 200 runs for 30 days; Clear Console deletes them independently of wallpapers and memory; clearing history or memory does not clear Console, so use Clear Console to remove the prompts and keywords it kept. Each trace is size-limited, with omitted details labeled. Requests made before this version were not recorded |
+| Diagnostics | macOS: the system log (errors, and a line naming the providers and models that made each wallpaper); Windows: `logs\autopaper.log` in the data folder (unexpected errors only, at most 256 KB, plus one older file); Linux: standard error only (a desktop session usually keeps it in the journal), no log file of AutoPaper's own | No keys, prompts or keywords in any of them (a failed wallpaper is described by its kind, never by the keyword it missed) |
 
-The data folder is:
+The data folder is private to you: AutoPaper makes it readable by its owner only (macOS, Linux), and on Windows it sits in your own profile. The data folder is:
 
 - **macOS:** `~/Library/Containers/com.autopaper/Data/Library/Application Support/AutoPaper` (AutoPaper is sandboxed).
 - **Windows:** the app's own `LocalState` folder, under `%LOCALAPPDATA%\Packages\`.
@@ -99,7 +100,7 @@ Keys are stored under these names: on macOS, Keychain items for the service `com
 
 ## Permissions
 
-- **macOS:** AutoPaper runs in the App Sandbox and asks for only outgoing network connections and read access to a file you choose (a ComfyUI workflow of your own). No location, contacts, camera, microphone or photos. Notifications are off unless you turn them on, and macOS asks first.
+- **macOS:** AutoPaper runs in the App Sandbox and asks for outgoing network connections, read and write access to a file you choose (a ComfyUI workflow of your own to read, and a Console report to save), and a narrow exception that lets Sparkle's installer helper finish an update. No location, contacts, camera, microphone or photos. Notifications are off unless you turn them on, and macOS asks first.
 - **Windows:** a packaged desktop app. It reads and sets the desktop picture, sets the lock screen picture unless you turn that off, and shows notifications unless you turn them off. It has access to your Pictures library (the `picturesLibrary` capability) only because Windows hands an app the lock screen's current picture only with it: AutoPaper uses it to read your own lock screen picture, so it can put it back, and for nothing else. When you install it, App Installer lists three things it can do:
   - **Uses all system resources** (`runFullTrust`): it's an ordinary desktop app, as every WinUI 3 desktop app is, rather than one confined like a Microsoft Store app.
   - **Use your pictures library** (`picturesLibrary`): only to read the lock screen picture, as above.

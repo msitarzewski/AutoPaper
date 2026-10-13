@@ -666,7 +666,7 @@ final class AppModel {
     /// is its line and one link to the fix, and what's announced is what the link says (spec 6a), with no "try
     /// again later".
     private func report(_ error: any Error, evenInBackground: Bool = false) {
-        log.error("\(String(describing: error), privacy: .public)")
+        log.error("\(Sentences.logged(error), privacy: .public)")
         if let problem = settingsProblem(for: error) {
             notice = Notice(kind: .error, text: problem.sentence, link: problem)
             announce(problem.spoken, evenInBackground: evenInBackground)

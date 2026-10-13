@@ -11,8 +11,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.1.3"
-    CURRENT_PROJECT_VERSION: "8"
+    MARKETING_VERSION: "0.1.4"
+    CURRENT_PROJECT_VERSION: "9"
     DEAD_CODE_STRIPPING: YES
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 packages:
@@ -71,6 +71,10 @@ targets:
         SUPublicEDKey: W857ROkwv0RR+nhvbThbcF47xx1iFIm1peBvSeWox5Y=
         # A sandboxed app hands installation to Sparkle's installer launcher (see the entitlements below).
         SUEnableInstallerLauncherService: true
+        # Check an update's signature before unpacking it, so a tampered archive is never handed to the unarchiver.
+        SUVerifyUpdateBeforeExtraction: true
+        # The appcast carries its own EdDSA signature (scripts/release.sh signs it): a feed edited on its host is refused.
+        SURequireSignedFeed: true
         # No SUEnableAutomaticChecks: Sparkle asks on the second launch whether to check automatically, so
         # people choose (Settings → About can change it). No system profile is ever sent.
     entitlements:

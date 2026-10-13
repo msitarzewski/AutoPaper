@@ -1601,7 +1601,8 @@ impl App {
             return;
         }
         let notification = gio::Notification::new(&format!("New wallpaper: {}", generation.concept.title));
-        notification.set_body(Some(&generation.concept.summary));
+        // A shell may read markup (links, bold) in a notification body, and the summary is what a model wrote.
+        notification.set_body(Some(&glib::markup_escape_text(&generation.concept.summary)));
         let id = generation.id.to_variant();
         notification.add_button_with_target_value("Like", "app.like-wallpaper", Some(&id));
         notification.add_button_with_target_value("Dislike", "app.dislike-wallpaper", Some(&id));

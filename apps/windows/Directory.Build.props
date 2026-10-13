@@ -1,0 +1,8 @@
+<Project>
+  <!-- Packages are locked: the versions and hashes in packages.lock.json are what restores, so a release or CI build
+       can't pick up a package that changed after review. Refresh with dotnet restore with force-evaluate. -->
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(CI)' == 'true' Or '$(AUTOPAPER_RELEASE)' == 'true'">true</RestoreLockedMode>
+  </PropertyGroup>
+</Project>

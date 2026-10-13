@@ -31,11 +31,12 @@ jobs:
     runs-on: ${{ matrix.runner }}
     # flatpak-builder needs bubblewrap, which needs a privileged container.
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
+      # Pinned by digest: this image builds what ships. Bump it deliberately (docker buildx imagetools inspect …:gnome-51).
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51@sha256:78d969b18225ae107ca29497bf09c4a3f791e5f1838a9a912a529d0024fb6210
       options: --privileged
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: The tag is the version
         if: github.ref_type == 'tag'
         env:
@@ -47,7 +48,7 @@ jobs:
             exit 1
           fi
       # flatpak-builder's state: downloaded sources (crates, the embedding model) and modules built before.
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: build/flatpak/${{ matrix.arch }}/state
           key: flatpak-${{ matrix.arch }}-${{ hashFiles('packaging/flatpak/*.yml', 'packaging/flatpak/cargo-sources.json') }}
@@ -56,7 +57,7 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}
         run: scripts/linux-release.sh --arch "$ARCH"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: AutoPaper-flatpak-${{ matrix.arch }}
           path: |
@@ -66,3 +67,25 @@ jobs:
           retention-days: 30
           # The bundle is already compressed.
           compression-level: 0
+
+  # Provenance for the bundles, from a plain runner: the signing permissions never reach the privileged build
+  # container, which runs the project's build scripts. scripts/publish-flatpak.sh verifies the attestation (and that it
+  # names the tag's commit) before it signs anything into the repository.
+  attest:
+    name: Attest the bundles
+    needs: bundle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: AutoPaper-flatpak-*
+          path: bundles
+          merge-multiple: true
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: bundles/AutoPaper-*.flatpak

@@ -5,6 +5,7 @@
 # repository key from scripts/flatpak-repo-key.sh.
 #
 #   scripts/publish-flatpak.sh --tag v0.1.0      CI's bundles for that tag
+#   scripts/publish-flatpak.sh --no-attestation  (with the above) for bundles built before CI attested them
 #   scripts/publish-flatpak.sh --run ID          a particular CI run's bundles (one started by hand, say)
 #   scripts/publish-flatpak.sh --bundles DIR     bundles already on this Mac (AutoPaper-<version>-<arch>.flatpak, .sha256)
 #
@@ -39,7 +40,8 @@ set -euo pipefail
 
 APP_ID="io.github.msitarzewski.AutoPaper"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PUBLIC_KEY="$ROOT/packaging/flatpak/autopaper-repo.gpg"
+PUBLIC_KEY="${AUTOPAPER_FLATPAK_PUBLIC:-$ROOT/packaging/flatpak/autopaper-repo.gpg}"
+KEY_SERVICE="${AUTOPAPER_FLATPAK_KEY_SERVICE:-autopaper-flatpak-signing}"
 GNUPG_DIR="${AUTOPAPER_FLATPAK_GNUPGHOME:-$HOME/.config/autopaper/flatpak-gnupg}"
 PIPX_HOST="${AUTOPAPER_PIPX_HOST:-pipx}"
 REMOTE_BASE="/srv/www/msitarzewski.com/app-updates/autopaper"
@@ -51,6 +53,7 @@ IMAGE="autopaper-flatpak-publish"
 WORKFLOW="flatpak.yml"
 
 TAG=""
+NO_ATTEST=0
 RUN_ID=""
 BUNDLES=""
 TEST=0
@@ -60,6 +63,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --tag) TAG="$2"; shift 2 ;;
     --run) RUN_ID="$2"; shift 2 ;;
+    --no-attestation) NO_ATTEST=1; shift ;;
     --bundles) BUNDLES="$2"; shift 2 ;;
     --test) TEST=1; shift ;;
     --no-upload) UPLOAD=0; shift ;;
@@ -117,6 +121,12 @@ else
     [[ -n "$RUN_ID" ]] || die "no successful $WORKFLOW run for $TAG yet (gh run list --workflow $WORKFLOW)"
   fi
   echo "CI run $RUN_ID"
+  # The run must be a push of the tag itself, on the commit the tag names: not a branch that happens to share its name.
+  if [[ -n "$TAG" ]]; then
+    want="$(git -C "$ROOT" rev-parse "$TAG^{commit}" 2>/dev/null)" || die "no tag $TAG in this checkout (git fetch --tags)"
+    got="$(gh run view "$RUN_ID" --json headSha,event,headBranch --jq '[.headSha,.event,.headBranch]|join(" ")')"
+    [[ "$got" == "$want push $TAG" ]] || die "CI run $RUN_ID isn't the push of $TAG at $want (it is: $got)"
+  fi
   gh run download "$RUN_ID" --dir "$INBOX/dl" --pattern 'AutoPaper-flatpak-*'
   find "$INBOX/dl" -name 'AutoPaper-*.flatpak*' -exec mv {} "$INBOX/" \;
   rm -rf "$INBOX/dl"
@@ -132,6 +142,17 @@ for bundle in "$INBOX"/AutoPaper-*.flatpak; do
   [[ -f "$bundle.sha256" ]] || die "$file has no .sha256"
   (cd "$INBOX" && shasum -a 256 -c "$file.sha256" >/dev/null) || die "$file doesn't match its .sha256"
   echo "$file ($(du -h "$bundle" | cut -f 1)), checksum matches"
+  # The checksum travels with the bundle, so it only catches damage. The attestation ties the bundle to this
+  # repository's workflow: GitHub signed that it was built there, from that commit.
+  if [[ "$NO_ATTEST" != 1 ]]; then
+    [[ -n "$TAG" ]] || die "checking the attestation needs --tag (so it can be tied to the tag's commit), or --no-attestation"
+    gh attestation verify "$bundle" --repo msitarzewski/AutoPaper \
+      --signer-workflow msitarzewski/AutoPaper/.github/workflows/flatpak.yml \
+      --source-ref "refs/tags/$TAG" --source-digest "$(git -C "$ROOT" rev-parse "$TAG^{commit}")" \
+      --deny-self-hosted-runners >/dev/null ||
+      die "$file has no valid build attestation from this repository's flatpak workflow (--no-attestation skips this for bundles built before attestations)"
+    echo "  attested: built by $WORKFLOW in msitarzewski/AutoPaper"
+  fi
 done
 [[ ${#ARCHES[@]} -gt 0 ]] || die "no bundles"
 [[ -z "$TAG" || "$TAG" == "v$VERSION" ]] || die "the bundles are $VERSION, not $TAG"
@@ -160,11 +181,20 @@ RELEASE="$ROOT/build/flatpak/release$RELEASE_SUFFIX"
 rm -rf "$RELEASE"
 mkdir -p "$RELEASE"
 docker build -q -t "$IMAGE" -f "$ROOT/packaging/flatpak/publish.Dockerfile" "$ROOT/packaging/flatpak" >/dev/null
+# The key's passphrase, from the login Keychain (macOS asks you to allow it). It goes to the container through the
+# environment, not its command line.
+export FLATPAK_KEY_PASSPHRASE=""
+if security find-generic-password -s "$KEY_SERVICE" -a repository-key >/dev/null 2>&1; then
+  FLATPAK_KEY_PASSPHRASE="$(security find-generic-password -s "$KEY_SERVICE" -a repository-key -w)" ||
+    die "the signing key's passphrase wasn't released by the Keychain (did you click Don't Allow?)"
+else
+  echo "warning: the Keychain has no passphrase for the signing key ($KEY_SERVICE): signing with an unprotected key" >&2
+fi
 docker run --rm -i --tmpfs /run:rw,mode=755 \
   -v "$MIRROR:/work/repo" -v "$INBOX:/work/in:ro" -v "$RELEASE:/work/out" \
   -v "$GNUPG_DIR:/gnupg:ro" -v "$PUBLIC_KEY:/work/public.gpg:ro" \
   -e "APP_ID=$APP_ID" -e "VERSION=$VERSION" -e "ARCHES=${ARCHES[*]}" -e "REPO_URL=$REPO_URL" \
-  -e "FLATHUB_REPO=$FLATHUB_REPO" -e "TITLE=$TITLE" -e "HOMEPAGE=$HOMEPAGE" -e "ICON=$ICON" \
+  -e "FLATHUB_REPO=$FLATHUB_REPO" -e "TITLE=$TITLE" -e "HOMEPAGE=$HOMEPAGE" -e "ICON=$ICON" -e FLATPAK_KEY_PASSPHRASE \
   "$IMAGE" bash -euo pipefail -s <<'IN'
 # The key, in the container's memory for this run only.
 mkdir -m 700 -p "$GNUPGHOME"
@@ -174,6 +204,15 @@ chmod -R go-rwx "$GNUPGHOME"
 KEY="$(gpg --batch --show-keys --with-colons public.gpg 2>/dev/null | awk -F: '/^fpr/ { print $10; exit }')"
 gpg --batch --list-secret-keys "$KEY" >/dev/null 2>&1 || { echo "the signing key doesn't match public.gpg" >&2; exit 1; }
 echo "Signing with $KEY"
+if [[ -n "${FLATPAK_KEY_PASSPHRASE:-}" ]]; then
+  # Hand the passphrase to the container's own agent for this run, so ostree and flatpak sign unattended.
+  printf 'allow-preset-passphrase\n' > "$GNUPGHOME/gpg-agent.conf"
+  gpgconf --kill gpg-agent 2>/dev/null || true
+  gpg-agent --daemon >/dev/null 2>&1
+  GRIP="$(gpg --batch --with-colons --with-keygrip -K "$KEY" | awk -F: '/^grp/ { print $10; exit }')"
+  printf '%s' "$FLATPAK_KEY_PASSPHRASE" | /usr/lib/gnupg/gpg-preset-passphrase --preset "$GRIP"
+  unset FLATPAK_KEY_PASSPHRASE
+fi
 sign=(--gpg-sign="$KEY" --gpg-homedir="$GNUPGHOME")
 
 if [[ ! -f repo/config ]]; then

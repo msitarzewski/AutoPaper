@@ -21,7 +21,7 @@ use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use rand::Rng;
+use rand::{Rng, RngExt};
 use rand::rngs::StdRng;
 use rand::seq::IndexedRandom;
 
@@ -268,7 +268,7 @@ fn pick<'a, R: Rng + ?Sized>(rng: &mut R, list: &[&'a str], avoids: &[String], e
 
 fn pick_many<'a, R: Rng + ?Sized>(rng: &mut R, list: &[&'a str], avoids: &[String], amount: usize) -> Vec<&'a str> {
     let options: Vec<&str> = list.iter().copied().filter(|item| allowed(item, avoids)).collect();
-    options.choose_multiple(rng, amount).copied().collect()
+    options.sample(rng, amount).copied().collect()
 }
 
 /// The vocabulary item a chosen keyword names (e.g. "rain" → "light rain", "night sky" → "night"), if any.
@@ -387,7 +387,7 @@ fn write_candidate<R: Rng + ?Sized>(inputs: &ComposeInputs, rng: &mut R) -> (Con
                 0 => 0,
                 n => rng.random_range(1..=n.div_ceil(2)),
             };
-            let chosen: Vec<String> = maybes.choose_multiple(rng, some).cloned().collect();
+            let chosen: Vec<String> = maybes.sample(rng, some).cloned().collect();
             (musts, chosen)
         }
     };

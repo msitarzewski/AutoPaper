@@ -63,7 +63,7 @@ use std::time::Duration;
 
 use image::GenericImageView;
 use rand::rngs::StdRng;
-use rand::{Rng, RngCore, SeedableRng};
+use rand::{Rng, RngExt, SeedableRng};
 use serde_json::Value;
 use uuid::Uuid;
 

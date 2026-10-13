@@ -19,7 +19,7 @@ use autopaper_core::ports::{
 use autopaper_core::store::{MemoryRow, Store};
 use autopaper_core::testing::{FixedClock, SocketStep, StubHttp, StubSecrets};
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use serde_json::json;
 use tempfile::TempDir;
 

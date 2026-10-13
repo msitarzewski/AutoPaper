@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 use crate::model::{Concept, Rating};
 use crate::novelty::LineageIndex;
@@ -183,7 +183,7 @@ pub fn rating_allows(rating: Rating) -> bool {
 #[cfg(test)]
 mod tests {
     use rand::rngs::StdRng;
-    use rand::{RngCore, SeedableRng};
+    use rand::{SeedableRng, TryRng};
 
     use super::*;
 
@@ -212,18 +212,21 @@ mod tests {
     /// Always returns the same word: 0 draws the bottom of [0, 1), `u64::MAX` the top.
     struct ConstRng(u64);
 
-    impl RngCore for ConstRng {
-        fn next_u32(&mut self) -> u32 {
-            (self.0 >> 32) as u32
+    impl TryRng for ConstRng {
+        type Error = std::convert::Infallible;
+
+        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+            Ok((self.0 >> 32) as u32)
         }
-        fn next_u64(&mut self) -> u64 {
-            self.0
+        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+            Ok(self.0)
         }
-        fn fill_bytes(&mut self, dst: &mut [u8]) {
+        fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
             for chunk in dst.chunks_mut(8) {
                 let bytes = self.0.to_le_bytes();
                 chunk.copy_from_slice(&bytes[..chunk.len()]);
             }
+            Ok(())
         }
     }
 

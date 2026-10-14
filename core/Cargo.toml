@@ -27,7 +27,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 sha2 = "0.11"
 thiserror = "2.0.21"
-tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
+tokenizers = { version = "0.23", default-features = false, features = ["onig"] }
 tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "sync", "time", "net"] }
 # ComfyUI's /ws progress events (plain ws:// to local servers only; the TCP connection is the core's own).
 tokio-tungstenite = { version = "0.30.0", default-features = false, features = ["handshake"] }

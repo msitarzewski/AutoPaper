@@ -45,6 +45,20 @@
                 </toolkit:SettingsCard.HeaderIcon>
                 <Button x:Name="TextTest" x:Uid="TextTestButton" AutomationProperties.AutomationId="TextTest" Click="OnTest" />
             </toolkit:SettingsCard>
+            <!-- OpenAI-compatible writers only. Experimental: Foundry Local's small models can't be held to a response schema,
+                 so they get the built-in model's short instructions and repaired answers. Turning it on asks first. -->
+            <toolkit:SettingsCard x:Name="SmallModelCard" x:Uid="ProviderSmallModel" Visibility="Collapsed">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE7BA;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <ToggleSwitch x:Name="SmallModel" AutomationProperties.AutomationId="SmallModel" Toggled="OnSmallModelToggled" />
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard x:Name="FoundryCard" x:Uid="ProviderFoundry" Visibility="Collapsed">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE721;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <Button x:Name="FoundryFind" x:Uid="ProviderFoundryButton" AutomationProperties.AutomationId="FoundryFind" Click="OnFindFoundry" />
+            </toolkit:SettingsCard>
             <!-- The writer's one problem (from listing models or from Test, the newer one), or the link to its key:
                  docs/app-spec.md 6a, a problem said once, as a link to the fix. -->
             <InfoBar x:Name="TextUnavailable" IsClosable="False" Severity="Warning">

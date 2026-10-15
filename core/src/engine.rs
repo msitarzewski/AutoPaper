@@ -2435,9 +2435,16 @@ impl Inner {
             }),
             gentler,
             appearance: if job.settings.match_system_theme { *lock(&self.appearance) } else { None },
-            on_device: (job.text_kind == ProviderKind::System).then(|| composer::OnDevice {
-                context_tokens: lock(&self.system_model).as_ref().map_or(0, |model| model.status().context_tokens),
-            }),
+            on_device: match job.text_kind {
+                ProviderKind::System => Some(composer::OnDevice {
+                    context_tokens: lock(&self.system_model).as_ref().map_or(0, |model| model.status().context_tokens),
+                    plain_json: false,
+                }),
+                ProviderKind::OpenAiCompatible if job.settings.small_text_model => {
+                    Some(composer::OnDevice { context_tokens: 0, plain_json: true })
+                }
+                _ => None,
+            },
         })
     }
 

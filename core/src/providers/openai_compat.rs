@@ -202,16 +202,18 @@ impl TextProvider for OpenAiCompatible {
             messages.push(json!({ "role": "system", "content": request.system }));
         }
         messages.push(json!({ "role": "user", "content": request.user }));
-        let body = json!({
+        let mut body = json!({
             "model": model,
             "messages": messages,
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": { "name": SCHEMA_NAME, "strict": true, "schema": request.schema },
-            },
             "temperature": request.temperature,
             "stream": false,
         });
+        if !request.plain_json {
+            body["response_format"] = json!({
+                "type": "json_schema",
+                "json_schema": { "name": SCHEMA_NAME, "strict": true, "schema": request.schema },
+            });
+        }
         let completion: ChatCompletion =
             self.send_json(HttpMethod::Post, "/chat/completions", Some(&body), local_timeout_secs(request.expected_secs), MAX_TEXT_RESPONSE_BYTES).await?;
         let choice = completion.choices.into_iter().next().ok_or_else(|| invalid("the server returned no answer"))?;
@@ -443,6 +445,7 @@ mod tests {
             temperature: 0.56,
             inputs: ComposeInputs::default(),
             expected_secs: None,
+            plain_json: false,
         }
     }
 
@@ -523,6 +526,17 @@ mod tests {
         assert_eq!(candidates[0]["title"], "Rainy Ruins");
         assert_eq!(response.usage, Usage { input_tokens: 70, output_tokens: 720 });
         assert_eq!(response.model, "qwen2.5vl:7b");
+    }
+
+    #[tokio::test]
+    async fn a_small_model_is_not_sent_a_response_format() {
+        let http = Arc::new(StubHttp::new());
+        http.once("/v1/chat/completions", 200, CHAT);
+        let request = ComposeRequest { plain_json: true, ..compose_request("phi-3-mini") };
+        provider(&http, StubSecrets::default(), "http://127.0.0.1:5272").compose(request).await.unwrap();
+        let body = http.json_body(0);
+        assert!(body.get("response_format").is_none(), "{body}");
+        assert_eq!(body["model"], "phi-3-mini");
     }
 
     #[tokio::test]

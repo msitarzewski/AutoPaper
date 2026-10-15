@@ -55,6 +55,7 @@
 - 2026-10-08: **v0.1.1 released** on all three platforms (Console, budget transparency, Moods cleanup, local inference timeouts).
 
 ## Next
+- 2026-10-15: Foundry Local preset built (experimental, off by default, warning before enabling; waiting on community reports before it graduates). Core 419+74 tests, Windows 86 tests, VM smoke pass.
 - Approved plan (2026-10-14), shipping as 0.2.0 after 0.1.5: Foundry Local preset (Windows); Atmosphere light/dark + accent (settings off by default; accent applies inside the app on macOS/Windows); Image Playground "Paint by hand" (Mac, manual only: the sheet needs a person); Sign in with ChatGPT (spike OpenAI's terms first; drop if not permitted); gentle bundled sounds.
 - Smaller: Linux "pick my picture" restore; full VoiceOver/Narrator/Orca passes; optional winget submission; verify Nano Banana 2.1 / Gemini Omni pricing; a `cargo fmt` check needs a one-off reformat (~500 chunks) first.
 - Phi Silica waits for Aion Instruct (Windows, from Nov 2026). uuid 1.28 (#4) merges after 2026-10-17.

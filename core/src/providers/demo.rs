@@ -743,6 +743,7 @@ mod tests {
             temperature: 0.7,
             inputs,
             expected_secs: None,
+            plain_json: false,
         }
     }
 

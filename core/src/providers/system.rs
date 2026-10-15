@@ -147,6 +147,7 @@ mod tests {
             temperature: 0.9,
             inputs: Default::default(),
             expected_secs: None,
+            plain_json: false,
         }
     }
 

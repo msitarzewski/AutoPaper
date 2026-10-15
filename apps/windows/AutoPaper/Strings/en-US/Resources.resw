@@ -431,6 +431,18 @@ Show on desktop</value></data>
   <data name="Address_LocalDescription" xml:space="preserve"><value>Leave empty for the usual address on this PC.</value></data>
   <data name="Address_CompatibleDescription" xml:space="preserve"><value>The server's address, for example LM Studio's.</value></data>
   <data name="Address_CompatiblePlaceholder" xml:space="preserve"><value>For example, http://127.0.0.1:1234</value></data>
+  <data name="ProviderSmallModel.Header" xml:space="preserve"><value>Small model (experimental)</value></data>
+  <data name="ProviderSmallModel.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Small model (experimental)</value></data>
+  <data name="ProviderSmallModel.Description" xml:space="preserve"><value>For a small model that runs on this PC, such as Foundry Local's. It gets shorter instructions and its answers are tidied up.</value></data>
+  <data name="ProviderFoundry.Header" xml:space="preserve"><value>Foundry Local (experimental)</value></data>
+  <data name="ProviderFoundry.Description" xml:space="preserve"><value>Finds Microsoft's Foundry Local on this PC and fills in its address. Then choose a model you have downloaded.</value></data>
+  <data name="ProviderFoundryButton.Content" xml:space="preserve"><value>Find Foundry Local</value></data>
+  <data name="ProviderFoundryButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Find Foundry Local</value></data>
+  <data name="Foundry_NotFound" xml:space="preserve"><value>Foundry Local isn't installed, or didn't start. Get it from Microsoft, then try again.</value></data>
+  <data name="SmallModel_WarnTitle" xml:space="preserve"><value>Try a small model?</value></data>
+  <data name="SmallModel_WarnBody" xml:space="preserve"><value>This is experimental. It hasn't been tested on much hardware, so answers may be slow or poor. When an answer is unusable, AutoPaper keeps your current wallpaper and says so in the Console. If you try it, please tell us how it went on GitHub.</value></data>
+  <data name="SmallModel_WarnTurnOn" xml:space="preserve"><value>Turn on</value></data>
+  <data name="SmallModel_WarnCancel" xml:space="preserve"><value>Not now</value></data>
   <data name="ProviderModel.Header" xml:space="preserve"><value>Model</value></data>
   <data name="Models_Default" xml:space="preserve"><value>Default</value></data>
   <data name="Models_DefaultNamed" xml:space="preserve"><value>Default ({0})</value></data>

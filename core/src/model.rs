@@ -566,6 +566,9 @@ pub struct Settings {
     pub set_lock_screen: bool,
     /// Ask for wallpapers that suit the computer's light or dark appearance (on by default).
     pub match_system_theme: bool,
+    /// The text writer is a small model on this computer (Foundry Local): it gets the built-in model's short instructions
+    /// and the schema in words, and its answers are repaired. Off by default; only read for an OpenAI-compatible writer.
+    pub small_text_model: bool,
     /// Image files beyond this are pruned, oldest unliked first. Memory is always kept.
     pub storage_limit_mb: u32,
     /// ComfyUI workflow (API format) with `{{prompt}}`, `{{width}}`, `{{height}}`, `{{seed}}`.
@@ -588,6 +591,7 @@ impl Default for Settings {
             replace_disliked: true,
             set_lock_screen: true,
             match_system_theme: true,
+            small_text_model: false,
             storage_limit_mb: 2048,
             comfyui_workflow: None,
         }

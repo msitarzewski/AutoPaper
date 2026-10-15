@@ -218,6 +218,7 @@ mod tests {
             temperature: 0.56,
             inputs: ComposeInputs::default(),
             expected_secs: None,
+            plain_json: false,
         }
     }
 

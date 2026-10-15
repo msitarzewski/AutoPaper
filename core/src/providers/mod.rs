@@ -64,6 +64,9 @@ pub struct ComposeRequest {
     /// How long this writer usually takes here (the learned estimate, seconds). Servers on the person's own computer
     /// (Ollama, OpenAI-compatible) wait max(10 minutes, 3 × this); hosted services ignore it.
     pub expected_secs: Option<f64>,
+    /// The writer is a small model that can't be held to a response schema (Foundry Local): servers that take
+    /// `response_format` are not sent one; the schema goes into the instructions instead, and the composer repairs the answer.
+    pub plain_json: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]

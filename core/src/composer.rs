@@ -44,6 +44,9 @@ const MAX_QUOTED_CHARS: usize = 400;
 pub struct OnDevice {
     /// Tokens in the model's context window, 0 when the host couldn't say (treated as the smaller 4,096).
     pub context_tokens: u32,
+    /// The model is served by something that can't be held to a response schema (Foundry Local): the schema is written into
+    /// the instructions and the server is not sent one.
+    pub plain_json: bool,
 }
 
 /// How many candidates a request asks for: `CANDIDATES`, or 2 from a built-in model whose window is under 8,000 tokens
@@ -257,15 +260,21 @@ pub fn build_request(context: &ComposeContext, model: &str) -> ComposeRequest {
     let brief = Brief::new(context);
     let echo = context.echo.is_some();
     let count = candidate_count(context);
+    let schema = schema_for(echo, count);
+    let plain_json = context.on_device.is_some_and(|device| device.plain_json);
     ComposeRequest {
         model: model.to_string(),
         system: if context.on_device.is_some() {
-            compact_instructions(&brief.avoids, echo, count)
+            let mut system = compact_instructions(&brief.avoids, echo, count);
+            if plain_json {
+                system.push_str(&format!("\n\nAnswer with only a JSON object that matches this JSON Schema, and nothing else:\n{schema}"));
+            }
+            system
         } else {
             system_instructions(&brief.avoids, echo, count)
         },
         user: user_instructions(context, &brief, count),
-        schema: schema_for(echo, count),
+        schema,
         temperature: temperature(context.surprise),
         inputs: ComposeInputs {
             musts: brief.musts.clone(),
@@ -276,6 +285,7 @@ pub fn build_request(context: &ComposeContext, model: &str) -> ComposeRequest {
             echo_of: context.echo.as_ref().map(|echo| echo.original.clone()),
         },
         expected_secs: None,
+        plain_json,
     }
 }
 
@@ -1751,16 +1761,27 @@ mod tests {
         let hosted = build_request(&base, "");
         assert_eq!(hosted.inputs.candidates, CANDIDATES);
 
-        let small = build_request(&ComposeContext { on_device: Some(OnDevice { context_tokens: 4096 }), ..base.clone() }, "");
+        let small = build_request(&ComposeContext { on_device: Some(OnDevice { context_tokens: 4096, plain_json: false }), ..base.clone() }, "");
         assert_eq!(small.inputs.candidates, 2);
         assert_eq!(small.schema["properties"]["candidates"]["maxItems"], json!(2));
         assert!(small.user.contains("Compose 2 wallpaper candidates."), "{}", small.user);
         assert!(small.system.len() * 3 < hosted.system.len(), "{} vs {}", small.system.len(), hosted.system.len());
         assert!(small.system.contains("not even to say it is absent"), "the Avoid rule is there when there is an Avoid");
 
-        let large = build_request(&ComposeContext { on_device: Some(OnDevice { context_tokens: 8192 }), ..base }, "");
+        let large = build_request(&ComposeContext { on_device: Some(OnDevice { context_tokens: 8192, plain_json: false }), ..base }, "");
         assert_eq!(large.inputs.candidates, CANDIDATES);
         assert_eq!(large.system, small.system.replace("2 candidate", "4 candidate"));
+    }
+
+    #[test]
+    fn a_small_model_behind_a_server_gets_the_schema_in_words() {
+        let base = ComposeContext { locale: "en-US".into(), ..Default::default() };
+        let plain = build_request(&ComposeContext { on_device: Some(OnDevice { context_tokens: 0, plain_json: true }), ..base.clone() }, "m");
+        let built_in = build_request(&ComposeContext { on_device: Some(OnDevice { context_tokens: 0, plain_json: false }), ..base }, "m");
+        assert!(plain.plain_json && !built_in.plain_json);
+        assert!(plain.system.starts_with(&built_in.system), "same short instructions first");
+        assert!(plain.system.contains("JSON Schema") && plain.system.contains("\"candidates\""), "{}", plain.system);
+        assert!(!built_in.system.contains("JSON Schema"));
     }
 
     #[test]

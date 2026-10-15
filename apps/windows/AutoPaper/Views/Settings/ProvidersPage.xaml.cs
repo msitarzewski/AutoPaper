@@ -111,6 +111,10 @@ public sealed partial class ProvidersPage : Page
             group.InstallCard.Header = Loc.Get(selection.Kind == ProviderKind.Ollama ? "Install_OllamaHeader" : "Install_ComfyHeader");
             group.InstallCard.Description = Loc.Get(selection.Kind == ProviderKind.Ollama ? "Install_OllamaDescription" : "Install_ComfyDescription");
         }
+        var smallModelApplies = settings.TextProvider.Kind == ProviderKind.OpenAiCompatible;
+        SmallModelCard.Visibility = Visible(smallModelApplies);
+        FoundryCard.Visibility = Visible(smallModelApplies);
+        SmallModel.IsOn = settings.SmallTextModel;
         var painter = settings.ImageProvider.Kind;
         ImageQuality.SelectedIndex = settings.ImageQuality == Core.ImageQuality.High ? 1 : 0;
         ImageQualityCard.Visibility = Visible(painter is ProviderKind.OpenAi or ProviderKind.Google or ProviderKind.OpenAiCompatible);
@@ -167,6 +171,74 @@ public sealed partial class ProvidersPage : Page
         else
         {
             ShowSettings();
+        }
+    }
+
+    // ── Small model (experimental) ──────────────────────────────────────────────────────────────
+
+    /// <summary>Asks before the small-model mode is turned on: it is untested on most hardware, and a bad answer only
+    /// means no new wallpaper that time.</summary>
+    private async Task<bool> ConfirmSmallModelAsync()
+    {
+        var dialog = new ContentDialog
+        {
+            Title = Loc.Get("SmallModel_WarnTitle"),
+            Content = new TextBlock { Text = Loc.Get("SmallModel_WarnBody"), TextWrapping = TextWrapping.Wrap },
+            PrimaryButtonText = Loc.Get("SmallModel_WarnTurnOn"),
+            CloseButtonText = Loc.Get("SmallModel_WarnCancel"),
+            DefaultButton = ContentDialogButton.Close,
+        };
+        return await Dialogs.ShowAsync(dialog, SmallModel) == ContentDialogResult.Primary;
+    }
+
+    private async void OnSmallModelToggled(object sender, RoutedEventArgs e)
+    {
+        if (loading)
+        {
+            return;
+        }
+        var on = SmallModel.IsOn;
+        if (on && !await ConfirmSmallModelAsync())
+        {
+            loading = true;
+            SmallModel.IsOn = false;
+            loading = false;
+            return;
+        }
+        if (!await SaveAsync(text, settings => settings with { SmallTextModel = on }))
+        {
+            ShowSettings();
+        }
+    }
+
+    /// <summary>Foundry Local picks its own port: ask its command line for the address, fill it in, and turn on the
+    /// small-model mode (after the same warning).</summary>
+    private async void OnFindFoundry(object sender, RoutedEventArgs e)
+    {
+        FoundryFind.IsEnabled = false;
+        try
+        {
+            var address = await Foundry.FindAddressAsync();
+            if (address is null)
+            {
+                text.Problem = Loc.Get("Foundry_NotFound");
+                ShowProblems();
+                return;
+            }
+            if (!Model.Settings.SmallTextModel && !await ConfirmSmallModelAsync())
+            {
+                return;
+            }
+            if (await SaveAsync(text, settings => text.With(settings with { SmallTextModel = true }, new ProviderSelection(ProviderKind.OpenAiCompatible, "", address))))
+            {
+                text.Problem = null;
+                ShowSettings();
+                await LoadModelsAsync(text);
+            }
+        }
+        finally
+        {
+            FoundryFind.IsEnabled = true;
         }
     }
 

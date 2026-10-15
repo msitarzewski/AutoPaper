@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+# Made by scripts/windows-release.ps1 for v0.1.5. Not submitted anywhere by the script.
+
+PackageIdentifier: msitarzewski.AutoPaper
+PackageVersion: 0.1.5
+Platform:
+- Windows.Desktop
+MinimumOSVersion: 10.0.22000.0
+InstallerType: msix
+PackageFamilyName: AutoPaper_0a7ap1vxmmc6t
+ReleaseDate: 2026-10-14
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.5/AutoPaper_0.1.5_x64_arm64.msixbundle
+  InstallerSha256: 3631B7B468EC9ADF723D34A7C54F3F7DAE1DE48206E80B37D34C420CCF3B5E24
+  SignatureSha256: CCE1699B5332221C08427A7EAB102993919DF9DF81F6160311DBAA29DAA2339C
+- Architecture: arm64
+  InstallerUrl: https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.5/AutoPaper_0.1.5_x64_arm64.msixbundle
+  InstallerSha256: 3631B7B468EC9ADF723D34A7C54F3F7DAE1DE48206E80B37D34C420CCF3B5E24
+  SignatureSha256: CCE1699B5332221C08427A7EAB102993919DF9DF81F6160311DBAA29DAA2339C
+ManifestType: installer
+ManifestVersion: 1.12.0

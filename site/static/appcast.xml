@@ -7,6 +7,15 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <description>AutoPaper updates</description>
     <language>en</language>
     <item>
+      <title>AutoPaper 0.1.5</title>
+      <pubDate>Thu, 15 Oct 2026 00:37:38 GMT</pubDate>
+      <sparkle:version>10</sparkle:version>
+      <sparkle:shortVersionString>0.1.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <sparkle:fullReleaseNotesLink>https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.5</sparkle:fullReleaseNotesLink>
+      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.1.5/AutoPaper-0.1.5.zip" length="96059867" type="application/octet-stream" sparkle:edSignature="+t/PN2YEEzQF2N2rpW3iR1I1FVlugZwyqX0qkD98Eng2NlZ+yKTwgXSKzZdt/3Y7tW9GhG6fbzS5dlDWqxknBQ=="></enclosure>
+    </item>
+    <item>
       <title>AutoPaper 0.1.4</title>
       <pubDate>Tue, 13 Oct 2026 10:52:26 GMT</pubDate>
       <sparkle:version>9</sparkle:version>
@@ -59,6 +68,6 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     </item>
   </channel>
 </rss><!-- sparkle-signatures:
-edSignature: SyLuDQcG7QvAz132mg6UctDcMap+04/w/7r0J1b7bZfUd8Iacso6ujL8RXAzsDE9tqYZDSRZyM+zVMA4F3BYAw==
-length: 4509
+edSignature: sef0dYr6Yl3ztToKinmpbOj1rLKB/xQLz6G7dGZM1djXmZ1OrgzoBt4YUuVrP4Dx4apgJDZwxP3gF1Oh64O8AQ==
+length: 5222
 -->

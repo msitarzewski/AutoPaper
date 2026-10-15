@@ -2,7 +2,7 @@
 
 Every network request AutoPaper makes: host, trigger, what's sent, and the limits. For what this means for your privacy, see [PRIVACY.md](./PRIVACY.md).
 
-This page describes AutoPaper 0.1.4, and changes with the code.
+This page describes AutoPaper 0.1.5, and changes with the code.
 
 All requests for wallpapers are made by AutoPaper's shared core, the same code on macOS, Windows and Linux, through one HTTP client (`core/src/net.rs`: reqwest, with rustls and your system's own certificate checks). The apps themselves make no requests, apart from the Mac app's update check ([below](#checking-for-updates)): otherwise they only open links in your browser when you click them. The client keeps **no cookies and no cache, and sends no Referer**. Every request carries the User-Agent `AutoPaper/<version> (<system>/<version> AutoPaper/<version>; +https://github.com/msitarzewski/AutoPaper)`, for example `AutoPaper/0.1.0 (macOS/26.6 AutoPaper/0.1.0; +https://github.com/msitarzewski/AutoPaper)`. Outgoing connections only; AutoPaper opens no listening sockets.
 

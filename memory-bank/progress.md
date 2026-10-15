@@ -25,6 +25,7 @@
 
 ## Done (public release history)
 - 2026-10-09: **v0.1.2** on all three platforms: Match my appearance (core setting + prompt line + reporting and toggles on Mac/Windows/Linux), native Mac Moods list with Use / In Use, Dock/menu raise the windows.
+- 2026-10-14: **v0.1.5**: security update: `rustls` 0.23.46 (RUSTSEC-2026-0346..0349), tokenizers 0.23, sha2 0.11, `rand` 0.10; CoreSmoke lock covers x64 and arm64; Dependabot has a 7-day cooldown and stays on uniffi 0.31 until uniffi-bindgen-cs supports 0.32.
 - 2026-10-13: **v0.1.4**: security round on all three platforms (full report `docs/security-review-2026-10.md`): credentials scrubbed everywhere, owner-only data folder, local-only direct connections, image-decode limit, Sparkle verify-before-extract + signed appcast, pinned CI actions + locked NuGet, Control Flow Guard on the Windows core, new Flatpak signing key (Linux installs re-add the remote), signing VM isolated to `~/vm-exchange`.
 - 2026-10-10: **v0.1.3**: Mac "On this Mac" writer (Apple Foundation Models via the core's `SystemModel` port; default on the welcome when available), Console charts, details-first events, JSON/instructions disclosures; `docs/research/built-in-models.md` section 7.
 - 2026-10-05: Plan approved (shared Rust core + native SwiftUI / WinUI 3 / GTK4 apps). Repo scaffolded: licence, ignore
@@ -54,8 +55,6 @@
 - 2026-10-08: **v0.1.1 released** on all three platforms (Console, budget transparency, Moods cleanup, local inference timeouts).
 
 ## Next
-- Batch more changes before public packaging/signing/publication, as the user requested. Windows signing is ready for that final batch. Optional: winget submission; Linux Flatpak "pick my picture" restore; full VoiceOver/Narrator/Orca
-  passes; CI `cargo fmt` check after a one-off format.
-- Backlog (user go-ahead needed): "On this Mac" writer (Foundation Models), ChatGPT-plan writer, Foundry Local preset,
-  Image Playground sheet; verify Nano Banana 2.1 pricing / Gemini Omni image output.
-- v2 "Atmosphere": accent, light/dark, sounds where each OS allows.
+- Approved plan (2026-10-14), shipping as 0.2.0 after 0.1.5: Foundry Local preset (Windows); Atmosphere light/dark + accent (settings off by default; accent applies inside the app on macOS/Windows); Image Playground "Paint by hand" (Mac, manual only: the sheet needs a person); Sign in with ChatGPT (spike OpenAI's terms first; drop if not permitted); gentle bundled sounds.
+- Smaller: Linux "pick my picture" restore; full VoiceOver/Narrator/Orca passes; optional winget submission; verify Nano Banana 2.1 / Gemini Omni pricing; a `cargo fmt` check needs a one-off reformat (~500 chunks) first.
+- Phi Silica waits for Aion Instruct (Windows, from Nov 2026). uuid 1.28 (#4) merges after 2026-10-17.

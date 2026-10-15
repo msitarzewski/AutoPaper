@@ -84,6 +84,11 @@
     <keyword>lock screen</keyword>
   </keywords>
   <releases>
+    <release version="0.1.5" date="2026-10-14">
+      <description>
+        <p>A security update: the TLS library behind connections to OpenAI and Gemini is updated, along with two other libraries.</p>
+      </description>
+    </release>
     <release version="0.1.4" date="2026-10-11">
       <description>
         <p>A security round: credentials never reach logs or error messages, the data folder is private to you, updates on the Mac are signed end to end, and unusually large or deep-colour images are refused instead of exhausting memory. The Linux repository has a new signing key, so add the remote again.</p>

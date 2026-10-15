@@ -2,7 +2,7 @@
 
 AutoPaper makes new wallpapers with AI: a language model writes each scene, and an image model paints it. Unless both run on your own computer or network, that means some of what you give AutoPaper leaves your computer. This page says exactly what, to whom, and what stays on your computer. For every request, host and limit, see [NETWORK.md](./NETWORK.md).
 
-This page describes AutoPaper 0.1.4 on macOS, Windows and Linux, and changes with the apps.
+This page describes AutoPaper 0.1.5 on macOS, Windows and Linux, and changes with the apps.
 
 ## The short version
 

@@ -1,7 +1,7 @@
 # Active Context
 
-## Current: v0.1.4 (2026-10-13) [RELEASED]
-- Public release is **v0.1.4** (security round; see `progress.md` and `decisions.md#2026-10-10-security-review-and-hardening-round`). Earlier sections below are historical task records.
+## Current: v0.1.5 (2026-10-14) [IN PROGRESS]
+- Public release is **v0.1.4** (0.1.5 in progress) (security round; see `progress.md` and `decisions.md#2026-10-10-security-review-and-hardening-round`). Earlier sections below are historical task records.
 - Release recipe: commit; Windows via `scripts/vm-exchange.sh push` then the VM build/sign (`windows-release.ps1 -SkipCore`, Azure CLI login must be live) then `publish-windows.sh X --from ~/vm-exchange/out/build/windows/X`; Mac `release.sh` (Sparkle key + appcast signing prompt: choose Allow); push the tag, then `publish-flatpak.sh --tag vX` (Keychain passphrase prompt); `gh release create`; push main last.
 - Flatpak repository key rotated 2026-10-13 (fingerprint F4562E1A6706E16CFBFA5DAEF91A07754E829612); Linux installs re-add the remote.
 - Still open: remove Keychain auto-trust for the Sparkle and Flatpak key items (Keychain Access); first run of the attest job and `pages.yml` is watched after the 0.1.4 tag push.

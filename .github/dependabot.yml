@@ -10,6 +10,11 @@ updates:
     directory: /
     schedule: { interval: weekly }
     cooldown: { default-days: 7 }
+    ignore:
+      # The Windows app's C# bindings come from uniffi-bindgen-cs, which supports uniffi 0.31 only (its newest release is
+      # v0.11.1+v0.31.0). Move uniffi and that tool together when a release for 0.32 exists.
+      - dependency-name: uniffi
+        versions: [">=0.32"]
   - package-ecosystem: nuget
     directory: /apps/windows/AutoPaper
     schedule: { interval: weekly }

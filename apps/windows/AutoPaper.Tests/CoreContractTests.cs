@@ -55,7 +55,7 @@ public sealed class CoreContractTests
     }
 
     /// <summary>The model picker's blank choice: "Default (name)" where the core names one, "the server's first
-    /// model" for Ollama and OpenAI-compatible servers.</summary>
+    /// model" for Ollama and OpenAI-compatible servers, and the first compatible discovered model for ComfyUI.</summary>
     [TestMethod]
     public void DefaultModelsAreNamedWhereTheyAreFixed()
     {
@@ -65,7 +65,7 @@ public sealed class CoreContractTests
             Assert.AreNotEqual("", AutopaperCoreMethods.DefaultModel(ProviderKind.Google, job));
             Assert.AreEqual("", AutopaperCoreMethods.DefaultModel(ProviderKind.OpenAiCompatible, job));
         }
-        Assert.AreNotEqual("", AutopaperCoreMethods.DefaultModel(ProviderKind.ComfyUi, ProviderJob.Images));
+        Assert.AreEqual("", AutopaperCoreMethods.DefaultModel(ProviderKind.ComfyUi, ProviderJob.Images), "ComfyUI discovers its automatic model");
         Assert.AreEqual("", AutopaperCoreMethods.DefaultModel(ProviderKind.Ollama, ProviderJob.Concepts));
         Assert.AreEqual("", AutopaperCoreMethods.DefaultModel(ProviderKind.Ollama, ProviderJob.Images), "Ollama doesn't paint");
         Assert.AreEqual("", AutopaperCoreMethods.DefaultModel(ProviderKind.ComfyUi, ProviderJob.Concepts), "ComfyUI doesn't write");

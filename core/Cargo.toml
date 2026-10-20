@@ -13,7 +13,7 @@ crate-type = ["lib", "staticlib", "cdylib"]
 [dependencies]
 uniffi = { workspace = true, features = ["tokio"] }
 async-trait = "0.1"
-base64 = "0.22"
+base64 = "0.23"
 candle-core = "0.11.0"
 candle-nn = "0.11.0"
 candle-transformers = "0.11.0"

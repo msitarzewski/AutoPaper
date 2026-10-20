@@ -1,9 +1,10 @@
 # Progress
 
-## Current release batch: 0.2.0 (2026-10-20)
-- User authorized shipping the completed ComfyUI/MOSS and Mac setup/window batch with the existing Foundry preset.
-- Final release checks, packages and publication in progress; see `activeContext.md` and
-  `tasks/2026-10/261018_moss-image-workflow.md`.
+## Current release: 0.2.0 (2026-10-20)
+- Published for Mac, Windows and Linux: https://github.com/msitarzewski/AutoPaper/releases/tag/v0.2.0.
+- Live ComfyUI/MOSS discovery, Mac setup wizard and window fixes, experimental Foundry Local; full semantic memory.
+- 761 passing core/native tests, both Windows architecture smokes, signed packages and verified update artifacts.
+- Details: `tasks/2026-10/261018_moss-image-workflow.md#Final package verification (2026-10-20)`.
 - Atmosphere, manual Image Playground, ChatGPT sign-in investigation and sounds remain future work.
 
 ## Earlier local batch (historical reboot record)
@@ -30,6 +31,7 @@
   checks remain open. Public release stays v0.1.0; new packaging/signing/publication deliberately deferred.
 
 ## Done (public release history)
+- 2026-10-20: **v0.2.0** on all three platforms: live compatible ComfyUI discovery, MOSS-Image, Mac provider setup wizard and window fixes, experimental Foundry Local. Signed/notarized packages and full semantic memory included.
 - 2026-10-09: **v0.1.2** on all three platforms: Match my appearance (core setting + prompt line + reporting and toggles on Mac/Windows/Linux), native Mac Moods list with Use / In Use, Dock/menu raise the windows.
 - 2026-10-14: **v0.1.5**: security update: `rustls` 0.23.46 (RUSTSEC-2026-0346..0349), tokenizers 0.23, sha2 0.11, `rand` 0.10; CoreSmoke lock covers x64 and arm64; Dependabot has a 7-day cooldown and stays on uniffi 0.31 until uniffi-bindgen-cs supports 0.32.
 - 2026-10-13: **v0.1.4**: security round on all three platforms (full report `docs/security-review-2026-10.md`): credentials scrubbed everywhere, owner-only data folder, local-only direct connections, image-decode limit, Sparkle verify-before-extract + signed appcast, pinned CI actions + locked NuGet, Control Flow Guard on the Windows core, new Flatpak signing key (Linux installs re-add the remote), signing VM isolated to `~/vm-exchange`.
@@ -61,11 +63,10 @@
 - 2026-10-08: **v0.1.1 released** on all three platforms (Console, budget transparency, Moods cleanup, local inference timeouts).
 
 ## Next
-- 2026-10-18: **MOSS-Image bundled ComfyUI workflow** (user request), on branch `comfyui-moss-image` in the worktree
-  `../autopaper-moss-image`, uncommitted. Comfy-Org's template, stock nodes only; limits measured on the M5 Max;
-  recorded request fixture; README, site help/reference/home, app spec, notices. Core 419+74 tests, strict
-  clippy. Record: `tasks/2026-10/261018_moss-image-workflow.md`.
-- 2026-10-15: Foundry Local preset built (experimental, off by default, warning before enabling; waiting on community reports before it graduates). Core 419+74 tests, Windows 86 tests, VM smoke pass.
-- Approved plan (2026-10-14), shipping as 0.2.0 after 0.1.5: Foundry Local preset (Windows); Atmosphere light/dark + accent (settings off by default; accent applies inside the app on macOS/Windows); Image Playground "Paint by hand" (Mac, manual only: the sheet needs a person); Sign in with ChatGPT (spike OpenAI's terms first; drop if not permitted); gentle bundled sounds.
+- MOSS-Image, live ComfyUI discovery and the experimental Foundry Local preset are included in the current 0.2.0 batch.
+- Deferred from the earlier plan: Atmosphere light/dark + accent (settings off by default; accent applies inside
+  the app on macOS/Windows); Image Playground "Paint by hand" (Mac, manual only: the sheet needs a person);
+  Sign in with ChatGPT (investigate OpenAI's terms first; drop if not permitted); gentle bundled sounds.
+- Foundry Local remains experimental, off by default, pending broader community GPU/NPU reports.
 - Smaller: Linux "pick my picture" restore; full VoiceOver/Narrator/Orca passes; optional winget submission; verify Nano Banana 2.1 / Gemini Omni pricing; a `cargo fmt` check needs a one-off reformat (~500 chunks) first.
 - Phi Silica waits for Aion Instruct (Windows, from Nov 2026). uuid 1.28 (#4) merges after 2026-10-17.

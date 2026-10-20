@@ -1,11 +1,12 @@
 # October 2026
 
-### 2026-10-20: 0.2.0 release [IN PROGRESS]
-- Shipping the approved ComfyUI/MOSS discovery, Mac setup and window batch plus experimental Foundry Local.
+### 2026-10-20: 0.2.0 release [RELEASED]
+- Published the approved ComfyUI/MOSS discovery, Mac setup and window batch plus experimental Foundry Local.
 - Reuses [the MOSS task record](261018_moss-image-workflow.md#follow-up-discovery-mac-setup-and-window-fixes-approved-2026-10-20).
-- Final native builds, full memory model, signing and feeds in progress.
+- 761 passing tests; signed Mac/Windows/Linux downloads, full memory model and update feeds.
+- [Release and downloads](https://github.com/msitarzewski/AutoPaper/releases/tag/v0.2.0).
 
-### 2026-10-18: MOSS-Image, a fourth bundled ComfyUI workflow [BUILT; UNCOMMITTED BRANCH]
+### 2026-10-18: MOSS-Image, a fourth bundled ComfyUI workflow [RELEASED IN 0.2.0]
 - User asked to add MOSS-Image (OpenMOSS, Apache-2.0) to the ComfyUI options. Comfy-Org's `image_moss_image_t2i`
   as an API graph plus map; `MODEL_LIMITS` 2048 / 2,965,760 (its FLUX.2 VAE hits the Apple silicon bound);
   macOS/Linux name tables; docs. Needs ComfyUI's native support (master since 2026-10-16).

@@ -1,5 +1,5 @@
 # Memory Bank TOC
-- [activeContext.md](activeContext.md) — **start here**: current state (0.2.0 release in progress; ComfyUI discovery/MOSS and Mac setup/window fixes approved), what shipped, release recipes, open items, standing user decisions, environment
+- [activeContext.md](activeContext.md) — **start here**: current state (0.2.0 released; ComfyUI discovery/MOSS and Mac setup/window fixes), what shipped, release recipes, open items, standing user decisions, environment
 - [projectbrief.md](projectbrief.md) — what AutoPaper is, v1 goals and status, v2, reference app
 - [systemPatterns.md](systemPatterns.md) — core design: composer (and its retry corrections), novelty, echoes, taste, moods, performance history, providers, FFI, native surfaces, update architecture, accessibility
 - [techContext.md](techContext.md) — toolchains, pinned versions, VMs (Windows 11, Scratch, macOS test VM), release infrastructure (Azure, pipx, signing, CI), scripts, gotchas

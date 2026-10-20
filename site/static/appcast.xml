@@ -7,6 +7,17 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <description>AutoPaper updates</description>
     <language>en</language>
     <item>
+      <title>AutoPaper 0.2.0</title>
+      <pubDate>Tue, 20 Oct 2026 06:10:47 GMT</pubDate>
+      <sparkle:version>11</sparkle:version>
+      <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <sparkle:fullReleaseNotesLink>https://github.com/msitarzewski/AutoPaper/releases/tag/v0.2.0</sparkle:fullReleaseNotesLink>
+      <description><![CDATA[<p>AutoPaper now discovers compatible models installed in ComfyUI and prepares their workflows automatically, including MOSS-Image. Missing models are caught before writing an idea.</p>
+<ul><li>A Mac setup wizard connects your writing and painting providers before the first wallpaper.</li><li>Settings scrolls to fit your display and comes to the front when opened.</li><li>The Now view has a cleaner layout and stays in place when a new wallpaper arrives.</li><li>Windows includes an experimental Foundry Local preset for small writing models.</li></ul>]]></description>
+      <enclosure url="https://github.com/msitarzewski/AutoPaper/releases/download/v0.2.0/AutoPaper-0.2.0.zip" length="96286335" type="application/octet-stream" sparkle:edSignature="lcfwPlMneGjqkOrSJly1493AwW0wbfTd3P6NycqAUOxX379ydqLFGXmJP2gaIiAulYUXXr0AE53Vh3lOddWmCg=="></enclosure>
+    </item>
+    <item>
       <title>AutoPaper 0.1.5</title>
       <pubDate>Thu, 15 Oct 2026 00:37:38 GMT</pubDate>
       <sparkle:version>10</sparkle:version>
@@ -68,6 +79,6 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     </item>
   </channel>
 </rss><!-- sparkle-signatures:
-edSignature: sef0dYr6Yl3ztToKinmpbOj1rLKB/xQLz6G7dGZM1djXmZ1OrgzoBt4YUuVrP4Dx4apgJDZwxP3gF1Oh64O8AQ==
-length: 5222
+edSignature: pRzylhZEgr1fWnFGzE/nJxmC+r/EDpNSdXrbxQCRLQuc8bMJuNrnL5xFqJYxtd7dcuuzQxZCtbO/Vk+sLZonBw==
+length: 6536
 -->

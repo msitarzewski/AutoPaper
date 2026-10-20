@@ -1,13 +1,33 @@
 # Active Context
 
-## Current: 0.2.0 release in progress (2026-10-20)
-- User: “Ship the current work.” Branch `codex/comfy-discovery`, checkout `/private/tmp/autopaper-comfy-discovery-gs5xh94i`.
-- Scope: MOSS + live ComfyUI workflow discovery, Mac provider wizard/Now layout/Settings scrolling and activation,
-  plus the already committed experimental Foundry Local preset. Version 0.2.0, Mac build 11.
-- Source frozen for native/package checks. Signing, notarization, cross-platform publishing and documentation authorized.
-- `tasks/2026-10/261018_moss-image-workflow.md#Follow-up: discovery, Mac setup and window fixes (approved 2026-10-20)`
-  records implementation and prior QA. Final release results still pending.
-- Later roadmap features (Atmosphere, manual Image Playground, ChatGPT terms spike, sounds) are deferred beyond this batch.
+## Current: 0.2.0 released (2026-10-20)
+- User authorized “Ship the current work.” Public release:
+  https://github.com/msitarzewski/AutoPaper/releases/tag/v0.2.0 (nine verified assets).
+- Runtime source: `2f8b79e`, immutable tag `v0.2.0`. Test-only follow-up `df7cc19` corrects the old Windows
+  assertion for ComfyUI's now-discovered default; no packaged runtime changes. Release metadata follows on main.
+- Shipped: MOSS-Image and live compatible ComfyUI workflow discovery on all platforms; Mac provider setup wizard,
+  Now layout/relaunch recovery, scrolling Settings and explicit window activation; experimental Foundry Local.
+- Core+CLI 515 tests pass (12 existing opt-in ignored), Mac 123, Windows 86, Linux 37 including Secret Service:
+  761 passing tests. Strict core/Linux clippy, native builds, both Windows architecture smokes and all 7 CI jobs pass.
+- Mac 0.2.0 (11): universal Developer ID, notarized/stapled DMG and app, signed Sparkle ZIP/feed. Exact package VM
+  verified full memory, wizard, Settings scrolling/front, four Demo generations and the narrow-footer regression.
+- Windows 0.2.0.0: both production-signed packages and bundle verified with timestamps; exact core DLLs and all
+  bundled BGE files match the source receipts. Live installed/missing/offline model UI checks passed.
+- Linux: both tagged Flatpak builds and attestations pass. Signed update repository and downloads published;
+  fresh client verified the public summary and both signed commits. Installed-model GUI passed; empty/missing/
+  unavailable GUI states and selection persistence were not exercised (automated model-state checks pass).
+- Windows and Linux feeds are published and verified over HTTPS. GitHub asset sizes/SHA-256 match all nine
+  local artifacts. Signed Mac feed and the updated site are included in the release metadata for Pages publication.
+- Full BGE semantic memory is bundled on every platform. Host app/profile were not changed; GUI QA ran in VMs.
+- Cleanup: Linux original app resumed and all 300 profile files/preferences/background hashes match baseline;
+  Scratch retains its original running state. Mac task VM stopped; unrelated glasspowertools-mac26 untouched.
+  Windows profile/preferences/background restored; Windows 11 returned to its original suspended state.
+- Exact evidence and dependency-scan applicability are in
+  `tasks/2026-10/261018_moss-image-workflow.md#Final package verification (2026-10-20)`.
+- Later roadmap work: Atmosphere, manual Image Playground, ChatGPT terms investigation and sounds. Foundry
+  remains experimental. Investigate the eight nonfatal Linux GTK startup assertions seen during QA separately.
+- Packaging artifacts remain in `/private/tmp/autopaper-comfy-discovery-gs5xh94i/build/` and Windows artifacts
+  in `~/vm-exchange/out/build/windows/0.2.0`; earlier preview worktrees remain unchanged.
 
 ## Earlier 0.2.0 plan (2026-10-15)
 - v0.1.5 shipped on Mac and Windows only (tag `v0.1.5` stays; no Flatpak: the Linux build arrives with 0.2.0, user decision). Public release is **v0.1.5**.

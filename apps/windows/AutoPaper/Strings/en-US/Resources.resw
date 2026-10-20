@@ -447,6 +447,12 @@ Show on desktop</value></data>
   <data name="Models_Default" xml:space="preserve"><value>Default</value></data>
   <data name="Models_DefaultNamed" xml:space="preserve"><value>Default ({0})</value></data>
   <data name="Models_DefaultFirst" xml:space="preserve"><value>Default (the server's first model)</value></data>
+  <data name="Models_Automatic" xml:space="preserve"><value>Automatic</value></data>
+  <data name="Models_AutomaticNamed" xml:space="preserve"><value>Automatic ({0})</value></data>
+  <data name="Models_NoCompatible" xml:space="preserve"><value>No compatible models available</value></data>
+  <data name="Models_NoCompatibleHelp" xml:space="preserve"><value>ComfyUI is connected, but no compatible models are available. Install a supported model and its dependencies, then choose Refresh, or use your own workflow.</value></data>
+  <data name="Models_Unavailable" xml:space="preserve"><value>{0} (not available)</value></data>
+  <data name="Models_SelectedUnavailable" xml:space="preserve"><value>ComfyUI is connected, but {0} isn't available. Choose another model or Automatic, or use your own workflow.</value></data>
   <data name="Models_Listed" xml:space="preserve"><value>{0} available.</value></data>
   <data name="Models_NoneListed" xml:space="preserve"><value>The provider didn't list any models. Default uses its own choice.</value></data>
   <data name="Models_Listing" xml:space="preserve"><value>Looking for models…</value></data>
@@ -470,7 +476,7 @@ Show on desktop</value></data>
   <data name="ProviderWorkflow.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ComfyUI workflow</value></data>
   <data name="WorkflowAutoPaper.Content" xml:space="preserve"><value>AutoPaper's</value></data>
   <data name="WorkflowOwn.Content" xml:space="preserve"><value>Your own…</value></data>
-  <data name="Workflow_AutoPaperDescription" xml:space="preserve"><value>The Model menu lists the models you have installed that AutoPaper has a tested workflow for.</value></data>
+  <data name="Workflow_AutoPaperDescription" xml:space="preserve"><value>AutoPaper discovers compatible models on your ComfyUI server and chooses a workflow for each.</value></data>
   <data name="Workflow_OwnDescription" xml:space="preserve"><value>A workflow you exported from ComfyUI in API format, with {{prompt}}, {{width}}, {{height}} and {{seed}} where AutoPaper fills them in.</value></data>
   <data name="ProviderWorkflowFile.Header" xml:space="preserve"><value>Workflow file</value></data>
   <data name="ProviderWorkflowFile.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Workflow file</value></data>

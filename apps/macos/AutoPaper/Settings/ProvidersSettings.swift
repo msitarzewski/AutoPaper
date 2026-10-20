@@ -23,12 +23,15 @@ struct ProvidersSettings: View {
     }
 }
 
-private struct ProviderSection: View {
+struct ProviderSection: View {
     @Environment(AppModel.self) private var model
     let job: ProviderJob
     let selection: ProviderSelection
     var quality: ImageQuality = .high
     var workflow: String?
+    /// Welcome reuses the same live discovery and address controls; Demo has its own explicit welcome choice.
+    var onboarding = false
+    var onAddressChange: ((String) -> Void)?
 
     @State private var models: [ModelInfo] = []
     @State private var loadingModels = false
@@ -52,8 +55,6 @@ private struct ProviderSection: View {
     @State private var workflowProblem: String?
     /// The last list came from the provider (not an error): a saved model missing from it isn't available.
     @State private var listed = false
-    /// Switched back to AutoPaper's workflow: the saved model stays only if the next list still has it.
-    @State private var checkSavedModel = false
     /// The person's own ComfyUI workflow, read: the model it loads, or why it can't be used.
     @State private var ownReading: OwnWorkflow.Reading?
     /// The person's own workflow file, remembered while AutoPaper's is in use (the engine holds only the one used).
@@ -96,10 +97,10 @@ private struct ProviderSection: View {
     }
 
     private var kinds: [ProviderKind] {
-        guard job == .concepts else { return ProviderKind.painters }
+        guard job == .concepts else { return ProviderKind.painters.filter { !onboarding || $0 != .demo } }
         // Apple's model is offered where the Mac can run it at all (and always while it's the chosen one).
         return ProviderKind.writers.filter { kind in
-            kind != .system || selection.kind == .system || (model.systemModel.map { $0.available || $0.reason != .deviceNotEligible } ?? false)
+            (!onboarding || kind != .demo) && (kind != .system || selection.kind == .system || (model.systemModel.map { $0.available || $0.reason != .deviceNotEligible } ?? false))
         }
     }
 
@@ -118,6 +119,9 @@ private struct ProviderSection: View {
                 }
                 .labelsHidden()
                 .fixedSize()
+            }
+            if onboarding, let account = secretAccountFor(selection: selection) {
+                KeyField(account: account, label: "API key", spokenLabel: "\(selection.kind.name) API key")
             }
             if selection.kind.takesAddress {
                 // The placeholder is the address used when the field is blank (the core's `default_base_url`); an
@@ -184,7 +188,11 @@ private struct ProviderSection: View {
                 // label's secondary subtitle (3.9:1 in Light mode).
                 switch status {
                 case .key(let problem):
-                    KeyLink(problem: problem)
+                    if onboarding {
+                        Label(problem.linkTitle + " above.", systemImage: "key")
+                    } else {
+                        KeyLink(problem: problem)
+                    }
                 case .works(let text):
                     Label(text, systemImage: "checkmark.circle")
                         .foregroundStyle(.primary)
@@ -206,7 +214,9 @@ private struct ProviderSection: View {
         }
         .onAppear { address = selection.baseUrl ?? ""; Task { await model.refreshSystemModel() } }
         .onChange(of: selection.baseUrl) { _, url in if !addressFocused { address = url ?? "" } }
+        .onChange(of: address, initial: true) { onAddressChange?(address) }
         .onChange(of: selection.kind) {
+            address = selection.baseUrl ?? ""
             status = nil
             addressProblem = nil
             refusedAddress = nil
@@ -214,11 +224,22 @@ private struct ProviderSection: View {
             readOwnWorkflow()
         }
         .onChange(of: workflow, initial: true) { readOwnWorkflow() }
+        .onChange(of: selection.model) {
+            if onboarding && !usesOwnWorkflow && listed {
+                status = WelcomeSetup.availabilityProblem(selection: selection, job: job, models: models)
+                    .map { .problem($0, unavailable: false) }
+            } else if selection.kind == .comfyUi && !usesOwnWorkflow && listed {
+                status = ModelMenu.availabilityProblem(models: models, saved: selection.model)
+                    .map { .problem($0, unavailable: false) }
+            }
+        }
         .task(id: ModelsKey(kind: selection.kind, address: selection.baseUrl, workflow: workflow, keys: model.keysChanged)) {
             let key = ModelsKey(kind: selection.kind, address: selection.baseUrl, workflow: workflow, keys: model.keysChanged)
             let changed = loadedFor != nil && loadedFor != key
             loadedFor = key
             status = nil
+            models = []
+            listed = false
             await loadModels()
             // A provider, address or key the person just changed: what it means is said, as Test's result is
             // (WCAG 4.1.3), in the link's words for a key.
@@ -333,21 +354,26 @@ private struct ProviderSection: View {
             listed = false
             return
         }
+        let askedFor = loadedFor
         loadingModels = true
-        defer { loadingModels = false }
+        defer { if loadedFor == askedFor { loadingModels = false } }
         do {
-            models = try await model.listModels(selection, job: job)
-            if case .works = status {} else { status = nil }
+            let available = try await model.listModels(selection, job: job)
+            guard !Task.isCancelled, loadedFor == askedFor else { return }
+            models = available
             listed = true
-            if checkSavedModel {
-                // Back from the person's own workflow: the model chosen here before stays if it's still there.
-                checkSavedModel = false
-                if !selection.model.isEmpty, !models.contains(where: { $0.id == selection.model }) { setModel("") }
+            let problem = onboarding
+                ? WelcomeSetup.availabilityProblem(selection: selection, job: job, models: models)
+                : (selection.kind == .comfyUi ? ModelMenu.availabilityProblem(models: models, saved: selection.model) : nil)
+            if let problem {
+                status = .problem(problem, unavailable: false)
+            } else {
+                if case .works = status {} else { status = nil }
             }
         } catch {
+            guard !Task.isCancelled, loadedFor == askedFor else { return }
             models = []
             listed = false
-            checkSavedModel = false
             log.error("Listing models failed: \(String(describing: error), privacy: .public)")
             if let problem = KeyProblem(error, selection: selection) {
                 // One thing to do, said once: the key link (not a model-list error as well).
@@ -406,21 +432,32 @@ private struct ProviderSection: View {
     // MARK: Test
 
     private func test() async {
+        let askedFor = loadedFor
         testing = true
         defer { testing = false }
         do {
             let listed = try await model.listModels(selection, job: job)
+            guard loadedFor == askedFor else { return }
             if !usesOwnWorkflow {
                 models = listed
                 self.listed = true
             }
             let count = listed.count
+            let problem = onboarding
+                ? WelcomeSetup.availabilityProblem(selection: selection, job: job, models: listed, ownWorkflow: usesOwnWorkflow)
+                : (selection.kind == .comfyUi && !usesOwnWorkflow ? ModelMenu.availabilityProblem(models: listed, saved: selection.model) : nil)
+            if let problem {
+                status = .problem(problem, unavailable: false)
+                model.announce(problem)
+                return
+            }
             let models = count == 1 ? "1 model available" : "\(count) models available"
             // With the person's own workflow, the count would be its loader's files, not models AutoPaper can use.
             let says = count > 0 && !usesOwnWorkflow ? "It works: \(models)." : "It works."
             status = .works(says)
             model.announce(says)
         } catch {
+            guard loadedFor == askedFor else { return }
             log.error("Provider test failed: \(String(describing: error), privacy: .public)")
             if let problem = KeyProblem(error, selection: selection) {
                 status = .key(problem)
@@ -484,7 +521,6 @@ private struct ProviderSection: View {
         case .autoPaper:
             guard usesOwnWorkflow else { return }
             workflowProblem = nil
-            checkSavedModel = true
             model.updateSettings { $0.comfyuiWorkflow = nil }
         case .own:
             guard !usesOwnWorkflow else { return }

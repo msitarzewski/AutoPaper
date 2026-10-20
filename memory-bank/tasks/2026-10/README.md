@@ -1,5 +1,16 @@
 # October 2026
 
+### 2026-10-20: 0.2.0 release [IN PROGRESS]
+- Shipping the approved ComfyUI/MOSS discovery, Mac setup and window batch plus experimental Foundry Local.
+- Reuses [the MOSS task record](261018_moss-image-workflow.md#follow-up-discovery-mac-setup-and-window-fixes-approved-2026-10-20).
+- Final native builds, full memory model, signing and feeds in progress.
+
+### 2026-10-18: MOSS-Image, a fourth bundled ComfyUI workflow [BUILT; UNCOMMITTED BRANCH]
+- User asked to add MOSS-Image (OpenMOSS, Apache-2.0) to the ComfyUI options. Comfy-Org's `image_moss_image_t2i`
+  as an API graph plus map; `MODEL_LIMITS` 2048 / 2,965,760 (its FLUX.2 VAE hits the Apple silicon bound);
+  macOS/Linux name tables; docs. Needs ComfyUI's native support (master since 2026-10-16).
+- See [261018_moss-image-workflow.md](261018_moss-image-workflow.md).
+
 ### 2026-10-09: v0.1.2: Match my appearance, Mac Moods polish [COMPLETE; RELEASED]
 - Core `match_system_theme` setting (default on) + `set_system_appearance` + one composer prompt line; toggles and appearance reporting on macOS, Windows and Linux.
 - Mac: native Moods list, Use / In Use button, Dock/menu raise windows. Docs: README, site (home, help, reference), PRIVACY.md, `docs/app-spec.md`.

@@ -1,5 +1,5 @@
 # Memory Bank TOC
-- [activeContext.md](activeContext.md) — **start here**: current state (v0.1.0 public; macOS 0.1.1 installed locally; build 6; service-preflight checkpoint; native UI feedback; batch release deferred), what shipped, release recipes, open items, standing user decisions, environment
+- [activeContext.md](activeContext.md) — **start here**: current state (0.2.0 release in progress; ComfyUI discovery/MOSS and Mac setup/window fixes approved), what shipped, release recipes, open items, standing user decisions, environment
 - [projectbrief.md](projectbrief.md) — what AutoPaper is, v1 goals and status, v2, reference app
 - [systemPatterns.md](systemPatterns.md) — core design: composer (and its retry corrections), novelty, echoes, taste, moods, performance history, providers, FFI, native surfaces, update architecture, accessibility
 - [techContext.md](techContext.md) — toolchains, pinned versions, VMs (Windows 11, Scratch, macOS test VM), release infrastructure (Azure, pipx, signing, CI), scripts, gotchas
@@ -8,3 +8,5 @@
 - [tasks/2026-10/README.md](tasks/2026-10/README.md) — October 2026 log; [261007_autopaper-v0.1.0.md](tasks/2026-10/261007_autopaper-v0.1.0.md) — task doc for the whole v0.1.0 build and release
 - [261007_console-budget-transparency.md](tasks/2026-10/261007_console-budget-transparency.md) — all local 0.1.1 tasks: Console/budget, charts/help, Mac Moods, native lists/forms, service checks/mood fallback, final QA/install and reboot handoff
 - Also: `docs/app-spec.md` (what every app does), `docs/research/*.md` (verified provider/toolchain/built-in-model facts), `README.md`, `PRIVACY.md`, `NETWORK.md`, `CONTRIBUTING.md`, `SECURITY.md`
+
+- [261018_moss-image-workflow.md](tasks/2026-10/261018_moss-image-workflow.md) — MOSS workflow, live ComfyUI discovery, Mac wizard/window fixes and 0.2.0 release checks

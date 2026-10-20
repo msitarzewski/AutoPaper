@@ -169,8 +169,10 @@ only) · OpenAI-compatible · ComfyUI (painting only) · Demo (no AI, gradients 
 from `list_models` (with a Refresh), its blank choice named "Default (<`default_model(kind, job)`>)" when that isn't
 empty; server address for local/compatible kinds (placeholder: `default_base_url(kind)`);
 Painting quality (Standard · High); **Test** button with the result in words. ComfyUI: a **Workflow** choice —
-**AutoPaper's** (default; the Model menu lists only installed models that have a bundled, tested workflow: Z-Image
-Turbo (default), Krea 2 Turbo, Qwen-Image 2.1 — each with its own encoder, VAE and sampler) or **Your own…** (file
+**AutoPaper's** (default; the Model menu lists installed runnable models discovered from `/object_info` and compatible
+official server templates. Tested presets for Z-Image Turbo, Krea 2 Turbo, Qwen-Image 2.1 and MOSS-Image take
+precedence. Automatic selects Z-Image when runnable, otherwise the first compatible model; unavailable selections
+and empty inventories are explained, never silently replaced) or **Your own…** (file
 chooser; API-format JSON with `{{prompt}}`, `{{width}}`, `{{height}}`, `{{seed}}`; the Model menu becomes a read-only
 line naming the model the file loads; "Choose another…"). A ComfyUI failure is one line + a link to Providers. Brew Browser help for local kinds per
 systemPatterns ("Setting up local models"). Gemini note: "A free Gemini key may let Google use what you send to improve
@@ -194,6 +196,10 @@ If no provider is configured beyond Demo: a welcome (macOS: a window/sheet; Wind
 AdwStatusPage in the window) — "Tell your computer what you'd like to see." — three steps: add a few keywords (prefilled
 suggestions are fine to *show* as examples, not to save), choose who writes and paints (OpenAI · Google Gemini · Local ·
 Try it without AI), add a key if needed → **Make My First Wallpaper**. Skippable.
+On Mac, step three reuses the full Providers controls and checks both selected services before finishing. Apple
+Intelligence can write but still requires an explicit painter; Demo is opt-in. Skip, interrupted setup, or stopping
+the first run leaves the schedule unarmed. Settings panes scroll to fit the display, and explicit Settings actions
+bring the actual window forward without passive updates stealing focus.
 
 ### 5. Notifications (Windows toast, Linux GNotification; macOS off unless the person turns it on)
 "New wallpaper: <title>" with **Like** / **Dislike** actions (and **Show** opening the window). Never for routine

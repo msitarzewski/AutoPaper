@@ -54,6 +54,7 @@ struct AutoPaperApp: App {
         SwiftUI.Settings {
             SettingsView()
                 .environment(model)
+                .background(SettingsWindow.Capture().frame(width: 0, height: 0))
         }
     }
 
@@ -77,16 +78,43 @@ enum SettingsPaneID: String {
 /// whatever app is frontmost; activate first, then bring the window forward once SwiftUI has made it.
 @MainActor
 enum SettingsWindow {
+    private static weak var window: NSWindow?
+    private static var presentationRequested = false
+
     static func show(_ openSettings: OpenSettingsAction) {
-        // The request comes from AutoPaper's own menu, so taking focus is what the person asked for.
-        NSApp.activate()
+        presentationRequested = true
+        AppDelegate.activateForUserRequest()
         openSettings()
-        DispatchQueue.main.async {
-            // Best effort: SwiftUI names its Settings window with this identifier (not documented, so it may change;
-            // if it does, the window still opens, only perhaps behind the frontmost app's).
-            NSApp.windows
-                .first { $0.identifier?.rawValue == "com_apple_SwiftUI_Settings_window" && $0.canBecomeKey }?
-                .makeKeyAndOrderFront(nil)
+        // An existing window can be raised after the menu closes. On first open, Capture finishes the request
+        // when SwiftUI attaches the content to its window.
+        DispatchQueue.main.async { bringForwardIfRequested() }
+    }
+
+    private static func bringForwardIfRequested() {
+        guard presentationRequested, let window else { return }
+        presentationRequested = false
+        AppDelegate.activateForUserRequest()
+        if window.isMiniaturized { window.deminiaturize(nil) }
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    /// Capture the actual Settings window instead of relying on SwiftUI's private window identifier.
+    /// Ordinary content and tab updates only remember the window; they never request focus.
+    struct Capture: NSViewRepresentable {
+        func makeNSView(context: Context) -> Probe { Probe() }
+        func updateNSView(_ view: Probe, context: Context) {}
+
+        final class Probe: NSView {
+            override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+            override func viewDidMoveToWindow() {
+                super.viewDidMoveToWindow()
+                DispatchQueue.main.async { [weak self] in
+                    guard let window = self?.window else { return }
+                    SettingsWindow.window = window
+                    SettingsWindow.bringForwardIfRequested()
+                }
+            }
         }
     }
 }

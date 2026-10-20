@@ -7,7 +7,7 @@ description: A free desktop app for macOS, Windows and Linux. Give it a few keyw
   <h1>AutoPaper</h1>
   <p class="tagline">Tell your computer what you’d like to see.</p>
   <p class="sub">Give it a few keywords, such as <em>rain, ruins, peaceful, night, blue</em>, and it keeps making new wallpapers from them. It writes a scene, has it painted by the AI service you choose with your own key, or by a model on your own computer, and puts it on your desktop. It remembers everything it has made, so you’re unlikely to see the same idea twice.</p>
-  <p class="status"><strong>Version 0.1.2</strong>, for macOS, Windows and Linux.</p>
+  <p class="status"><strong>Version 0.2.0</strong>, for macOS, Windows and Linux.</p>
   <div class="actions">
     <a class="button primary" href="https://github.com/msitarzewski/AutoPaper/releases/latest">Download for Mac</a>
     <a class="button primary" href="https://msitarzewski.com/app-updates/autopaper/AutoPaper.appinstaller">Download for Windows</a>
@@ -29,7 +29,7 @@ description: A free desktop app for macOS, Windows and Linux. Give it a few keyw
 
 <section class="section" id="how-it-works">
   <h2>How it works</h2>
-  <p class="intro-text">This page describes AutoPaper 0.1.0 on all three systems; where they differ, it says so.</p>
+  <p class="intro-text">This page describes AutoPaper 0.2.0 on all three systems; where they differ, it says so.</p>
   <ol class="steps">
     <li>
       <h3>You give it keywords</h3>
@@ -237,7 +237,7 @@ description: A free desktop app for macOS, Windows and Linux. Give it a few keyw
   </div>
 
   <h3>Local painting, ready to go</h3>
-  <p>AutoPaper comes with a tested ComfyUI workflow for each of three open models: <strong>Z-Image Turbo</strong> (the default), <strong>Krea 2 Turbo</strong> and <strong>Qwen-Image 2.1</strong>. Each paints at the largest size its model supports (2048 pixels a side for the first two, up to 2752 for Qwen-Image 2.1, never more than your display), and AutoPaper scales it to fit each display. Only the models your ComfyUI has installed are offered. You can also use a workflow of your own, exported from ComfyUI.</p>
+  <p>AutoPaper comes with a tested ComfyUI workflow for each of four open models: <strong>Z-Image Turbo</strong> (the default), <strong>Krea 2 Turbo</strong>, <strong>Qwen-Image 2.1</strong> and <strong>MOSS-Image</strong>. Each paints at the largest size its model supports (up to 2752 pixels a side for Qwen-Image 2.1 and 2048 for the others, never more than your display), and AutoPaper scales it to fit each display. Only the models your ComfyUI has installed are offered. You can also use a workflow of your own, exported from ComfyUI.</p>
   <p class="card-note">New to local models? On a Mac, Settings opens <a href="https://brew-browser.zerologic.com">Brew Browser</a> at the bundle that installs them: <strong>Local LLMs</strong> sets up Ollama, and <strong>Image Generation</strong> sets up ComfyUI. On Linux it does the same for Ollama, and links ComfyUI’s own install guide; on Windows, it links Ollama’s and ComfyUI Desktop’s own installers. The models themselves are separate downloads.</p>
   <p class="after-steps">Keys are kept in your system’s own secure store: the <strong>Keychain</strong> on macOS, <strong>Credential Manager</strong> on Windows, and the <strong>Secret Service</strong> (your desktop’s keyring) on Linux. AutoPaper never writes them anywhere else, never logs them, and never shows them in an error message.</p>
 </section>

@@ -75,13 +75,13 @@ struct PaintingProblem: Equatable {
 
 /// AutoPaper's own ComfyUI workflows, by the model file each one loads, named as the core names them (the `name` in
 /// core/resources/comfyui/*.map.json; a unit test checks the two agree). `list_models` gives these names when the
-/// server answers; this is for when it can't be asked (not running, no key yet), so the Model menu still says
-/// "Z-Image Turbo (default)" rather than a file name.
+/// server answers; these names keep a saved explicit model readable while the server can't be asked.
 enum BundledWorkflows {
     static let names: [String: String] = [
         "z_image_turbo_bf16.safetensors": "Z-Image Turbo",
         "krea2_turbo_fp8_scaled.safetensors": "Krea 2 Turbo",
         "qwen_image_2.1_int8_convrot.safetensors": "Qwen-Image 2.1",
+        "moss_image_sft_int8_convrot.safetensors": "MOSS-Image",
     ]
 
     /// A ComfyUI model in words: the server's name for it, else AutoPaper's own workflow's, else its file's name.

@@ -1,6 +1,12 @@
 # Progress
 
-## Current local batch (documented before reboot)
+## Current release batch: 0.2.0 (2026-10-20)
+- User authorized shipping the completed ComfyUI/MOSS and Mac setup/window batch with the existing Foundry preset.
+- Final release checks, packages and publication in progress; see `activeContext.md` and
+  `tasks/2026-10/261018_moss-image-workflow.md`.
+- Atmosphere, manual Image Playground, ChatGPT sign-in investigation and sounds remain future work.
+
+## Earlier local batch (historical reboot record)
 - **Service availability:** both roles checked before paid work; both Console outcomes recorded, newest usable
   non-disliked selected-mood image returned when unavailable, current preserved when no same-mood image remains.
   Core 465 + CLI 6 pass, 10 existing ignored, strict clippy. Mac 108 tests / 163 cases and Linux 35 / 1 ignored
@@ -55,6 +61,10 @@
 - 2026-10-08: **v0.1.1 released** on all three platforms (Console, budget transparency, Moods cleanup, local inference timeouts).
 
 ## Next
+- 2026-10-18: **MOSS-Image bundled ComfyUI workflow** (user request), on branch `comfyui-moss-image` in the worktree
+  `../autopaper-moss-image`, uncommitted. Comfy-Org's template, stock nodes only; limits measured on the M5 Max;
+  recorded request fixture; README, site help/reference/home, app spec, notices. Core 419+74 tests, strict
+  clippy. Record: `tasks/2026-10/261018_moss-image-workflow.md`.
 - 2026-10-15: Foundry Local preset built (experimental, off by default, warning before enabling; waiting on community reports before it graduates). Core 419+74 tests, Windows 86 tests, VM smoke pass.
 - Approved plan (2026-10-14), shipping as 0.2.0 after 0.1.5: Foundry Local preset (Windows); Atmosphere light/dark + accent (settings off by default; accent applies inside the app on macOS/Windows); Image Playground "Paint by hand" (Mac, manual only: the sheet needs a person); Sign in with ChatGPT (spike OpenAI's terms first; drop if not permitted); gentle bundled sounds.
 - Smaller: Linux "pick my picture" restore; full VoiceOver/Narrator/Orca passes; optional winget submission; verify Nano Banana 2.1 / Gemini Omni pricing; a `cargo fmt` check needs a one-off reformat (~500 chunks) first.

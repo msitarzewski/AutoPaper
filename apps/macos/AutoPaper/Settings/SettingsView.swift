@@ -1,11 +1,9 @@
 import AutopaperCore
 import SwiftUI
 
-/// Settings: General · Providers · Accounts · Memory · Budget · About. Each pane sizes the window to its content
-/// (HIG: the settings window accommodates the current pane rather than scrolling) as long as it fits on the
-/// screen; a pane taller than that (Providers with two local servers, on a small display or with Larger Text)
-/// scrolls instead of running off the screen. Settings reopens on the last pane viewed (HIG: "Restore the most
-/// recently viewed pane").
+/// Settings: General · Providers · Accounts · Memory · Budget · About. Short panes size the window to their
+/// content; longer panes scroll within a comfortable height, even on a large display. Settings reopens on the
+/// last pane viewed (HIG: "Restore the most recently viewed pane").
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @AppStorage("settingsPane") private var pane = "general"
@@ -43,8 +41,7 @@ struct SettingsView: View {
     }
 }
 
-/// A grouped form sized to its content, as every pane is, up to the height the screen allows; past that it
-/// scrolls.
+/// A grouped form sized to its content, capped at a comfortable height or the space available on a small screen.
 struct SettingsPane<Content: View>: View {
     @Environment(AppModel.self) private var model
     @ViewBuilder let content: (EngineSettings) -> Content
@@ -75,15 +72,14 @@ struct SettingsPane<Content: View>: View {
 }
 
 extension SettingsPane {
-    /// The tallest a pane may make the Settings window: the screen's visible height less the window's title bar
-    /// and toolbar.
+    /// Keep long panes compact, with room for the window's title bar and toolbar on smaller screens.
     static var maxHeight: CGFloat {
         #if DEBUG
         // For testing the scrolling on a large display: `-SettingsMaxPaneHeight 500` at launch (Debug builds only).
         let override = UserDefaults.standard.double(forKey: "SettingsMaxPaneHeight")
         if override > 0 { return override }
         #endif
-        return max(320, (NSScreen.main?.visibleFrame.height ?? 800) - 100)
+        return min(600, max(320, (NSScreen.main?.visibleFrame.height ?? 800) - 100))
     }
 }
 

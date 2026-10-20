@@ -92,7 +92,7 @@ Every one of these came from a handful of keywords, composed the way AutoPaper c
 - **History.** Everything it has made, as a grid or a gallery, with what wrote it, what painted it, at what size and what it cost. A monthly **budget** keeps paid providers in check.
 - **Your own wallpaper, kept safe.** On a Mac, AutoPaper's wallpapers sit over yours, which is never touched: quit, and yours is there exactly as it was. On Windows and Linux it keeps a copy of yours (and on Windows your lock screen picture) and puts it back. **Pause** keeps the current one up.
 - **Problems point to the fix.** A missing key or a keyword the model keeps ignoring is said once, as a link to the setting that fixes it, never as a paragraph of directions.
-- **Local all the way, if you like.** With Ollama writing and ComfyUI painting, nothing leaves your network. Bundled ComfyUI workflows cover Z-Image Turbo, Krea 2 Turbo and Qwen-Image 2.1, or bring your own.
+- **Local all the way, if you like.** With Ollama writing and ComfyUI painting, nothing leaves your network. ComfyUI discovers compatible installed models and adapts their official workflows, with tested presets for Z-Image Turbo, Krea 2 Turbo, Qwen-Image 2.1 and MOSS-Image. You can also bring your own workflow.
 
 The website explains each of these in full: [msitarzewski.github.io/AutoPaper](https://msitarzewski.github.io/AutoPaper/).
 
@@ -157,7 +157,7 @@ Each [release](https://github.com/msitarzewski/AutoPaper/releases/latest) also h
 | Google Gemini | Yes | Yes (needs a paid project) | Your own API key |
 | Ollama | Yes | No | None: it runs on your computer or network |
 | LM Studio and other OpenAI-compatible servers | Yes | Yes, if the server can | Optional |
-| ComfyUI | No | Yes, with bundled workflows for Z-Image Turbo, Krea 2 Turbo and Qwen-Image 2.1, or your own | None |
+| ComfyUI | No | Yes, with discovered compatible workflows, tested Z-Image Turbo, Krea 2 Turbo, Qwen-Image 2.1 and MOSS-Image presets, or your own | None |
 | Demo | Simple ideas | Soft gradients | None, and no network: try the app without AI |
 
 Keys are kept in your system's secure store, sent only to the service they belong to, and kept out of logs and error messages (a key a server echoes back is removed by its exact value, and anything that looks like a key is removed too). New to local models? [Brew Browser](https://brew-browser.zerologic.com) has bundles that install Ollama and ComfyUI on macOS and Linux.

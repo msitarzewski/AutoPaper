@@ -88,9 +88,9 @@ pub fn default_base_url_for_host(kind: ProviderKind) -> Option<String> {
 
 /// The model a provider uses for `job` when Settings leaves the model blank, so a model picker can say
 /// "Default (gpt-6-luna)". Empty when there's no fixed default: Ollama uses the first model it has installed and
-/// an OpenAI-compatible server the first it lists (hosts say "the server's first model" or just "Default"),
-/// and when `kind` can't do `job` (ComfyUI writing, Ollama painting). ComfyUI's is the bundled workflow's
-/// model; a person's own workflow always uses its own. Demo's is "demo".
+/// an OpenAI-compatible server the first it lists, and ComfyUI the first installed model with a runnable
+/// workflow. Also empty when `kind` can't do `job` (ComfyUI writing, Ollama painting). A person's own ComfyUI
+/// workflow always uses its own model. Demo's is "demo".
 #[uniffi::export]
 pub fn default_model(kind: ProviderKind, job: ProviderJob) -> String {
     let model = match (kind, job) {
@@ -98,7 +98,7 @@ pub fn default_model(kind: ProviderKind, job: ProviderJob) -> String {
         (ProviderKind::OpenAi, ProviderJob::Images) => super::openai::DEFAULT_IMAGE_MODEL,
         (ProviderKind::Google, ProviderJob::Concepts) => super::google::DEFAULT_TEXT_MODEL,
         (ProviderKind::Google, ProviderJob::Images) => super::google::DEFAULT_IMAGE_MODEL,
-        (ProviderKind::ComfyUi, ProviderJob::Images) => return super::comfyui::bundled_model().unwrap_or_default(),
+        (ProviderKind::ComfyUi, ProviderJob::Images) => "",
         (ProviderKind::Demo, _) => super::demo::MODEL,
         (ProviderKind::System, ProviderJob::Concepts) => super::system::MODEL,
         (ProviderKind::System, ProviderJob::Images) => "",
@@ -213,7 +213,7 @@ mod tests {
         assert_eq!(default_model(ProviderKind::OpenAi, ProviderJob::Images), "gpt-image-2.5-flare");
         assert_eq!(default_model(ProviderKind::Google, ProviderJob::Concepts), "gemini-3.5-flash-lite");
         assert_eq!(default_model(ProviderKind::Google, ProviderJob::Images), "gemini-3.1-flash-image");
-        assert_eq!(default_model(ProviderKind::ComfyUi, ProviderJob::Images), "z_image_turbo_bf16.safetensors");
+        assert_eq!(default_model(ProviderKind::ComfyUi, ProviderJob::Images), "");
         assert_eq!(default_model(ProviderKind::Ollama, ProviderJob::Concepts), "");
         assert_eq!(default_model(ProviderKind::OpenAiCompatible, ProviderJob::Images), "");
         assert_eq!(default_model(ProviderKind::Demo, ProviderJob::Images), "demo");
@@ -285,6 +285,6 @@ mod tests {
         let comfy = image_provider(&usable(ProviderKind::ComfyUi), &deps(Some(mine))).unwrap();
         assert_eq!(comfy.default_model(), "mine.safetensors");
         let bundled = image_provider(&usable(ProviderKind::ComfyUi), &deps(None)).unwrap();
-        assert_eq!(bundled.default_model(), "z_image_turbo_bf16.safetensors");
+        assert_eq!(bundled.default_model(), "", "automatic selection depends on the server's installed models");
     }
 }

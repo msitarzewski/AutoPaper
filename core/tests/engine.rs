@@ -111,12 +111,14 @@ fn open(
 fn healthy_services(http: &StubHttp) {
     http.always("/v1/models", 200, br#"{"data":[]}"#.to_vec());
     http.always("/api/tags", 200, br#"{"models":[{"name":"m"}]}"#.to_vec());
-    http.always("/object_info", 200, br#"{}"#.to_vec());
+    http.always("/object_info", 200, include_str!("fixtures/comfyui/object_info.response.json"));
+    http.always("/templates/index.json", 200, "[]");
 }
 
 fn work_requests(http: &StubHttp) -> Vec<HttpRequest> {
     http.requests().into_iter().filter(|request| {
-        !request.url.ends_with("/v1/models") && !request.url.ends_with("/api/tags") && !request.url.ends_with("/object_info")
+        !request.url.ends_with("/v1/models") && !request.url.ends_with("/api/tags")
+            && !request.url.ends_with("/object_info") && !request.url.contains("/templates/")
     }).collect()
 }
 
@@ -1639,7 +1641,10 @@ async fn a_model_comfyui_has_no_workflow_for_is_refused_before_an_idea_is_paid_f
         );
     }
     assert!(work_requests(&h.http).is_empty(), "no idea or painting was requested");
-    assert_eq!(h.http.requests().len(), 4, "both services checked for both attempts");
+    for path in ["/v1/models", "/object_info"] {
+        assert_eq!(h.http.requests().iter().filter(|request| request.url.ends_with(path)).count(), 2,
+            "both services checked once for each attempt");
+    }
     assert!(failed_rows(&h).is_empty(), "nothing was attempted");
     assert_eq!(h.engine.spend_summary().unwrap().spent_microusd, 0);
     // The scheduled one fills its slot: no retry every 10 minutes until the person picks another model.
@@ -1657,6 +1662,87 @@ async fn a_model_comfyui_has_no_workflow_for_is_refused_before_an_idea_is_paid_f
     let sent = work_json(&h.http, 0);
     assert_eq!(sent["prompt"]["1"]["inputs"]["unet_name"], "qwen_image_2.1_int8_convrot.safetensors");
     assert_eq!(sent["prompt"]["2"]["inputs"]["clip_name"], "qwen3vl_8b_int8_convrot.safetensors");
+}
+
+#[tokio::test]
+async fn an_empty_comfyui_inventory_fails_setup_before_any_paid_work() {
+    let h = Harness::new();
+    h.keywords(&["lighthouse"], &[], &[]);
+    h.update(|settings| {
+        settings.text_provider.kind = ProviderKind::OpenAi;
+        settings.image_provider.kind = ProviderKind::ComfyUi;
+    });
+    h.http.always("/v1/models", 200, r#"{"data":[]}"#);
+    h.http.always("/object_info", 200, "{}");
+    h.http.always("/templates/index.json", 200, "[]");
+    let selection = h.engine.settings().unwrap().image_provider;
+    assert!(h.engine.list_models(selection.clone(), ProviderJob::Images).await.unwrap().is_empty());
+    assert!(matches!(h.engine.test_provider(selection, ProviderJob::Images).await,
+        Err(AutoPaperError::InvalidInput { reason: InvalidInputReason::NoModels, .. })));
+
+    let stages = Arc::new(Stages::default());
+    let manual = h.engine.generate(Trigger::Manual, Some(stages.clone())).await;
+    assert!(matches!(manual, Err(AutoPaperError::PaintingFailed { provider: ProviderKind::ComfyUi, .. })), "{manual:?}");
+    assert_eq!(*stages.0.lock().unwrap(), [ProgressStage::CheckingServices]);
+    let scheduled = h.engine.run_if_due(None).await;
+    assert!(matches!(scheduled, Err(AutoPaperError::PaintingFailed { .. })), "{scheduled:?}");
+    assert_eq!(h.engine.next_due().unwrap(), Some(h.now() + DAY), "setup failure does not retry every ten minutes");
+    assert!(work_requests(&h.http).is_empty(), "no writer or painting POST was sent");
+    assert!(failed_rows(&h).is_empty(), "no generation was attempted");
+    assert_eq!(h.engine.spend_summary().unwrap().spent_microusd, 0);
+}
+
+#[tokio::test]
+async fn comfyui_automatic_selection_uses_the_installed_workflows_size_steps_and_metadata() {
+    let h = Harness::new();
+    h.keywords(&["lighthouse"], &[], &[]);
+    h.engine.set_display_hint(2560, 1440).unwrap();
+    h.update(|settings| {
+        settings.text_provider.kind = ProviderKind::OpenAi;
+        settings.image_provider.kind = ProviderKind::ComfyUi;
+    });
+    let model = "qwen_image_2.1_int8_convrot.safetensors";
+    let mut inventory: serde_json::Value = serde_json::from_str(include_str!("fixtures/comfyui/object_info.response.json")).unwrap();
+    inventory["UNETLoader"]["input"]["required"]["unet_name"][0] = json!([model]);
+    h.http.always("/object_info", 200, inventory.to_string());
+    h.http.always("/templates/index.json", 200, "[]");
+    h.http.always("/v1/models", 200, r#"{"data":[]}"#);
+
+    // A saved explicit selection must fail instead of silently switching to the available Qwen model.
+    h.update(|settings| settings.image_provider.model = "z_image_turbo_bf16.safetensors".into());
+    let unavailable = h.engine.generate(Trigger::Manual, None).await;
+    assert!(matches!(unavailable, Err(AutoPaperError::PaintingFailed { .. })), "{unavailable:?}");
+    assert!(work_requests(&h.http).is_empty(), "no paid idea for an unavailable explicit model");
+    assert_eq!(h.engine.spend_summary().unwrap().spent_microusd, 0);
+
+    h.update(|settings| settings.image_provider.model.clear());
+    h.http.once("/v1/responses", 200, responses(&[harbour()]));
+    h.http.once("/prompt", 200, include_str!("fixtures/comfyui/prompt.response.json"));
+    h.http.once("/history/", 200, include_str!("fixtures/comfyui/history.response.json"));
+    h.http.once_response("/view", HttpResponse {
+        status: 200,
+        headers: vec![("content-type".into(), "image/png".into())],
+        body: include_bytes!("fixtures/openai_compat/tiny.png").to_vec(),
+    });
+    let made = h.generate().await;
+    assert_eq!(made.image_model, model);
+    let sent = work_json(&h.http, 1);
+    assert_eq!(sent["prompt"]["1"]["inputs"]["unet_name"], model);
+    assert_eq!(sent["prompt"]["7"]["inputs"]["width"], 2560);
+    assert_eq!(sent["prompt"]["7"]["inputs"]["height"], 1440);
+    assert_eq!(sent["prompt"]["8"]["inputs"]["steps"], 25);
+    let timings = h.store().timings(ProviderJob::Images, ProviderKind::ComfyUi, "http://127.0.0.1:8188", model).unwrap();
+    assert_eq!(timings.len(), 1);
+    assert_eq!((timings[0].width, timings[0].height, timings[0].steps), (2560, 1440, Some(25)));
+    let run = h.engine.run(h.engine.runs(1, 0).unwrap()[0].id.clone()).unwrap();
+    assert_eq!(run.image_model, model);
+    let resolved = run.events.iter().position(|event| event.kind == "model_selection" && event.model == model).unwrap();
+    let writer = run.events.iter().position(|event| event.kind == "request" && event.detail.starts_with("POST https://api.openai.com/v1/responses")).unwrap();
+    assert!(resolved < writer, "resolve the painting workflow before paying for an idea");
+    assert!(run.events.iter().any(|event| event.kind == "request" && event.model == model
+        && event.detail.starts_with("POST http://127.0.0.1:8188/prompt")));
+    assert_eq!(h.http.requests().iter().filter(|request| request.url.ends_with("/object_info")).count(), 2,
+        "one inventory read per attempt, shared by service check and model resolution");
 }
 
 #[tokio::test]
@@ -2330,8 +2416,11 @@ async fn comfyuis_steps_reach_the_detail_observer() {
     let timings = h.store().timings(ProviderJob::Images, ProviderKind::ComfyUi, "http://127.0.0.1:8188", &made.image_model).unwrap();
     assert_eq!(timings.len(), 1);
     assert_eq!((timings[0].width, timings[0].height, timings[0].steps), (144, 64, Some(8)), "the size asked for (16s)");
-    let selection = ProviderSelection { kind: ProviderKind::ComfyUi, model: String::new(), base_url: None };
-    assert!(h.engine.estimate(selection, ProviderJob::Images, 0, 0).unwrap().is_some(), "Settings can say how long it takes");
+    let mut selection = ProviderSelection { kind: ProviderKind::ComfyUi, model: String::new(), base_url: None };
+    assert_eq!(h.engine.estimate(selection.clone(), ProviderJob::Images, 0, 0).unwrap(), None,
+        "automatic selection needs live discovery before its model is known");
+    selection.model = made.image_model;
+    assert!(h.engine.estimate(selection, ProviderJob::Images, 0, 0).unwrap().is_some(), "the resolved model has a learned estimate");
 }
 
 // Console uses the real engine seams, so retries and blocks are tested before the native UI reads them.
@@ -2476,6 +2565,55 @@ async fn console_keeps_full_requests_responses_and_rejection_reasons_for_each_re
     assert_eq!(models.len(), 1);
     assert_eq!(models[0].model, "gpt-6-luna-2026-09-22", "the response model, even when the request used an alias");
     assert_eq!(models[0].calls, 3, "each real completed retry is measured");
+}
+
+#[tokio::test]
+async fn console_summarizes_comfyui_template_discovery_and_keeps_the_actual_generation_payloads() {
+    let h = Harness::new();
+    h.keywords(&["lighthouse"], &[], &[]);
+    h.update(|settings| {
+        settings.text_provider.kind = ProviderKind::OpenAi;
+        settings.image_provider.kind = ProviderKind::ComfyUi;
+    });
+    let templates: Vec<_> = (0..10).map(|index| json!({
+        "name": format!("large_template_{index}"), "title": format!("Large template {index}"),
+        "openSource": true, "mediaType": "image", "tags": ["text-to-image"], "models": ["Z-Image"]
+    })).collect();
+    h.http.always("/templates/index.json", 200, json!([{ "templates": templates }]).to_string());
+    let template = json!({ "nodes": [], "description": "unused-template-body ".repeat(6000) }).to_string();
+    h.http.always("/templates/large_template_", 200, template.clone());
+    healthy_services(&h.http);
+    h.http.once("/v1/responses", 200, responses(&[harbour()]));
+    h.http.once("/prompt", 200, include_str!("fixtures/comfyui/prompt.response.json"));
+    h.http.once("/history/", 200, include_str!("fixtures/comfyui/history.response.json"));
+    h.http.once_response("/view", HttpResponse {
+        status: 200,
+        headers: vec![("content-type".into(), "image/png".into())],
+        body: include_bytes!("fixtures/openai_compat/tiny.png").to_vec(),
+    });
+    let made = h.generate().await;
+    let run = h.engine.run(h.engine.runs(1, 0).unwrap()[0].id.clone()).unwrap();
+    let metadata: Vec<_> = run.events.iter().filter(|event| event.kind == "response"
+        && event.detail.starts_with("GET http://127.0.0.1:8188/templates/large_template_")).collect();
+    assert_eq!(metadata.len(), 10, "every inspected template retains its diagnostic summary");
+    for event in metadata {
+        assert!(event.detail.contains("HTTP 200 · "));
+        assert!(event.detail.contains("Timeout: 8 s"));
+        assert!(event.detail.contains(&format!("Template metadata: {} bytes (body omitted).", template.len())));
+        assert!(event.detail.len() < 250);
+    }
+    assert_eq!(run.events.iter().filter(|event| event.kind == "request"
+        && event.detail.starts_with("GET http://127.0.0.1:8188/templates/large_template_")).count(), 0,
+        "each metadata request is represented once by its combined response event");
+    assert!(run.events.iter().all(|event| !event.detail.contains("unused-template-body")));
+    assert!(run.events.iter().any(|event| event.kind == "request"
+        && event.detail.starts_with("POST https://api.openai.com/v1/responses") && event.detail.contains("lighthouse")));
+    let painting = run.events.iter().find(|event| event.kind == "request"
+        && event.detail.starts_with("POST http://127.0.0.1:8188/prompt")).expect("actual painting graph is retained");
+    assert!(painting.detail.contains("KSampler") && painting.detail.contains("z_image_turbo_bf16.safetensors"));
+    assert!(painting.detail.contains(&made.concept.prompt));
+    assert!(run.events.iter().map(|event| event.detail.len()).sum::<usize>() < 100_000,
+        "template discovery must leave room for the actual generation diagnostics");
 }
 
 #[tokio::test]
@@ -2686,6 +2824,35 @@ async fn cancellation_drops_both_hung_service_checks_without_a_revisit_or_spend(
     let outcome = tokio::time::timeout(std::time::Duration::from_millis(500), task).await.unwrap().unwrap();
     assert!(matches!(outcome, Err(AutoPaperError::Cancelled)));
     assert_eq!(engine.current().unwrap().unwrap().id, original.id);
+    assert_eq!(engine.runs(1, 0).unwrap()[0].status, RunStatus::Cancelled);
+    assert_eq!(engine.spend_summary().unwrap().spent_microusd, 0);
+}
+
+#[tokio::test]
+async fn cancellation_during_comfyui_workflow_discovery_stops_before_paid_work() {
+    #[derive(Default)]
+    struct DuringDiscovery { services: StubHttp, hangs: Hangs }
+    #[async_trait::async_trait]
+    impl HttpClient for DuringDiscovery {
+        async fn send(&self, request: HttpRequest) -> autopaper_core::Result<HttpResponse> {
+            if request.url.contains("/templates/") { self.hangs.send(request).await }
+            else { self.services.send(request).await }
+        }
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let http = Arc::new(DuringDiscovery::default());
+    healthy_services(&http.services);
+    let engine = open(dir.path(), Arc::new(FixedClock::at(START)), http.clone(), Arc::new(HashingEmbedder), 7);
+    let mut settings = engine.settings().unwrap();
+    settings.text_provider.kind = ProviderKind::OpenAi;
+    settings.image_provider.kind = ProviderKind::ComfyUi;
+    engine.update_settings(settings).unwrap();
+    let task = tokio::spawn({ let engine = engine.clone(); async move { engine.generate(Trigger::Manual, None).await } });
+    tokio::time::timeout(std::time::Duration::from_secs(5), http.hangs.started.notified()).await.unwrap();
+    engine.cancel();
+    let result = tokio::time::timeout(std::time::Duration::from_millis(500), task).await.unwrap().unwrap();
+    assert!(matches!(result, Err(AutoPaperError::Cancelled)), "{result:?}");
+    assert!(work_requests(&http.services).is_empty());
     assert_eq!(engine.runs(1, 0).unwrap()[0].status, RunStatus::Cancelled);
     assert_eq!(engine.spend_summary().unwrap().spent_microusd, 0);
 }

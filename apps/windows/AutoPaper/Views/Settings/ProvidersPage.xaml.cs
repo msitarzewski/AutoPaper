@@ -438,6 +438,16 @@ public sealed partial class ProvidersPage : Page
     private async Task ListModelsOnceAsync(Group group, bool announce)
     {
         var selection = group.Selection(Model.Settings);
+        var workflow = Model.Settings.ComfyuiWorkflow;
+        bool StillCurrent()
+        {
+            var current = group.Selection(Model.Settings);
+            return current.Kind == selection.Kind && current.BaseUrl == selection.BaseUrl
+                && (selection.Kind != ProviderKind.ComfyUi || Model.Settings.ComfyuiWorkflow == workflow);
+        }
+        group.Listed = false;
+        group.Models = [];
+        FillModels(group, []);
         group.KindCard.Description = group.KindDescription;
         if (selection.Kind == ProviderKind.Demo)
         {
@@ -467,13 +477,19 @@ public sealed partial class ProvidersPage : Page
         string? listed = null;
         try
         {
-            group.Models = [.. await Model.CallAsync(e => e.ListModels(selection, group.Job))];
+            var available = await Model.CallAsync(e => e.ListModels(selection, group.Job));
+            if (!StillCurrent()) { return; }
+            group.Models = [.. available];
+            group.Listed = true;
             Model.RememberModelNames(group.Models);
-            listed = group.Models.Count == 0 ? Loc.Get("Models_NoneListed") : Loc.Format("Models_Listed", group.Models.Count);
-            group.Problem = null;
+            group.Problem = selection.Kind == ProviderKind.ComfyUi && !UsingOwnWorkflow
+                ? Text.ComfyAvailabilityProblem(group.Models, group.Selection(Model.Settings).Model) : null;
+            listed = group.Problem is not null ? null
+                : group.Models.Count == 0 ? Loc.Get("Models_NoneListed") : Loc.Format("Models_Listed", group.Models.Count);
         }
         catch (Exception error)
         {
+            if (!StillCurrent()) { return; }
             group.Models = [];
             NoteProblem(group, selection, error);
         }
@@ -491,6 +507,15 @@ public sealed partial class ProvidersPage : Page
     /// installer card below.</summary>
     private void NoteProblem(Group group, ProviderSelection selection, Exception error)
     {
+        if (selection.Kind == ProviderKind.ComfyUi && !UsingOwnWorkflow
+            && error is AutoPaperException.InvalidInput { reason: InvalidInputReason.NoModels })
+        {
+            group.Problem = Loc.Get("Models_NoCompatibleHelp");
+            group.Models = [];
+            group.Listed = true;
+            FillModels(group, []);
+            return;
+        }
         if (error is AutoPaperException.InvalidKey && AutopaperCoreMethods.SecretAccountFor(selection) is { } account)
         {
             refusedKeys.Add(account);
@@ -525,14 +550,14 @@ public sealed partial class ProvidersPage : Page
     private void FillModels(Group group, List<ModelInfo> models)
     {
         var selection = group.Selection(Model.Settings);
-        group.DefaultChoice = Text.DefaultModelChoice(selection.Kind, group.Job, models);
+        group.DefaultChoice = Text.DefaultModelChoice(selection.Kind, group.Job, models, group.Listed);
         var was = loading;
         loading = true;
         group.ModelBox.Items.Clear();
         group.ModelBox.Items.Add(group.DefaultChoice);
         foreach (var model in models)
         {
-            group.ModelBox.Items.Add(model.DisplayName);
+            group.ModelBox.Items.Add(string.IsNullOrWhiteSpace(model.DisplayName) ? model.Id : model.DisplayName);
         }
         var chosen = selection.Model;
         if (chosen.Length == 0)
@@ -544,7 +569,7 @@ public sealed partial class ProvidersPage : Page
             var index = models.FindIndex(model => model.Id == chosen);
             if (index < 0)
             {
-                group.ModelBox.Items.Add(chosen);
+                group.ModelBox.Items.Add(Text.UnlistedModelChoice(selection.Kind, chosen, group.Listed));
                 group.ModelBox.SelectedIndex = group.ModelBox.Items.Count - 1;
             }
             else
@@ -594,7 +619,7 @@ public sealed partial class ProvidersPage : Page
             return;
         }
         var index = group.ModelBox.SelectedIndex;
-        var id = index == 0 ? "" : index - 1 < group.Models.Count ? group.Models[index - 1].Id : group.ModelBox.SelectedItem as string ?? "";
+        var id = index == 0 ? "" : index - 1 < group.Models.Count ? group.Models[index - 1].Id : group.Selection(Model.Settings).Model;
         await SaveModelAsync(group, id);
     }
 
@@ -604,7 +629,9 @@ public sealed partial class ProvidersPage : Page
         var group = GroupOf(sender);
         var typed = args.Text.Trim();
         var listed = group.Models.FirstOrDefault(model => model.DisplayName == typed || model.Id == typed);
-        var id = typed == group.DefaultChoice || typed == Loc.Get("Models_Default") ? "" : listed?.Id ?? typed;
+        var selection = group.Selection(Model.Settings);
+        var saved = Text.UnlistedModelChoice(selection.Kind, selection.Model, group.Listed);
+        var id = typed == group.DefaultChoice || typed == Loc.Get("Models_Default") ? "" : listed?.Id ?? (typed == saved ? selection.Model : typed);
         args.Handled = true;
         await SaveModelAsync(group, id);
         await LoadModelsAsync(group);
@@ -619,6 +646,11 @@ public sealed partial class ProvidersPage : Page
         }
         if (await SaveAsync(group, settings => group.With(settings, current with { Model = id })))
         {
+            if (current.Kind == ProviderKind.ComfyUi && !UsingOwnWorkflow && group.Listed)
+            {
+                group.Problem = Text.ComfyAvailabilityProblem(group.Models, id);
+                ShowProblems();
+            }
             // The estimate is per model.
             var listed = group.Models.Count == 0 ? null : Loc.Format("Models_Listed", group.Models.Count);
             group.ModelCard.Description = await EstimateLineAsync(group, listed);
@@ -755,14 +787,13 @@ public sealed partial class ProvidersPage : Page
         await UseOwnWorkflowAsync(workflow, Path.GetFileName(picked.Path));
     }
 
-    /// <summary>Uses the person's workflow: its text goes to the engine (the model it loads decides, so the model
-    /// choice goes back to its default) and is remembered here with its name.</summary>
+    /// <summary>Uses the person's workflow: its loader decides the model. The automatic workflow's model choice
+    /// stays saved for switching back, and the file is remembered here with its name.</summary>
     private async Task UseOwnWorkflowAsync(string workflow, string name)
     {
         if (!await SaveAsync(image, settings => settings with
             {
                 ComfyuiWorkflow = workflow,
-                ImageProvider = settings.ImageProvider with { Model = "" },
             }))
         {
             return;
@@ -786,7 +817,7 @@ public sealed partial class ProvidersPage : Page
 
     private async Task UseAutoPaperWorkflowAsync()
     {
-        if (await SaveAsync(image, settings => settings with { ComfyuiWorkflow = null, ImageProvider = settings.ImageProvider with { Model = "" } }))
+        if (await SaveAsync(image, settings => settings with { ComfyuiWorkflow = null }))
         {
             workflowProblem = null;
             ShowSettings();
@@ -901,6 +932,7 @@ public sealed partial class ProvidersPage : Page
         public HyperlinkButton KeyLink { get; } = keyLink;
         public SettingsCard InstallCard { get; } = installCard;
         public List<ModelInfo> Models { get; set; } = [];
+        public bool Listed { get; set; }
         /// <summary>The model picker's blank choice, as shown ("Default (gpt-6-luna)").</summary>
         public string DefaultChoice { get; set; } = "";
         /// <summary>What listing models or Test found wrong last (not a key: that's the link), in words.</summary>

@@ -725,8 +725,17 @@ impl Engine {
 
     // ── Providers and cost ──────────────────────────────────────────────────────────────────
 
-    /// Checks the key/address with a cheap call (listing models). Errors say what's wrong.
+    /// Checks the key/address through read-only model discovery. ComfyUI also checks the selected workflow.
     pub async fn test_provider(&self, selection: ProviderSelection, job: ProviderJob) -> Result<()> {
+        if selection.kind == ProviderKind::ComfyUi && job == ProviderJob::Images {
+            let settings = self.inner.store().settings()?;
+            let provider = self.inner.image_provider(&selection, &settings)?;
+            let models = provider.list_models().await?;
+            if models.is_empty() && settings.comfyui_workflow.is_none() && selection.model.trim().is_empty() {
+                return Err(invalid(InvalidInputReason::NoModels, "ComfyUI is connected, but no installed models have a runnable text-to-image workflow"));
+            }
+            return provider.resolve_model(&selection.model).await.map(|_| ());
+        }
         self.list_models(selection, job).await.map(|_| ())
     }
 
@@ -749,7 +758,8 @@ impl Engine {
     /// recency-weighted median (recent ones count most; a month-old call counts half), scaled to `width` ×
     /// `height` by pixels for paintings — 0 × 0 means the size AutoPaper would ask this painter for now (the
     /// display hint, the model's limits) — and to the painter's steps. `None` until a call like it has finished
-    /// here (never a made-up number). Settings can say "About 9 minutes per wallpaper on this Mac" (the writing
+    /// here (never a made-up number). An automatic ComfyUI selection has no estimate until live discovery
+    /// resolves its model. Settings can say "About 9 minutes per wallpaper on this Mac" (the writing
     /// and the painting estimates together). Recorded per server, so another computer's ComfyUI has its own.
     pub fn estimate(&self, selection: ProviderSelection, job: ProviderJob, width: u32, height: u32) -> Result<Option<u32>> {
         let settings = self.inner.store().settings()?;
@@ -1308,18 +1318,28 @@ impl HttpClient for ConsoleHttp {
             .flat_map(|(_, value)| [value.clone(), value.strip_prefix("Bearer ").unwrap_or(value).to_string()])
             .filter(|value| !value.is_empty()).collect();
         let capture = self.run_id.is_some();
+        let model = if self.stage == "Painting" {
+            lock(&self.console.active).as_ref().filter(|run| Some(&run.id) == self.run_id.as_ref())
+                .map(|run| run.image_model.clone()).unwrap_or_else(|| self.model.clone())
+        } else {
+            self.model.clone()
+        };
         let first = request.method != HttpMethod::Get || lock(&self.seen_gets).insert(request.url.clone());
-        let address = url::Url::parse(&request.url).map(|url| format!("{}{}", url.origin().ascii_serialization(), url.path())).unwrap_or_default();
+        let parsed = url::Url::parse(&request.url).ok();
+        let template_metadata = self.provider == ProviderKind::ComfyUi && request.method == HttpMethod::Get
+            && parsed.as_ref().is_some_and(|url| url.path().contains("/templates/"));
+        let address = parsed.map(|url| format!("{}{}", url.origin().ascii_serialization(), url.path())).unwrap_or_default();
         let method = if request.method == HttpMethod::Post { "POST" } else { "GET" };
+        let timeout_secs = request.timeout_secs;
         for secret in &secrets { net::remember_secret(secret); }
         if capture {
             self.console.remember_secrets(self.run_id.as_deref(), &secrets);
         }
-        if capture && first {
+        if capture && first && !template_metadata {
             // Strip URL credentials and query strings; no headers enter the record at all.
             let body = request.body.as_deref().map(|body| console_body_with_secrets(body, &secrets)).unwrap_or_default();
-            self.console.event(self.run_id.as_deref(), self.stage, Some(self.provider), &self.model, "request",
-                &format!("{method} {address}\nTimeout: {} s\n{body}", request.timeout_secs));
+            self.console.event(self.run_id.as_deref(), self.stage, Some(self.provider), &model, "request",
+                &format!("{method} {address}\nTimeout: {timeout_secs} s\n{body}"));
         }
         let started = tokio::time::Instant::now();
         let response = self.http.send(request).await;
@@ -1327,10 +1347,19 @@ impl HttpClient for ConsoleHttp {
         let empty_poll = !first && response.as_ref().is_ok_and(|response| response.status == 200 && response.body == b"{}");
         if capture && !empty_poll {
             let detail = match &response {
-                Ok(response) => format!("{method} {address}\nHTTP {} · {:.2} s\n{}", response.status, started.elapsed().as_secs_f64(), console_body_with_secrets(&response.body, &secrets)),
+                Ok(response) => {
+                    // One summary per discovery GET leaves room for the graph actually sent to /prompt.
+                    let body = if template_metadata {
+                        format!("Timeout: {timeout_secs} s\nTemplate metadata: {} bytes (body omitted).", response.body.len())
+                    } else {
+                        console_body_with_secrets(&response.body, &secrets)
+                    };
+                    format!("{method} {address}\nHTTP {} · {:.2} s\n{body}", response.status, started.elapsed().as_secs_f64())
+                }
+                Err(error) if template_metadata => format!("{method} {address}\n{error} · {:.2} s\nTimeout: {timeout_secs} s", started.elapsed().as_secs_f64()),
                 Err(error) => format!("{method} {address}\n{error} · {:.2} s", started.elapsed().as_secs_f64()),
             };
-            self.console.event(self.run_id.as_deref(), self.stage, Some(self.provider), &self.model, "response", &detail);
+            self.console.event(self.run_id.as_deref(), self.stage, Some(self.provider), &model, "response", &detail);
         }
         response
     }
@@ -1986,9 +2015,13 @@ impl Inner {
             let service_mood = if matches!(error, AutoPaperError::Cancelled) { None } else { Some(job.mood_id.clone()) };
             return Err(Failed { error, needs_setup: false, service_mood });
         }
-        // Availability is checked for both roles even when the chosen local workflow needs fixing.
-        // Unsupported workflows still stop before paid work and keep their normal setup-error behavior.
-        image.check_model(&job.settings.image_provider.model)?;
+        // Both services must answer before setup validation; unavailable workflows still stop before paid work.
+        job.image_model = self.unless_cancelled(image.resolve_model(&job.settings.image_provider.model)).await?;
+        (job.width, job.height) = self.request_size(image.as_ref(), &job.image_model);
+        job.image_steps = image.steps(&job.image_model);
+        self.run_cost(&job);
+        self.console.event(None, "Checking services", Some(job.image_kind), &job.image_model, "model_selection",
+            &format!("Painting model resolved: {} · {} × {} · steps {:?}", job.image_model, job.width, job.height, job.image_steps));
         match self.run(&mut job, text.as_ref(), image.as_ref(), observer).await {
             Ok(generation) => {
                 // Every new wallpaper restarts the schedule, whatever asked for it ("New Wallpaper Now" too); a
@@ -2166,7 +2199,7 @@ impl Inner {
                     None
                 });
             let request = ImageRequest {
-                model: job.settings.image_provider.model.trim().to_string(),
+                model: job.image_model.clone(),
                 prompt,
                 width: job.width,
                 height: job.height,

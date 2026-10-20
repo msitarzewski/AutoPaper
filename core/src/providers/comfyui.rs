@@ -2,7 +2,8 @@
 //!
 //! AutoPaper's own workflows ship in `core/resources/comfyui/` (`include_str!`), one per supported model, each the
 //! graph that painted the website's examples on the user's Mac: Z-Image Turbo (the default, Apache-2.0), Krea 2
-//! Turbo and Qwen-Image 2.1. Or the person supplies their own (`Settings::comfyui_workflow`, with `{{prompt}}`,
+//! Turbo and Qwen-Image 2.1; MOSS-Image (Apache-2.0, 2026-10-18) is Comfy-Org's own template, verified the same
+//! way. Or the person supplies their own (`Settings::comfyui_workflow`, with `{{prompt}}`,
 //! `{{width}}`, `{{height}}`, `{{seed}}` placeholders). Flow: POST /prompt {prompt, client_id} → poll GET
 //! /history/{prompt_id} (1 s, then 2 s) until outputs or an error status → GET /view?filename&subfolder&type. Base
 //! URL default http://127.0.0.1:8188 (`HostPolicy::UserEndpoint`). Free-form sizes, multiples of 16, within the
@@ -26,14 +27,18 @@
 //! A diffusion model only paints with its own text encoder, VAE and sampling (2026-10-06: Qwen-Image 2.1 run
 //! through Z-Image Turbo's graph failed in KSampler, "Given normalized_shape=[4096], … got input of size[1, 95,
 //! 2560]"), so a bundled workflow is never given another model: the chosen model (a diffusion model file) picks
-//! the workflow made for it, blank picks the default, and a model without one is `InvalidInput` (`Other`) before
-//! anything is spent (`check_model`). Each bundled template is filled by its node map (`*.map.json`: `name`,
+//! the workflow made for it. Blank selects the first runnable workflow; an unavailable explicit choice fails
+//! before the writer is called (`resolve_model`). Each bundled template is filled by its node map (`*.map.json`: `name`,
 //! `placeholders.{prompt,width,height,seed}` → node + input, `output.node`), never by text replacement. The map
 //! declares what the workflow needs on the server (`requires`: diffusion model, text encoder, VAE, custom nodes);
-//! `list_models` reads GET /object_info once and offers a bundled workflow's model only when those files are
+//! Discovery reads GET /object_info and offers a bundled workflow's model only when those files are
 //! among the stock loaders' choices (UNETLoader, CLIPLoader, VAELoader), every node class of its graph exists,
 //! and every other choice it makes (a CLIP type, a sampler) is one the server offers — what ComfyUI itself would
-//! validate. Listed: the default first, then by name, each named in words ("Krea 2 Turbo").
+//! validate. It also adapts compatible local text-to-image templates from the server's `/templates/index.json`
+//! catalog, preserving their model-specific sampling and binding AutoPaper's prompt, dimensions and seed.
+//! Unsupported or ambiguous graphs are omitted. Inventory and graphs are reused for one provider instance;
+//! Settings refresh and each generation create a fresh instance. Listed: Z-Image first when available, then
+//! by name, each named in words ("Krea 2 Turbo"). Older servers without a catalog keep bundled discovery.
 //!
 //! A person's own template is filled by literal placeholder replacement: `{{prompt}}` becomes the JSON-escaped
 //! prompt (a whole `"{{prompt}}"` string becomes the prompt string), and `{{width}}`/`{{height}}`/`{{seed}}`
@@ -57,12 +62,15 @@
 //! it's never used.
 
 use std::collections::BTreeMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
+use futures_util::{StreamExt, stream};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
+
+mod templates;
 
 use crate::error::{AutoPaperError, InvalidInputReason, ProviderUnavailableReason, Result};
 use crate::model::{ModelInfo, ProviderKind};
@@ -70,7 +78,8 @@ use crate::net::{HostPolicy, error_for_status, redact};
 use crate::ports::{HttpClient, HttpMethod, HttpRequest, HttpResponse, Socket};
 
 use super::{
-    FreeSize, ImageCapabilities, ImageProvider, ImageRequest, ImageResponse, PaintProgress, PaintStep, used_whole_timeout,
+    FreeSize, ImageCapabilities, ImageProvider, ImageRequest, ImageResponse, PaintProgress, PaintStep,
+    used_whole_timeout,
 };
 
 const KIND: ProviderKind = ProviderKind::ComfyUi;
@@ -106,6 +115,9 @@ const CUSTOM_MODEL: &str = "custom workflow";
 const MODEL_INPUTS: [&str; 2] = ["ckpt_name", "unet_name"];
 /// Sizes asked of ComfyUI are multiples of 16 (every model below needs it).
 const SIZE_STEP: u32 = 16;
+const MAX_TEMPLATE_CANDIDATES: usize = 128;
+const TEMPLATE_TIMEOUT_SECS: u64 = 8;
+const TEMPLATE_DISCOVERY_SECS: u64 = 20;
 
 /// What one diffusion model can paint, as AutoPaper asks it: the longest side and the most pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -144,6 +156,10 @@ const MPS_VAE8_MAX_PIXELS: u64 = 46_340 * 64;
 ///   (huggingface.co/krea/Krea-2-Turbo, gated; its usage section is public) runs it at 2048×2048. So: sides ≤
 ///   2048, pixels ≤ 2048² — stepped down to the Apple silicon bound (it decodes with the 8× Qwen-Image VAE).
 /// - Krea 2 Raw: the same README: "trained to generate upto 1k resolution". So: pixels ≤ 1024².
+/// - MOSS-Image: its user guide (github.com/OpenMOSS/MOSS-Image, USERGUIDE.md at c1355e6) recommends 1, 1.5 or 2
+///   megapixels and allows "0.25M (512×512) to 4M (2K)", sides multiples of 16. So: sides ≤ 2048 — stepped down
+///   to the Apple silicon bound: its small FLUX.2 VAE fails the same way, measured 2026-10-18 on the M5 Max
+///   (ComfyUI master 872eb6a3): decodes 2048×1440, fails at 2048×1456 and 2048×2048.
 /// - Anything else (another model, a workflow whose loader isn't recognised): about 2 MP, sides ≤ 2048
 ///   (1920×1088, the size the bundled template was first tested at).
 const MODEL_LIMITS: &[(&[&str], ModelLimits)] = &[
@@ -157,10 +173,12 @@ const MODEL_LIMITS: &[(&[&str], ModelLimits)] = &[
         ModelLimits { name: "Krea 2 Turbo", max_side: 2048, max_pixels: MPS_VAE8_MAX_PIXELS },
     ),
     (&["krea2", "krea_2"], ModelLimits { name: "Krea 2 Raw", max_side: 2048, max_pixels: 1024 * 1024 }),
+    (&["moss_image"], ModelLimits { name: "MOSS-Image", max_side: 2048, max_pixels: MPS_VAE8_MAX_PIXELS }),
 ];
 
 /// Limits for a model this table doesn't know.
-pub const UNKNOWN_MODEL_LIMITS: ModelLimits = ModelLimits { name: "unknown model", max_side: 2048, max_pixels: 1920 * 1088 };
+pub const UNKNOWN_MODEL_LIMITS: ModelLimits =
+    ModelLimits { name: "unknown model", max_side: 2048, max_pixels: 1920 * 1088 };
 
 /// The limits of the diffusion model in `file` (a loader's `unet_name`/`ckpt_name`, folders allowed), else
 /// `UNKNOWN_MODEL_LIMITS`.
@@ -173,7 +191,7 @@ pub fn model_limits(file: &str) -> ModelLimits {
 }
 
 /// AutoPaper's own workflows, (template, node map), the default first.
-const BUNDLED_SOURCES: [(&str, &str); 3] = [
+const BUNDLED_SOURCES: [(&str, &str); 4] = [
     (
         include_str!("../../resources/comfyui/z-image-turbo-t2i.json"),
         include_str!("../../resources/comfyui/z-image-turbo-t2i.map.json"),
@@ -186,6 +204,10 @@ const BUNDLED_SOURCES: [(&str, &str); 3] = [
         include_str!("../../resources/comfyui/qwen-image-2.1-t2i.json"),
         include_str!("../../resources/comfyui/qwen-image-2.1-t2i.map.json"),
     ),
+    (
+        include_str!("../../resources/comfyui/moss-image-t2i.json"),
+        include_str!("../../resources/comfyui/moss-image-t2i.map.json"),
+    ),
 ];
 
 /// The bundled templates, parsed once.
@@ -194,8 +216,11 @@ static BUNDLED: LazyLock<std::result::Result<Vec<Mapped>, String>> =
 
 /// Where a ComfyUI server lists the files of each kind a bundled workflow declares (`requires`): the stock loader
 /// node, its input, and the kind in words (for logs).
-const FILE_LOADERS: [(&str, &str, &str); 3] =
-    [("UNETLoader", "unet_name", "diffusion model"), ("CLIPLoader", "clip_name", "text encoder"), ("VAELoader", "vae_name", "VAE")];
+const FILE_LOADERS: [(&str, &str, &str); 3] = [
+    ("UNETLoader", "unet_name", "diffusion model"),
+    ("CLIPLoader", "clip_name", "text encoder"),
+    ("VAELoader", "vae_name", "VAE"),
+];
 
 pub struct ComfyUi {
     http: Arc<dyn HttpClient>,
@@ -204,8 +229,16 @@ pub struct ComfyUi {
     workflow: Option<String>,
     /// The template's own model (its loader node's file name).
     model: String,
+    /// One provider instance belongs to one listing or run. Preflight's inventory is reused before writing.
+    discovery: Mutex<Discovery>,
     /// How long a running job may go without an event (`STEP_STALL`, `NODE_STALL`; live tests shorten them).
     stall: StallWindows,
+}
+
+#[derive(Default)]
+struct Discovery {
+    server: Option<Map<String, Value>>,
+    workflows: Option<Vec<Mapped>>,
 }
 
 /// See `STEP_STALL` and `NODE_STALL`.
@@ -224,9 +257,16 @@ impl ComfyUi {
                 .ok()
                 .and_then(|graph| loader(&graph).map(|found| found.model))
                 .unwrap_or_else(|| CUSTOM_MODEL.to_string()),
-            None => bundled_model().unwrap_or_default(),
+            None => String::new(),
         };
-        Self { http, base_url, workflow, model, stall: StallWindows { step: STEP_STALL, node: NODE_STALL } }
+        Self {
+            http,
+            base_url,
+            workflow,
+            model,
+            discovery: Mutex::new(Discovery::default()),
+            stall: StallWindows { step: STEP_STALL, node: NODE_STALL },
+        }
     }
 
     fn base(&self) -> &str {
@@ -242,7 +282,14 @@ impl ComfyUi {
         Ok(url)
     }
 
-    async fn send(&self, method: HttpMethod, url: url::Url, body: Option<&Value>, timeout_secs: u64, max: usize) -> Result<HttpResponse> {
+    async fn send(
+        &self,
+        method: HttpMethod,
+        url: url::Url,
+        body: Option<&Value>,
+        timeout_secs: u64,
+        max: usize,
+    ) -> Result<HttpResponse> {
         let mut headers = vec![("accept".to_string(), "application/json".to_string())];
         if body.is_some() {
             headers.push(("content-type".to_string(), "application/json".to_string()));
@@ -273,11 +320,14 @@ impl ComfyUi {
     }
 
     async fn get_json(&self, segments: &[&str]) -> Result<Value> {
-        let response = self.send(HttpMethod::Get, self.endpoint(segments)?, None, CALL_TIMEOUT_SECS, MAX_JSON_RESPONSE_BYTES).await?;
+        let response = self
+            .send(HttpMethod::Get, self.endpoint(segments)?, None, CALL_TIMEOUT_SECS, MAX_JSON_RESPONSE_BYTES)
+            .await?;
         if let Some(error) = error_for_status(KIND, &response) {
             return Err(error);
         }
-        serde_json::from_slice(&response.body).map_err(|_| invalid(format!("ComfyUI's answer to /{} wasn't JSON", segments.join("/"))))
+        serde_json::from_slice(&response.body)
+            .map_err(|_| invalid(format!("ComfyUI's answer to /{} wasn't JSON", segments.join("/"))))
     }
 
     /// The graph to run: the person's own workflow, else the bundled one made for the chosen model.
@@ -291,7 +341,7 @@ impl ComfyUi {
                 output: None,
             }),
             None => {
-                let workflow = bundled_for(&request.model)?;
+                let workflow = self.workflow_for(&request.model)?;
                 Ok(Graph {
                     nodes: workflow.fill(&request.prompt, request.width, request.height, seed)?,
                     model: workflow.model().unwrap_or_default(),
@@ -306,18 +356,25 @@ impl ComfyUi {
     /// POST /prompt as `client_id` (the /ws client that hears its progress); the queued job's id.
     async fn queue(&self, graph: &Graph, client_id: &str) -> Result<String> {
         let body = json!({ "prompt": graph.nodes, "client_id": client_id });
-        let response =
-            self.send(HttpMethod::Post, self.endpoint(&["prompt"])?, Some(&body), CALL_TIMEOUT_SECS, MAX_JSON_RESPONSE_BYTES).await?;
+        let response = self
+            .send(
+                HttpMethod::Post,
+                self.endpoint(&["prompt"])?,
+                Some(&body),
+                CALL_TIMEOUT_SECS,
+                MAX_JSON_RESPONSE_BYTES,
+            )
+            .await?;
         if response.status == 400 {
             return Err(rejection(&response.body, graph));
         }
         if let Some(error) = error_for_status(KIND, &response) {
             return Err(error);
         }
-        let queued: Queued =
-            serde_json::from_slice(&response.body).map_err(|_| invalid("ComfyUI's answer to /prompt wasn't the expected JSON"))?;
-        let id_is_safe =
-            !queued.prompt_id.is_empty() && queued.prompt_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+        let queued: Queued = serde_json::from_slice(&response.body)
+            .map_err(|_| invalid("ComfyUI's answer to /prompt wasn't the expected JSON"))?;
+        let id_is_safe = !queued.prompt_id.is_empty()
+            && queued.prompt_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
         if !id_is_safe {
             return Err(invalid("ComfyUI returned an unexpected job id"));
         }
@@ -384,7 +441,8 @@ impl ComfyUi {
                 next_poll = tokio::time::Instant::now() + NEXT_POLL;
                 continue;
             }
-            let wake = [Some(next_poll), Some(deadline), watch.stall_at()].into_iter().flatten().min().unwrap_or(next_poll);
+            let wake =
+                [Some(next_poll), Some(deadline), watch.stall_at()].into_iter().flatten().min().unwrap_or(next_poll);
             let event = match socket.as_mut() {
                 Some(events) => tokio::select! {
                     biased;
@@ -467,19 +525,26 @@ impl ImageProvider for ComfyUi {
         KIND
     }
 
-    /// The default bundled workflow's model (for a person's template: its loader's model file, else
-    /// "custom workflow").
+    /// Empty means automatic live selection; a person's template names its loader's model, else "custom workflow".
     fn default_model(&self) -> &str {
         &self.model
     }
 
-    /// With AutoPaper's workflows, `model` must be one a bundled workflow is made for (blank: the default); a
+    /// With AutoPaper's workflows, `model` must have a runnable workflow (blank: automatic); a
     /// person's own workflow loads its own model, whatever is chosen.
     fn check_model(&self, model: &str) -> Result<()> {
         match &self.workflow {
             Some(_) => Ok(()),
-            None => bundled_for(model).map(|_| ()),
+            None => self.workflow_for(model).map(|_| ()),
         }
+    }
+
+    async fn resolve_model(&self, requested: &str) -> Result<String> {
+        if self.workflow.is_some() {
+            return Ok(self.model.clone());
+        }
+        self.discover().await?;
+        self.workflow_for(requested)?.model().ok_or_else(|| invalid("The image workflow has no model loader"))
     }
 
     /// Multiples of 16 within the limits of the model the workflow will load (`model_limits`): the person's own
@@ -490,7 +555,24 @@ impl ImageProvider for ComfyUi {
             (None, chosen) if !chosen.is_empty() => chosen,
             _ => self.model.as_str(),
         };
-        let limits = model_limits(loads);
+        let resolved =
+            if loads.is_empty() { self.workflow_for(model).ok().and_then(|workflow| workflow.model()) } else { None };
+        let mut limits = model_limits(resolved.as_deref().unwrap_or(loads));
+        if limits == UNKNOWN_MODEL_LIMITS
+            && let Ok(workflow) = self.workflow_for(model)
+        {
+            let slots = &workflow.map.placeholders;
+            let width = workflow.graph[&slots.width.node]["inputs"][&slots.width.input].as_u64();
+            let height = workflow.graph[&slots.height.node]["inputs"][&slots.height.input].as_u64();
+            if let (Some(width), Some(height)) = (width, height)
+                && width >= u64::from(SIZE_STEP)
+                && height >= u64::from(SIZE_STEP)
+            {
+                // An unfamiliar model gets no larger a pixel budget than its official template uses.
+                limits.max_pixels = limits.max_pixels.min(width.saturating_mul(height));
+                limits.max_side = limits.max_side.min(width.max(height).min(u64::from(u32::MAX)) as u32);
+            }
+        }
         ImageCapabilities {
             sizes: Vec::new(),
             free_size: Some(FreeSize { step: SIZE_STEP, max_side: limits.max_side, max_pixels: limits.max_pixels }),
@@ -501,7 +583,7 @@ impl ImageProvider for ComfyUi {
     fn steps(&self, model: &str) -> Option<u32> {
         let graph = match &self.workflow {
             Some(template) => fill_placeholders(template, "", 1024, 576, 0).ok()?,
-            None => bundled_for(model).ok()?.graph.clone(),
+            None => self.workflow_for(model).ok()?.graph,
         };
         Some(sampler_steps(&graph)).filter(|steps| *steps > 0)
     }
@@ -539,14 +621,21 @@ impl ImageProvider for ComfyUi {
 
     async fn check_available(&self) -> Result<()> {
         // Own workflows without a recognized loader still need an actual server check.
-        self.get_json(&["object_info"]).await.map(|_| ())
+        let value = self.get_json(&["object_info"]).await?;
+        let server = value
+            .as_object()
+            .ok_or_else(|| invalid("ComfyUI's answer to /object_info wasn't the expected JSON"))?
+            .clone();
+        *self.discovery.lock().unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Discovery { server: Some(server), workflows: None };
+        Ok(())
     }
 
-    /// With AutoPaper's workflows: the models whose bundled workflow this server can run (one GET /object_info),
-    /// named in words, the default first, then by name. With the person's own workflow: its loader's choices.
+    /// Compatible installed models from bundled workflows and the server's official template catalog.
+    /// With the person's own workflow: its loader's choices.
     async fn list_models(&self) -> Result<Vec<ModelInfo>> {
         let Some(template) = &self.workflow else {
-            return self.runnable_bundled_models().await;
+            return self.discover().await;
         };
         let Some(Loader { class_type, input, .. }) = loader(&fill_placeholders(template, "", 1024, 576, 0)?) else {
             return Ok(Vec::new());
@@ -554,29 +643,205 @@ impl ImageProvider for ComfyUi {
         let info = self.get_json(&["object_info", &class_type]).await?;
         let inputs = info.get(&class_type).and_then(|node| node.get("input"));
         let spec = ["required", "optional"].iter().find_map(|group| inputs?.get(group)?.get(&input));
-        Ok(combo_choices(spec).into_iter().map(|name| ModelInfo { display_name: display_name(&name), id: name }).collect())
+        Ok(combo_choices(spec)
+            .into_iter()
+            .map(|name| ModelInfo { display_name: display_name(&name), id: name })
+            .collect())
     }
 }
 
 impl ComfyUi {
-    /// The bundled workflows' models this server has everything for (see `Mapped::missing`).
-    async fn runnable_bundled_models(&self) -> Result<Vec<ModelInfo>> {
-        let server = self.get_json(&["object_info"]).await?;
-        let server = server.as_object().ok_or_else(|| invalid("ComfyUI's answer to /object_info wasn't the expected JSON"))?;
-        let workflows = bundled()?;
-        let default = workflows.first().and_then(Mapped::model);
-        let mut models = Vec::new();
-        for workflow in workflows {
-            let (Some(model), missing) = (workflow.model(), workflow.missing(server)) else { continue };
-            if missing.is_empty() {
-                models.push(ModelInfo { id: model, display_name: workflow.map.name.clone() });
+    fn workflow_for(&self, requested: &str) -> Result<Mapped> {
+        let discovery = self.discovery.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some(workflows) = &discovery.workflows else {
+            // Provider-only callers can still use bundled graphs; Engine always resolves against the live server first.
+            return bundled_for(requested).cloned();
+        };
+        let requested = requested.trim();
+        let chosen = if requested.is_empty() {
+            workflows.first()
+        } else {
+            workflows.iter().find(|workflow| workflow.model().as_deref() == Some(requested))
+        };
+        chosen.cloned().ok_or_else(|| AutoPaperError::PaintingFailed {
+            provider: KIND,
+            model: if requested.is_empty() { String::new() } else { display_name(requested) },
+            detail: if requested.is_empty() {
+                "ComfyUI is connected, but no compatible text-to-image workflow has all its required models and nodes installed. Install the missing models or choose your own workflow.".into()
             } else {
-                tracing::info!(model = %workflow.map.name, missing = %short(&missing.join(", ")), "ComfyUI can't run this bundled workflow; not offering it");
+                short(&format!("ComfyUI has no runnable text-to-image workflow for {requested}; its model, dependencies, or workflow may be unavailable. Choose an available model or your own workflow."))
+            },
+        })
+    }
+
+    async fn discover(&self) -> Result<Vec<ModelInfo>> {
+        let (cached, server) = {
+            let discovery = self.discovery.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            (discovery.workflows.clone(), discovery.server.clone())
+        };
+        if let Some(workflows) = cached {
+            return Ok(workflow_models(&workflows));
+        }
+        let server = match server {
+            Some(server) => server,
+            None => self
+                .get_json(&["object_info"])
+                .await?
+                .as_object()
+                .ok_or_else(|| invalid("ComfyUI's answer to /object_info wasn't the expected JSON"))?
+                .clone(),
+        };
+        let mut workflows: Vec<Mapped> =
+            bundled()?.iter().filter_map(|workflow| bind_available_files(workflow, &server)).collect();
+        // A missing catalog on older ComfyUI versions does not invalidate its already-supported workflows.
+        match self.template_json("index.json").await {
+            Ok(Some(index)) => {
+                let candidates = template_candidates(&index, &server);
+                let requests = stream::iter(candidates)
+                    .map(|(file, name)| async move {
+                        let result = self.template_json(&format!("{file}.json")).await;
+                        (name, result)
+                    })
+                    .buffered(4);
+                tokio::pin!(requests);
+                let deadline = tokio::time::Instant::now() + Duration::from_secs(TEMPLATE_DISCOVERY_SECS);
+                while let Ok(Some((name, result))) = tokio::time::timeout_at(deadline, requests.next()).await {
+                    let graph = match result {
+                        Ok(Some(graph)) => graph,
+                        Ok(None) => continue,
+                        Err(error) => {
+                            tracing::info!(template = %name, %error, "ComfyUI template could not be read");
+                            continue;
+                        }
+                    };
+                    match templates::adapt(&graph, &name, &server) {
+                        Ok(workflow) => {
+                            if let Some(model) = workflow.model()
+                                && !workflows.iter().any(|existing| existing.model().as_ref() == Some(&model))
+                            {
+                                workflows.push(workflow);
+                            }
+                        }
+                        Err(reason) => {
+                            tracing::info!(template = %name, reason = %short(&reason), "ComfyUI template is not usable for automatic wallpaper generation")
+                        }
+                    }
+                }
+            }
+            Ok(None) => {}
+            Err(error) => {
+                tracing::info!(%error, "ComfyUI's template catalog is unavailable; using installed bundled workflows")
             }
         }
-        models.sort_by(|a, b| (Some(&a.id) != default.as_ref(), &a.display_name).cmp(&(Some(&b.id) != default.as_ref(), &b.display_name)));
+        let default = bundled_model();
+        let is_default = |workflow: &Mapped| {
+            workflow
+                .model()
+                .is_some_and(|model| Some(model.rsplit(['/', '\\']).next().unwrap_or(&model)) == default.as_deref())
+        };
+        workflows.sort_by(|a, b| (!is_default(a), &a.map.name).cmp(&(!is_default(b), &b.map.name)));
+        let models = workflow_models(&workflows);
+        *self.discovery.lock().unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Discovery { server: Some(server), workflows: Some(workflows) };
         Ok(models)
     }
+
+    async fn template_json(&self, file: &str) -> Result<Option<Value>> {
+        let response = self
+            .send(HttpMethod::Get, self.endpoint(&["templates", file])?, None, TEMPLATE_TIMEOUT_SECS, 4 * 1024 * 1024)
+            .await?;
+        if matches!(response.status, 404 | 405) {
+            return Ok(None);
+        }
+        if let Some(error) = error_for_status(KIND, &response) {
+            return Err(error);
+        }
+        serde_json::from_slice(&response.body).map(Some).map_err(|_| invalid("ComfyUI's template wasn't JSON"))
+    }
+}
+
+fn workflow_models(workflows: &[Mapped]) -> Vec<ModelInfo> {
+    workflows
+        .iter()
+        .filter_map(|workflow| Some(ModelInfo { id: workflow.model()?, display_name: workflow.map.name.clone() }))
+        .collect()
+}
+
+/// Inspect local text-to-image templates. Catalog family labels need not match weight filenames, so
+/// compatibility is decided by the exact graph's files, nodes and choices, never a family-name guess.
+fn template_candidates(index: &Value, server: &Map<String, Value>) -> Vec<(String, String)> {
+    let files = [("UNETLoader", "unet_name"), ("CheckpointLoaderSimple", "ckpt_name")]
+        .into_iter()
+        .flat_map(|(node, input)| combo_choices(input_spec(server, node, input)))
+        .collect::<Vec<_>>();
+    if files.is_empty() {
+        return Vec::new();
+    }
+    let normalized =
+        |text: &str| text.chars().filter(char::is_ascii_alphanumeric).flat_map(char::to_lowercase).collect::<String>();
+    let mut candidates = Vec::new();
+    for template in
+        index.as_array().into_iter().flatten().flat_map(|group| group["templates"].as_array().into_iter().flatten())
+    {
+        let Some(file) = template["name"].as_str() else { continue };
+        if file.is_empty()
+            || file.len() > 160
+            || !file.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        {
+            continue;
+        }
+        let tags = template["tags"]
+            .as_array()
+            .map(|tags| tags.iter().filter_map(Value::as_str).map(normalized).collect::<Vec<_>>())
+            .unwrap_or_default();
+        if template["openSource"] != true
+            || template["mediaType"] != "image"
+            || !tags.iter().any(|tag| tag == "texttoimage")
+            || tags.iter().any(|tag| tag == "api")
+            || template["io"]["inputs"].as_array().is_some_and(|inputs| !inputs.is_empty())
+        {
+            continue;
+        }
+        let name = template["title"].as_str().unwrap_or(file).chars().filter(|c| !c.is_control()).take(160).collect();
+        candidates.push((file.to_string(), name));
+    }
+    candidates.sort();
+    candidates.dedup_by(|a, b| a.0 == b.0);
+    candidates.truncate(MAX_TEMPLATE_CANDIDATES);
+    candidates
+}
+
+/// Folder placement is machine-specific. Accept an exact path, or a unique identical basename; never substitute
+/// a similarly-named architecture, quantization, encoder or VAE.
+fn bind_available_files(workflow: &Mapped, server: &Map<String, Value>) -> Option<Mapped> {
+    let mut bound = workflow.clone();
+    for (class_type, input, _) in FILE_LOADERS {
+        let offered = combo_choices(input_spec(server, class_type, input));
+        for node in bound.graph.values_mut().filter(|node| node["class_type"] == class_type) {
+            let expected = node["inputs"][input].as_str()?.to_string();
+            if offered.contains(&expected) {
+                continue;
+            }
+            let basename = |file: &str| file.rsplit(['/', '\\']).next().unwrap_or(file).to_string();
+            let matches = offered.iter().filter(|file| basename(file) == basename(&expected)).collect::<Vec<_>>();
+            if matches.len() != 1 {
+                return None;
+            }
+            node["inputs"][input] = json!(matches[0]);
+        }
+    }
+    bound.map.requires.diffusion_models = graph_files(&bound.graph, "UNETLoader", "unet_name");
+    bound.map.requires.text_encoders = graph_files(&bound.graph, "CLIPLoader", "clip_name");
+    bound.map.requires.vae = graph_files(&bound.graph, "VAELoader", "vae_name");
+    bound.missing(server).is_empty().then_some(bound)
+}
+
+fn graph_files(graph: &Map<String, Value>, class_type: &str, input: &str) -> Vec<String> {
+    graph
+        .values()
+        .filter(|node| node["class_type"] == class_type)
+        .filter_map(|node| node["inputs"][input].as_str().map(str::to_string))
+        .collect()
 }
 
 /// A graph ready to queue: its nodes, the model file it loads, the model in words for error details (`label`) and
@@ -603,13 +868,27 @@ fn own_model_name(model: &str) -> String {
 
 /// How long a job may take in all: max(30 minutes, 3 × its learned estimate).
 fn ceiling(expected_secs: Option<f64>) -> Duration {
-    let learned = expected_secs.map_or(Duration::ZERO, |seconds| crate::perf::duration_secs(seconds * CEILING_ESTIMATES));
+    let learned =
+        expected_secs.map_or(Duration::ZERO, |seconds| crate::perf::duration_secs(seconds * CEILING_ESTIMATES));
     MIN_CEILING.max(learned)
 }
 
 /// The steps of every sampler in a graph: the integer `steps` inputs (KSampler, KSamplerAdvanced, BasicScheduler…).
 fn sampler_steps(graph: &Map<String, Value>) -> u32 {
-    let steps = graph.values().filter_map(|node| node.get("inputs")?.get("steps")?.as_u64()).sum::<u64>();
+    let steps = graph
+        .values()
+        .filter_map(|node| {
+            let inputs = node.get("inputs")?;
+            if node["class_type"] == "ManualSigmas" {
+                let sigmas = inputs.get("sigmas")?.as_str()?.split(',').map(str::trim).collect::<Vec<_>>();
+                return sigmas
+                    .iter()
+                    .all(|sigma| sigma.parse::<f64>().is_ok_and(|value| value.is_finite()))
+                    .then_some(sigmas.len().saturating_sub(1) as u64);
+            }
+            inputs.get("steps")?.as_u64()
+        })
+        .sum::<u64>();
     u32::try_from(steps).unwrap_or(u32::MAX)
 }
 
@@ -820,7 +1099,8 @@ impl Mapped {
             .ok()
             .and_then(|value| api_graph(value).ok())
             .ok_or("the bundled ComfyUI workflow isn't an API-format graph")?;
-        let map: NodeMap = serde_json::from_str(node_map).map_err(|error| format!("the bundled ComfyUI node map: {error}"))?;
+        let map: NodeMap =
+            serde_json::from_str(node_map).map_err(|error| format!("the bundled ComfyUI node map: {error}"))?;
         let mapped = Self { graph, map };
         let mut probe = mapped.graph.clone();
         for slot in mapped.slots() {
@@ -888,7 +1168,8 @@ impl Mapped {
             };
             for (input, value) in inputs {
                 let Some(value) = value.as_str() else { continue };
-                let is_file = FILE_LOADERS.iter().any(|(loader, file_input, _)| *loader == class_type && file_input == input);
+                let is_file =
+                    FILE_LOADERS.iter().any(|(loader, file_input, _)| *loader == class_type && file_input == input);
                 let Some(choices) = combo_options(input_spec(server, class_type, input)) else { continue };
                 if !is_file && !choices.iter().any(|choice| choice == value) {
                     note(format!("{class_type} {input} {value}"));
@@ -915,12 +1196,18 @@ fn bundled_for(model: &str) -> Result<&'static Mapped> {
     let workflows = bundled()?;
     let model = model.trim();
     if model.is_empty() {
-        return workflows.first().ok_or_else(|| AutoPaperError::Internal { detail: "no bundled ComfyUI workflow".into() });
+        return workflows
+            .first()
+            .ok_or_else(|| AutoPaperError::Internal { detail: "no bundled ComfyUI workflow".into() });
     }
-    workflows.iter().find(|workflow| workflow.model().as_deref() == Some(model)).ok_or_else(|| AutoPaperError::PaintingFailed {
-        provider: KIND,
-        model: display_name(model),
-        detail: short(&format!("AutoPaper has no ComfyUI workflow for {model}; choose a model Settings lists, or use your own workflow")),
+    workflows.iter().find(|workflow| workflow.model().as_deref() == Some(model)).ok_or_else(|| {
+        AutoPaperError::PaintingFailed {
+            provider: KIND,
+            model: display_name(model),
+            detail: short(&format!(
+                "AutoPaper has no ComfyUI workflow for {model}; choose a model Settings lists, or use your own workflow"
+            )),
+        }
     })
 }
 
@@ -967,7 +1254,10 @@ impl JobStop {
         match self.http.send(post(self.cancel_url, None)).await {
             Ok(response) if (200..300).contains(&response.status) => return,
             Ok(response) => {
-                tracing::debug!(status = response.status, "ComfyUI can't cancel one job; removing it from the queue instead");
+                tracing::debug!(
+                    status = response.status,
+                    "ComfyUI can't cancel one job; removing it from the queue instead"
+                );
             }
             Err(error) => {
                 tracing::debug!(%error, "couldn't stop a ComfyUI job");
@@ -1004,11 +1294,10 @@ impl Drop for StopOnDrop {
 }
 
 fn set_input(graph: &mut Map<String, Value>, slot: &Slot, value: Value) -> Result<()> {
-    let inputs = graph
-        .get_mut(&slot.node)
-        .and_then(|node| node.get_mut("inputs"))
-        .and_then(Value::as_object_mut)
-        .ok_or_else(|| AutoPaperError::Internal { detail: format!("the ComfyUI template has no node {}", slot.node) })?;
+    let inputs =
+        graph.get_mut(&slot.node).and_then(|node| node.get_mut("inputs")).and_then(Value::as_object_mut).ok_or_else(
+            || AutoPaperError::Internal { detail: format!("the ComfyUI template has no node {}", slot.node) },
+        )?;
     inputs.insert(slot.input.clone(), value);
     Ok(())
 }
@@ -1025,7 +1314,8 @@ fn fill_placeholders(template: &str, prompt: &str, width: u32, height: u32, seed
     let mut text = template.to_string();
     for (name, value) in [("width", u64::from(width)), ("height", u64::from(height)), ("seed", seed)] {
         let placeholder = format!("{{{{{name}}}}}");
-        text = text.replace(&format!("\"{placeholder}\""), &value.to_string()).replace(&placeholder, &value.to_string());
+        text =
+            text.replace(&format!("\"{placeholder}\""), &value.to_string()).replace(&placeholder, &value.to_string());
     }
     let quoted = serde_json::to_string(prompt)?;
     let escaped = quoted.strip_prefix('"').and_then(|inner| inner.strip_suffix('"')).unwrap_or(&quoted);
@@ -1081,7 +1371,12 @@ fn loader(graph: &Map<String, Value>) -> Option<Loader> {
             let node = graph.get(id)?;
             let model = node.get("inputs")?.get(*input)?.as_str()?;
             let class_type = node.get("class_type")?.as_str()?;
-            Some(Loader { node: id.clone(), class_type: class_type.to_string(), input: input.to_string(), model: model.to_string() })
+            Some(Loader {
+                node: id.clone(),
+                class_type: class_type.to_string(),
+                input: input.to_string(),
+                model: model.to_string(),
+            })
         })
     })
 }
@@ -1197,7 +1492,9 @@ fn run_failure(entry: &Value, graph: &Graph) -> AutoPaperError {
     for message in messages {
         let event = message.get(0).and_then(Value::as_str);
         let data = message.get(1);
-        let field = |name: &str| data.and_then(|d| d.get(name)).and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty());
+        let field = |name: &str| {
+            data.and_then(|d| d.get(name)).and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty())
+        };
         match event {
             Some("execution_error") => {
                 let node = match (field("node_type"), field("node_id")) {
@@ -1206,10 +1503,17 @@ fn run_failure(entry: &Value, graph: &Graph) -> AutoPaperError {
                     (None, _) => "a node".to_string(),
                 };
                 let exception = field("exception_message").unwrap_or("an error");
-                return painting_failed(graph, &format!("ComfyUI couldn't paint with {label}: {node} failed: {exception}"));
+                return painting_failed(
+                    graph,
+                    &format!("ComfyUI couldn't paint with {label}: {node} failed: {exception}"),
+                );
             }
             Some("execution_interrupted") => {
-                return AutoPaperError::unavailable(KIND, ProviderUnavailableReason::Stopped, "the job was stopped in ComfyUI");
+                return AutoPaperError::unavailable(
+                    KIND,
+                    ProviderUnavailableReason::Stopped,
+                    "the job was stopped in ComfyUI",
+                );
             }
             _ => {}
         }
@@ -1304,6 +1608,7 @@ mod tests {
                 ("Z-Image Turbo", Some("z_image_turbo_bf16.safetensors".into())),
                 ("Krea 2 Turbo", Some("krea2_turbo_fp8_scaled.safetensors".into())),
                 ("Qwen-Image 2.1", Some("qwen_image_2.1_int8_convrot.safetensors".into())),
+                ("MOSS-Image", Some("moss_image_sft_int8_convrot.safetensors".into())),
             ],
             "the default first"
         );
@@ -1314,9 +1619,16 @@ mod tests {
             let filled = workflow.fill("a quiet lake", 1920, 1088, 77).unwrap();
             for slot in workflow.slots() {
                 let value = &filled[&slot.node]["inputs"][&slot.input];
-                assert!(!value.as_str().is_some_and(|text| text.contains("{{")), "{name}: {} still a placeholder", slot.input);
+                assert!(
+                    !value.as_str().is_some_and(|text| text.contains("{{")),
+                    "{name}: {} still a placeholder",
+                    slot.input
+                );
             }
-            assert!(!Value::Object(filled.clone()).to_string().contains("{{"), "{name}: a placeholder the map doesn't fill");
+            assert!(
+                !Value::Object(filled.clone()).to_string().contains("{{"),
+                "{name}: a placeholder the map doesn't fill"
+            );
             let placeholders = &workflow.map.placeholders;
             let get = |slot: &Slot| filled[&slot.node]["inputs"][&slot.input].clone();
             assert_eq!(get(&placeholders.prompt), json!("a quiet lake"), "{name}");
@@ -1343,11 +1655,21 @@ mod tests {
     #[test]
     fn filling_each_bundled_template_reproduces_the_graph_verified_on_the_mac() {
         // Z-Image Turbo: recorded through AutoPaper; Qwen-Image 2.1 and Krea 2 Turbo: the graphs that painted the
-        // website's examples (rain-ruins, rooftops-spring).
+        // website's examples (rain-ruins, rooftops-spring); MOSS-Image: the graph that painted on the Mac on
+        // 2026-10-18.
         for (name, recorded, prompt_node) in [
             ("Z-Image Turbo", RECORDED_REQUEST, ("5", "text")),
-            ("Qwen-Image 2.1", include_str!("../../tests/fixtures/comfyui/prompt-qwen-image-2.1.request.json"), ("4", "prompt")),
-            ("Krea 2 Turbo", include_str!("../../tests/fixtures/comfyui/prompt-krea-2-turbo.request.json"), ("4", "text")),
+            (
+                "Qwen-Image 2.1",
+                include_str!("../../tests/fixtures/comfyui/prompt-qwen-image-2.1.request.json"),
+                ("4", "prompt"),
+            ),
+            (
+                "Krea 2 Turbo",
+                include_str!("../../tests/fixtures/comfyui/prompt-krea-2-turbo.request.json"),
+                ("4", "text"),
+            ),
+            ("MOSS-Image", include_str!("../../tests/fixtures/comfyui/prompt-moss-image.request.json"), ("4", "text")),
         ] {
             let recorded: Value = serde_json::from_str(recorded).unwrap();
             let mut expected = recorded["prompt"].as_object().unwrap().clone();
@@ -1371,7 +1693,9 @@ mod tests {
     }
 
     /// GET /object_info from the user's ComfyUI 0.36.0 (2026-10-06), trimmed to the node classes the bundled
-    /// workflows use; every bundled workflow can run there.
+    /// workflows use; every bundled workflow can run there. MOSS-Image's part comes from the same ComfyUI at master
+    /// 872eb6a3 (2026-10-18): its node class EmptyFlux2LatentImage as that server describes it, the CLIP type
+    /// `moss_image`, and its three files among the loaders' choices.
     fn object_info() -> Map<String, Value> {
         serde_json::from_str(include_str!("../../tests/fixtures/comfyui/object_info.response.json")).unwrap()
     }
@@ -1402,6 +1726,13 @@ mod tests {
         let mut no_krea_type = object_info();
         without_choice(&mut no_krea_type, "CLIPLoader", "type", "krea2");
         assert_eq!(krea.missing(&no_krea_type), ["CLIPLoader type krea2"]);
+
+        // MOSS-Image needs a ComfyUI with native support (2026-10-16): its CLIP type and the FLUX.2 latent node.
+        let moss = workflow("MOSS-Image");
+        let mut before_moss = object_info();
+        without_choice(&mut before_moss, "CLIPLoader", "type", "moss_image");
+        before_moss.remove("EmptyFlux2LatentImage");
+        assert_eq!(moss.missing(&before_moss), ["node EmptyFlux2LatentImage", "CLIPLoader type moss_image"]);
         let mut nothing = object_info();
         for (class_type, input, _) in FILE_LOADERS {
             nothing[class_type]["input"]["required"][input][0] = json!([]);
@@ -1477,7 +1808,8 @@ mod tests {
         provider.generate(request(None)).await.unwrap();
         provider.generate(request(None)).await.unwrap();
         let seed_slot = &default_workflow().map.placeholders.seed;
-        let seed = |n: usize| http.json_body(n)["prompt"][&seed_slot.node]["inputs"][&seed_slot.input].as_u64().unwrap();
+        let seed =
+            |n: usize| http.json_body(n)["prompt"][&seed_slot.node]["inputs"][&seed_slot.input].as_u64().unwrap();
         let (first, second) = (seed(0), seed(4));
         assert_ne!(first, second);
         assert!(first < 1 << SEED_BITS && second < 1 << SEED_BITS);
@@ -1498,8 +1830,18 @@ mod tests {
         // The user's bug (2026-10-06): Qwen-Image 2.1 chosen, run through Z-Image Turbo's text encoder and VAE.
         for (model, encoder, vae, text_node) in [
             ("", "qwen_3_4b.safetensors", "ae.safetensors", "CLIPTextEncode"),
-            ("qwen_image_2.1_int8_convrot.safetensors", "qwen3vl_8b_int8_convrot.safetensors", "qwen_image_2.1_vae_bf16.safetensors", "TextEncodeQwenImage21"),
-            ("krea2_turbo_fp8_scaled.safetensors", "qwen3vl_4b_fp8_scaled.safetensors", "qwen_image_vae.safetensors", "CLIPTextEncode"),
+            (
+                "qwen_image_2.1_int8_convrot.safetensors",
+                "qwen3vl_8b_int8_convrot.safetensors",
+                "qwen_image_2.1_vae_bf16.safetensors",
+                "TextEncodeQwenImage21",
+            ),
+            (
+                "krea2_turbo_fp8_scaled.safetensors",
+                "qwen3vl_4b_fp8_scaled.safetensors",
+                "qwen_image_vae.safetensors",
+                "CLIPTextEncode",
+            ),
         ] {
             let http = Arc::new(StubHttp::new());
             script_success(&http);
@@ -1528,7 +1870,10 @@ mod tests {
         let provider = comfy(&http, None);
         // Settings listed every diffusion model before 2026-10-06; this one has no workflow.
         let model = "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors";
-        for result in [provider.check_model(model), provider.generate(ImageRequest { model: model.into(), ..request(Some(1)) }).await.map(|_| ())] {
+        for result in [
+            provider.check_model(model),
+            provider.generate(ImageRequest { model: model.into(), ..request(Some(1)) }).await.map(|_| ()),
+        ] {
             match result {
                 Err(AutoPaperError::PaintingFailed { provider: KIND, model: named, detail }) => {
                     assert_eq!(named, "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot", "the model in words");
@@ -1586,8 +1931,7 @@ mod tests {
     #[test]
     fn rejects_unusable_templates() {
         let no_prompt = r#"{"1": {"class_type": "CLIPTextEncode", "inputs": {"text": "fixed"}}}"#;
-        let ui_format =
-            r#"{"last_node_id": 9, "nodes": [{"id": 1, "type": "CLIPTextEncode", "widgets_values": ["{{prompt}}"]}], "links": []}"#;
+        let ui_format = r#"{"last_node_id": 9, "nodes": [{"id": 1, "type": "CLIPTextEncode", "widgets_values": ["{{prompt}}"]}], "links": []}"#;
         let broken = r#"{"1": {"class_type": "CLIPTextEncode", "inputs": {"text": {{prompt}}}}}"#;
         let not_nodes = r#"{"text": "{{prompt}}"}"#;
         for (template, why, says) in [
@@ -1613,8 +1957,9 @@ mod tests {
         let http = Arc::new(StubHttp::new());
         let provider = ComfyUi::new(http, "http://127.0.0.1:8188".into(), Some("  \n".into()));
         assert!(provider.workflow.is_none());
-        assert_eq!(provider.default_model(), default_workflow().model().unwrap());
-        let unparseable = ComfyUi::new(Arc::new(StubHttp::new()), "http://127.0.0.1:8188".into(), Some("{{prompt}} nope".into()));
+        assert_eq!(provider.default_model(), "", "automatic selection is resolved from the live server");
+        let unparseable =
+            ComfyUi::new(Arc::new(StubHttp::new()), "http://127.0.0.1:8188".into(), Some("{{prompt}} nope".into()));
         assert_eq!(unparseable.default_model(), CUSTOM_MODEL);
     }
 
@@ -1641,7 +1986,8 @@ mod tests {
         assert_eq!(http.requests().len(), 1, "nothing is polled after a rejection");
 
         let mut rejected: Value = serde_json::from_str(REJECTED).unwrap();
-        rejected["node_errors"]["1"]["errors"][0]["details"] = json!("unet_name: token sk-abcdefghijklmnopqrstuvwxyz0123 not allowed");
+        rejected["node_errors"]["1"]["errors"][0]["details"] =
+            json!("unet_name: token sk-abcdefghijklmnopqrstuvwxyz0123 not allowed");
         http.once("/prompt", 400, rejected.to_string());
         match comfy(&http, None).generate(request(Some(1))).await {
             Err(AutoPaperError::PaintingFailed { detail, .. }) => {
@@ -1683,14 +2029,18 @@ mod tests {
         match comfy(&http, None).generate(request(Some(1))).await {
             Err(AutoPaperError::PaintingFailed { provider: KIND, model, detail }) => {
                 assert_eq!(model, "Z-Image Turbo");
-                assert_eq!(detail, "ComfyUI couldn't paint with Z-Image Turbo: the KSampler node (8) failed: MPS backend out of memory");
+                assert_eq!(
+                    detail,
+                    "ComfyUI couldn't paint with Z-Image Turbo: the KSampler node (8) failed: MPS backend out of memory"
+                );
             }
             other => panic!("{other:?}"),
         }
 
         // The user's run (2026-10-06, before each model had its own workflow), as ComfyUI reported it; a secret in an
         // exception is redacted, and a person's workflow is named by the model it loads.
-        let mismatch = "Given normalized_shape=[4096], expected input with shape [*4096], but got input of size[1, 95, 2560]";
+        let mismatch =
+            "Given normalized_shape=[4096], expected input with shape [*4096], but got input of size[1, 95, 2560]";
         let failure = |exception: &str| {
             history(
                 json!({}),
@@ -1705,7 +2055,10 @@ mod tests {
         match comfy(&http, None).generate(qwen).await {
             Err(AutoPaperError::PaintingFailed { model, detail, .. }) => {
                 assert_eq!(model, "Qwen-Image 2.1");
-                assert_eq!(detail, format!("ComfyUI couldn't paint with Qwen-Image 2.1: the KSampler node (8) failed: {mismatch}"));
+                assert_eq!(
+                    detail,
+                    format!("ComfyUI couldn't paint with Qwen-Image 2.1: the KSampler node (8) failed: {mismatch}")
+                );
             }
             other => panic!("{other:?}"),
         }
@@ -1714,7 +2067,12 @@ mod tests {
         match comfy(&http, Some(CUSTOM)).generate(request(Some(1))).await {
             Err(AutoPaperError::PaintingFailed { model, detail, .. }) => {
                 assert_eq!(model, "sd_xl_base_1.0", "a person's workflow: its model file");
-                assert!(detail.starts_with("ComfyUI couldn't paint with your workflow (sd_xl_base_1.0): the KSampler node (8) failed: "), "{detail}");
+                assert!(
+                    detail.starts_with(
+                        "ComfyUI couldn't paint with your workflow (sd_xl_base_1.0): the KSampler node (8) failed: "
+                    ),
+                    "{detail}"
+                );
                 assert!(!detail.contains("sk-abcdefghij"), "{detail}");
             }
             other => panic!("{other:?}"),
@@ -1730,16 +2088,28 @@ mod tests {
         http.once("/history/", 200, stopped);
         let result = comfy(&http, None).generate(request(Some(1))).await;
         assert!(
-            matches!(result, Err(AutoPaperError::ProviderUnavailable { provider: KIND, reason: ProviderUnavailableReason::Stopped, .. })),
+            matches!(
+                result,
+                Err(AutoPaperError::ProviderUnavailable {
+                    provider: KIND,
+                    reason: ProviderUnavailableReason::Stopped,
+                    ..
+                })
+            ),
             "{result:?}"
         );
         assert!(http.requests().iter().all(|r| !r.url.contains("/api/jobs/")), "an ended job isn't stopped again");
 
-        let no_image = history(json!({ "10": { "images": [] } }), json!({ "status_str": "success", "completed": true, "messages": [] }));
+        let no_image = history(
+            json!({ "10": { "images": [] } }),
+            json!({ "status_str": "success", "completed": true, "messages": [] }),
+        );
         http.once("/prompt", 200, QUEUED);
         http.once("/history/", 200, no_image);
         match comfy(&http, None).generate(request(Some(1))).await {
-            Err(AutoPaperError::PaintingFailed { detail, .. }) => assert!(detail.contains("without saving an image"), "{detail}"),
+            Err(AutoPaperError::PaintingFailed { detail, .. }) => {
+                assert!(detail.contains("without saving an image"), "{detail}")
+            }
             other => panic!("{other:?}"),
         }
     }
@@ -1760,9 +2130,15 @@ mod tests {
         assert_eq!(started.elapsed(), MIN_CEILING);
         let requests = http.requests();
         let last = requests.last().unwrap();
-        assert_eq!((last.method, last.url.as_str()), (HttpMethod::Post, format!("http://127.0.0.1:8188/api/jobs/{PROMPT_ID}/cancel").as_str()));
+        assert_eq!(
+            (last.method, last.url.as_str()),
+            (HttpMethod::Post, format!("http://127.0.0.1:8188/api/jobs/{PROMPT_ID}/cancel").as_str())
+        );
         assert!(last.body.is_none());
-        assert!(requests.iter().all(|r| !r.url.ends_with("/interrupt") && !r.url.ends_with("/queue")), "only this job is cancelled");
+        assert!(
+            requests.iter().all(|r| !r.url.ends_with("/interrupt") && !r.url.ends_with("/queue")),
+            "only this job is cancelled"
+        );
         let polls = requests.iter().filter(|r| r.url.contains("/history/")).count();
         assert_eq!(polls, 900, "at 1 s and every 2 s to 1799 s");
 
@@ -1899,7 +2275,10 @@ mod tests {
         http.once("/api/jobs/", 200, r#"{"cancelled": true}"#);
         let started = tokio::time::Instant::now();
         let result = comfy(&http, None).generate(request(Some(1))).await;
-        assert!(matches!(&result, Err(AutoPaperError::ProviderUnavailable { detail, .. }) if detail == "ComfyUI made no progress for 400 s"), "{result:?}");
+        assert!(
+            matches!(&result, Err(AutoPaperError::ProviderUnavailable { detail, .. }) if detail == "ComfyUI made no progress for 400 s"),
+            "{result:?}"
+        );
         assert_eq!(started.elapsed(), Duration::from_secs(100 + 400));
 
         // Loading a model (a node without steps) may take 10 minutes.
@@ -1910,7 +2289,10 @@ mod tests {
         http.once("/api/jobs/", 200, r#"{"cancelled": true}"#);
         let started = tokio::time::Instant::now();
         let result = comfy(&http, None).generate(request(Some(1))).await;
-        assert!(matches!(&result, Err(AutoPaperError::ProviderUnavailable { detail, .. }) if detail == "ComfyUI made no progress for 600 s"), "{result:?}");
+        assert!(
+            matches!(&result, Err(AutoPaperError::ProviderUnavailable { detail, .. }) if detail == "ComfyUI made no progress for 600 s"),
+            "{result:?}"
+        );
         assert_eq!(started.elapsed(), NODE_STALL);
 
         // Waiting in the queue behind someone else's 25-minute job is never a stall; it finishes by polling.
@@ -1960,7 +2342,10 @@ mod tests {
         assert_eq!(bundled.steps("qwen_image_2.1_int8_convrot.safetensors"), Some(25));
         assert_eq!(bundled.steps("no-workflow.safetensors"), None);
         assert_eq!(comfy(&http, Some(CUSTOM)).steps("anything"), Some(20), "a person's workflow: its own sampler");
-        let refined = CUSTOM.replace(r#""9": {"class_type": "SaveImage""#, r#""10": {"class_type": "KSamplerAdvanced", "inputs": {"steps": 10}}, "9": {"class_type": "SaveImage""#);
+        let refined = CUSTOM.replace(
+            r#""9": {"class_type": "SaveImage""#,
+            r#""10": {"class_type": "KSamplerAdvanced", "inputs": {"steps": 10}}, "9": {"class_type": "SaveImage""#,
+        );
         assert_eq!(comfy(&http, Some(&refined)).steps(""), Some(30), "every sampler counts");
     }
 
@@ -1969,7 +2354,8 @@ mod tests {
         let start = tokio::time::Instant::now();
         let mut watch = JobWatch::new(PROMPT_ID, start, 30, None);
         let progress = |node: &str, value: u32, max: u32| {
-            json!({ "type": "progress", "data": { "value": value, "max": max, "node": node, "prompt_id": PROMPT_ID } }).to_string()
+            json!({ "type": "progress", "data": { "value": value, "max": max, "node": node, "prompt_id": PROMPT_ID } })
+                .to_string()
         };
         assert_eq!(watch.steps(), None);
         assert!(watch.stall_at().is_none(), "queued: no stall window");
@@ -1980,8 +2366,14 @@ mod tests {
         watch.on_message(&progress("12", 2, 16), start);
         assert_eq!(watch.steps(), Some(PaintStep { done: 26, total: 46 }));
         assert!(!watch.on_message("not json", start));
-        assert!(!watch.on_message(&json!({ "type": "executing", "data": { "node": null, "prompt_id": "other" } }).to_string(), start));
-        assert!(watch.on_message(&json!({ "type": "execution_success", "data": { "prompt_id": PROMPT_ID } }).to_string(), start));
+        assert!(!watch.on_message(
+            &json!({ "type": "executing", "data": { "node": null, "prompt_id": "other" } }).to_string(),
+            start
+        ));
+        assert!(watch.on_message(
+            &json!({ "type": "execution_success", "data": { "prompt_id": PROMPT_ID } }).to_string(),
+            start
+        ));
     }
 
     #[tokio::test(start_paused = true)]
@@ -1992,7 +2384,13 @@ mod tests {
         http.once("/api/jobs/", 404, "404: Not Found");
         http.once("/queue", 200, "");
         let result = comfy(&http, None).generate(request(Some(1))).await;
-        assert!(matches!(result, Err(AutoPaperError::ProviderUnavailable { reason: ProviderUnavailableReason::TimedOut, .. })), "{result:?}");
+        assert!(
+            matches!(
+                result,
+                Err(AutoPaperError::ProviderUnavailable { reason: ProviderUnavailableReason::TimedOut, .. })
+            ),
+            "{result:?}"
+        );
         let requests = http.requests();
         let last = requests.last().unwrap();
         assert_eq!((last.method, last.url.as_str()), (HttpMethod::Post, "http://127.0.0.1:8188/queue"));
@@ -2037,7 +2435,13 @@ mod tests {
     async fn not_running_is_unavailable() {
         let http = Arc::new(StubHttp::new());
         match comfy(&http, None).generate(request(Some(1))).await {
-            Err(error @ AutoPaperError::ProviderUnavailable { provider: KIND, reason: ProviderUnavailableReason::NotRunning, .. }) => {
+            Err(
+                error @ AutoPaperError::ProviderUnavailable {
+                    provider: KIND,
+                    reason: ProviderUnavailableReason::NotRunning,
+                    ..
+                },
+            ) => {
                 assert!(error.to_string().contains("ComfyUI isn't running at http://127.0.0.1:8188"), "{error}");
             }
             other => panic!("{other:?}"),
@@ -2051,11 +2455,18 @@ mod tests {
         let outputs = json!({ "9": { "images": [{ "filename": "a b&c=d#e?ü.png", "subfolder": "my dir/x+y", "type": "output" }] } });
         let http = Arc::new(StubHttp::new());
         http.once("/prompt", 200, QUEUED);
-        http.once("/history/", 200, history(outputs, json!({ "status_str": "success", "completed": true, "messages": [] })));
+        http.once(
+            "/history/",
+            200,
+            history(outputs, json!({ "status_str": "success", "completed": true, "messages": [] })),
+        );
         http.once_response("/view", png_response());
         ComfyUi::new(http.clone(), "http://127.0.0.1:8188/".into(), None).generate(request(Some(1))).await.unwrap();
         let view = &http.requests()[2].url;
-        assert_eq!(view, "http://127.0.0.1:8188/view?filename=a+b%26c%3Dd%23e%3F%C3%BC.png&subfolder=my+dir%2Fx%2By&type=output");
+        assert_eq!(
+            view,
+            "http://127.0.0.1:8188/view?filename=a+b%26c%3Dd%23e%3F%C3%BC.png&subfolder=my+dir%2Fx%2By&type=output"
+        );
         let parsed = url::Url::parse(view).unwrap();
         let pairs: Vec<(String, String)> = parsed.query_pairs().into_owned().collect();
         assert_eq!(pairs[0], ("filename".into(), "a b&c=d#e?ü.png".into()));
@@ -2102,8 +2513,12 @@ mod tests {
             async move {
                 let models = comfy(&http, None).list_models().await.unwrap();
                 let requests = http.requests();
-                assert_eq!(requests.len(), 1, "one GET /object_info");
-                assert_eq!((requests[0].method, requests[0].url.as_str()), (HttpMethod::Get, "http://127.0.0.1:8188/object_info"));
+                assert_eq!(requests.len(), 2, "inventory plus optional template catalog");
+                assert_eq!(
+                    (requests[0].method, requests[0].url.as_str()),
+                    (HttpMethod::Get, "http://127.0.0.1:8188/object_info")
+                );
+                assert!(requests[1].url.ends_with("/templates/index.json"));
                 models.into_iter().map(|model| (model.display_name, model.id)).collect::<Vec<_>>()
             }
         };
@@ -2117,19 +2532,22 @@ mod tests {
             [
                 pair("Z-Image Turbo", "z_image_turbo_bf16.safetensors"),
                 pair("Krea 2 Turbo", "krea2_turbo_fp8_scaled.safetensors"),
+                pair("MOSS-Image", "moss_image_sft_int8_convrot.safetensors"),
                 pair("Qwen-Image 2.1", "qwen_image_2.1_int8_convrot.safetensors"),
             ]
         );
-        // Without Qwen-Image 2.1's text encoder, or on a ComfyUI too old for Krea 2's CLIP type: not offered.
+        // Without Qwen-Image 2.1's text encoder, or on a ComfyUI too old for Krea 2's or MOSS-Image's CLIP type: not
+        // offered.
         let mut fewer = object_info();
         without_choice(&mut fewer, "CLIPLoader", "clip_name", "qwen3vl_8b_int8_convrot.safetensors");
         without_choice(&mut fewer, "CLIPLoader", "type", "krea2");
+        without_choice(&mut fewer, "CLIPLoader", "type", "moss_image");
         assert_eq!(listed(&fewer).await, [pair("Z-Image Turbo", "z_image_turbo_bf16.safetensors")]);
         // Without the default's VAE, the others still come by name.
         let mut no_default = object_info();
         without_choice(&mut no_default, "VAELoader", "vae_name", "ae.safetensors");
         let names: Vec<String> = listed(&no_default).await.into_iter().map(|(name, _)| name).collect();
-        assert_eq!(names, ["Krea 2 Turbo", "Qwen-Image 2.1"]);
+        assert_eq!(names, ["Krea 2 Turbo", "MOSS-Image", "Qwen-Image 2.1"]);
 
         let http = Arc::new(StubHttp::new());
         http.once("/object_info", 200, "[]");
@@ -2152,6 +2570,114 @@ mod tests {
     }
 
     #[test]
+    fn discovery_only_inspects_local_text_to_image_templates_without_guessing_weight_families() {
+        let entry = json!({"name":"image_moss_image_t2i", "title":"MOSS-Image", "models":["MOSS Image"],
+            "tags":["Text to Image"], "openSource":true, "mediaType":"image"});
+        let mut api = entry.clone();
+        api["name"] = json!("api_moss");
+        api["tags"] = json!(["Text to Image", "API"]);
+        let mut edit = entry.clone();
+        edit["name"] = json!("edit_moss");
+        edit["io"] = json!({"inputs":[{"nodeType":"LoadImage"}]});
+        let mut video = entry.clone();
+        video["name"] = json!("video_moss");
+        video["mediaType"] = json!("video");
+        let mut traversal = entry.clone();
+        traversal["name"] = json!("../../private");
+        // Real catalog metadata: this family label does not resemble its NetaYumev35 weights.
+        let mut misleading = entry.clone();
+        misleading["name"] = json!("image_netayume_lumina_t2i");
+        misleading["title"] = json!("NetaYume");
+        misleading["models"] = json!(["OmniGen"]);
+        let index = json!([{ "templates": [entry, api, edit, video, traversal, misleading] }]);
+        assert_eq!(
+            template_candidates(&index, &object_info()),
+            [
+                ("image_moss_image_t2i".into(), "MOSS-Image".into()),
+                ("image_netayume_lumina_t2i".into(), "NetaYume".into()),
+            ]
+        );
+        assert!(template_candidates(&index, &Map::new()).is_empty());
+    }
+
+    #[test]
+    fn installed_model_subfolders_are_bound_without_guessing_different_weights() {
+        let mut info = object_info();
+        let files = &mut info["UNETLoader"]["input"]["required"]["unet_name"][0];
+        *files = json!(["my-models/z_image_turbo_bf16.safetensors"]);
+        let bound = bind_available_files(default_workflow(), &info).unwrap();
+        assert_eq!(bound.model().as_deref(), Some("my-models/z_image_turbo_bf16.safetensors"));
+        *info.get_mut("UNETLoader").unwrap().pointer_mut("/input/required/unet_name/0").unwrap() =
+            json!(["a/z_image_turbo_bf16.safetensors", "b/z_image_turbo_bf16.safetensors"]);
+        assert!(bind_available_files(default_workflow(), &info).is_none(), "ambiguous folders are not guessed");
+        info["UNETLoader"]["input"]["required"]["unet_name"][0] = json!(["z_image_turbo_fp8.safetensors"]);
+        assert!(
+            bind_available_files(default_workflow(), &info).is_none(),
+            "another precision needs its own compatible template"
+        );
+    }
+
+    #[tokio::test]
+    async fn automatic_selection_uses_a_runnable_model_and_reuses_preflight_inventory() {
+        let mut info = object_info();
+        without_choice(&mut info, "VAELoader", "vae_name", "ae.safetensors");
+        let http = Arc::new(StubHttp::new());
+        http.once("/object_info", 200, Value::Object(info).to_string());
+        http.once("/templates/index.json", 404, "{}");
+        let provider = comfy(&http, None);
+        provider.check_available().await.unwrap();
+        assert_eq!(provider.resolve_model("").await.unwrap(), "krea2_turbo_fp8_scaled.safetensors");
+        assert!(matches!(
+            provider.resolve_model("z_image_turbo_bf16.safetensors").await,
+            Err(AutoPaperError::PaintingFailed { .. })
+        ));
+        assert_eq!(provider.list_models().await.unwrap().len(), 3);
+        assert_eq!(http.requests().len(), 2, "one inventory and catalog for this run");
+    }
+
+    #[tokio::test]
+    #[ignore = "read-only discovery against a running ComfyUI at 127.0.0.1:8188"]
+    async fn live_discovers_installed_text_to_image_workflows() {
+        let provider = ComfyUi::new(
+            Arc::new(crate::net::ReqwestClient::new("discovery-test").unwrap()),
+            "http://127.0.0.1:8188".into(),
+            None,
+        );
+        for model in provider.list_models().await.unwrap() {
+            println!("{}: {}", model.display_name, model.id);
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "paints one small image on an idle local ComfyUI with an installed model discovered from its official templates"]
+    async fn live_paints_with_a_discovered_official_template() {
+        let http = live_client().await.expect("an idle ComfyUI is required");
+        let provider = ComfyUi::new(http, "http://127.0.0.1:8188".into(), None);
+        let model = provider
+            .list_models()
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|model| !bundled().unwrap().iter().any(|workflow| workflow.model().as_ref() == Some(&model.id)))
+            .expect("install a compatible model beyond the bundled workflows");
+        assert_eq!(provider.resolve_model(&model.id).await.unwrap(), model.id);
+        let started = std::time::Instant::now();
+        let image = provider.generate(live_request(&model.id, None)).await.unwrap();
+        let decoded = image::load_from_memory(&image.bytes).unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (768, 432));
+        assert_eq!(image.model, model.id);
+        let path = std::env::temp_dir().join(format!("autopaper-discovered-{}.png", uuid::Uuid::now_v7()));
+        std::fs::write(&path, &image.bytes).unwrap();
+        eprintln!(
+            "painted {} with {} in {:.1}s: {}",
+            image.bytes.len(),
+            model.display_name,
+            started.elapsed().as_secs_f64(),
+            path.display()
+        );
+    }
+
+    #[test]
     fn reads_combo_choices_in_both_shapes() {
         assert_eq!(combo_choices(Some(&json!([["a", "b"], {}]))), ["a", "b"]);
         assert_eq!(combo_choices(Some(&json!(["COMBO", { "options": ["c"] }]))), ["c"]);
@@ -2170,6 +2696,8 @@ mod tests {
             ("krea2_turbo_fp8_scaled.safetensors", "Krea 2 Turbo"),
             ("krea\\Krea-2-Turbo.safetensors", "Krea 2 Turbo"),
             ("krea2_raw_bf16.safetensors", "Krea 2 Raw"),
+            ("moss_image_sft_int8_convrot.safetensors", "MOSS-Image"),
+            ("moss_image_base_bf16.safetensors", "MOSS-Image"),
             ("qwen_image_fp8_e4m3fn.safetensors", "unknown model"),
             ("sd_xl_base_1.0.safetensors", "unknown model"),
             (CUSTOM_MODEL, "unknown model"),
@@ -2181,6 +2709,8 @@ mod tests {
         assert_eq!((z.max_side, z.max_pixels), (2048, 2_965_760));
         let qwen = model_limits("qwen_image_2.1_int8_convrot.safetensors");
         assert_eq!((qwen.max_side, qwen.max_pixels), (2752, 4_300_800));
+        let moss = model_limits("moss_image_sft_int8_convrot.safetensors");
+        assert_eq!((moss.max_side, moss.max_pixels), (2048, 2_965_760));
         assert_eq!(UNKNOWN_MODEL_LIMITS.max_pixels, 1920 * 1088);
         // The Apple silicon bound: the 8× VAE's attention matrix stays within INT_MAX elements.
         assert!((MPS_VAE8_MAX_PIXELS / 64).pow(2) <= i32::MAX as u64);
@@ -2216,13 +2746,27 @@ mod tests {
         assert_eq!(size_for(&own, "qwen_image_2.1_int8_convrot.safetensors", retina), size_for(&bundled, "", retina));
         assert_eq!(size_for(&comfy(&http, Some(CUSTOM)), "", (3840, 2160)), (1904, 1072), "an unknown model");
 
-        for model in ["", "qwen_image_2.1_int8_convrot.safetensors", "krea2_turbo_fp8_scaled.safetensors", "unknown.gguf"] {
-            let limits = model_limits(if model.is_empty() { bundled.default_model() } else { model });
-            for display in [(4112, 2658), (3456, 2234), (3840, 2160), (2560, 1600), (3440, 1440), (2160, 3840), (1000, 1000), (7680, 4320)] {
+        for model in
+            ["", "qwen_image_2.1_int8_convrot.safetensors", "krea2_turbo_fp8_scaled.safetensors", "unknown.gguf"]
+        {
+            let limits = model_limits(if model.is_empty() { "z_image_turbo_bf16.safetensors" } else { model });
+            for display in [
+                (4112, 2658),
+                (3456, 2234),
+                (3840, 2160),
+                (2560, 1600),
+                (3440, 1440),
+                (2160, 3840),
+                (1000, 1000),
+                (7680, 4320),
+            ] {
                 let (w, h) = size_for(&bundled, model, display);
                 let pixels = u64::from(w) * u64::from(h);
                 assert!(w % 16 == 0 && h % 16 == 0, "{model} {display:?} -> {w}x{h}");
-                assert!(w <= limits.max_side && h <= limits.max_side && pixels <= limits.max_pixels, "{model} {display:?} -> {w}x{h}");
+                assert!(
+                    w <= limits.max_side && h <= limits.max_side && pixels <= limits.max_pixels,
+                    "{model} {display:?} -> {w}x{h}"
+                );
                 let aspect = |w: u32, h: u32| f64::from(w) / f64::from(h);
                 let error = (aspect(w, h) / aspect(display.0, display.1)).ln().abs();
                 assert!(error < 0.01, "{model} {display:?} -> {w}x{h}: aspect off by {error}");
@@ -2324,7 +2868,9 @@ mod tests {
         let provider = ComfyUi::new(http.clone(), "http://127.0.0.1:8188".into(), None);
         let request = ImageRequest {
             model: String::new(),
-            prompt: "Watercolour of a lighthouse on sea cliffs at dusk, soft fog over the water, a wide full-bleed scene".into(),
+            prompt:
+                "Watercolour of a lighthouse on sea cliffs at dusk, soft fog over the water, a wide full-bleed scene"
+                    .into(),
             width: 1920,
             height: 1088,
             quality: ImageQuality::High,
@@ -2344,14 +2890,18 @@ mod tests {
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
         assert!(idle, "ComfyUI is still painting {:.1} s after the cancel", stopped.elapsed().as_secs_f64());
-        let history: Value = serde_json::from_slice(&http.send(get("/history?max_items=1")).await.unwrap().body).unwrap();
+        let history: Value =
+            serde_json::from_slice(&http.send(get("/history?max_items=1")).await.unwrap().body).unwrap();
         let entry = history.as_object().and_then(|entries| entries.values().next()).cloned().unwrap_or_default();
         let messages = entry.pointer("/status/messages").cloned().unwrap_or_default();
         eprintln!(
             "ComfyUI idle {:.1} s after the cancel; last job: status {}, events {}",
             stopped.elapsed().as_secs_f64(),
             entry.pointer("/status/status_str").unwrap_or(&Value::Null),
-            messages.as_array().map(|m| m.iter().filter_map(|e| e.get(0)?.as_str()).collect::<Vec<_>>().join(", ")).unwrap_or_default()
+            messages
+                .as_array()
+                .map(|m| m.iter().filter_map(|e| e.get(0)?.as_str()).collect::<Vec<_>>().join(", "))
+                .unwrap_or_default()
         );
         assert!(messages.to_string().contains("execution_interrupted"), "{entry}");
     }
@@ -2364,7 +2914,9 @@ mod tests {
         let http = Arc::new(crate::net::ReqwestClient::new("live-test").unwrap());
         let queue = http.send(live_get("/queue")).await.ok().filter(|response| response.status == 200)?;
         let queue: Value = serde_json::from_slice(&queue.body).ok()?;
-        let busy = ["queue_running", "queue_pending"].iter().any(|key| queue[key].as_array().is_some_and(|jobs| !jobs.is_empty()));
+        let busy = ["queue_running", "queue_pending"]
+            .iter()
+            .any(|key| queue[key].as_array().is_some_and(|jobs| !jobs.is_empty()));
         if busy {
             eprintln!("skipped: ComfyUI is busy");
             return None;
@@ -2407,7 +2959,8 @@ mod tests {
 
     /// The last job's history events (`execution_success`, `execution_interrupted`, …).
     async fn live_last_events(http: &dyn HttpClient) -> String {
-        let history: Value = serde_json::from_slice(&http.send(live_get("/history?max_items=1")).await.unwrap().body).unwrap();
+        let history: Value =
+            serde_json::from_slice(&http.send(live_get("/history?max_items=1")).await.unwrap().body).unwrap();
         let entry = history.as_object().and_then(|entries| entries.values().next()).cloned().unwrap_or_default();
         let events = entry.pointer("/status/messages").and_then(Value::as_array).cloned().unwrap_or_default();
         events.iter().filter_map(|event| event.get(0)?.as_str().map(String::from)).collect::<Vec<_>>().join(", ")
@@ -2416,7 +2969,9 @@ mod tests {
     fn live_request(model: &str, progress: Option<PaintProgress>) -> ImageRequest {
         ImageRequest {
             model: model.into(),
-            prompt: "Watercolour of a lighthouse on sea cliffs at dusk, soft fog over the water, a wide full-bleed scene".into(),
+            prompt:
+                "Watercolour of a lighthouse on sea cliffs at dusk, soft fog over the water, a wide full-bleed scene"
+                    .into(),
             width: 768,
             height: 432,
             quality: ImageQuality::Standard,
@@ -2436,12 +2991,20 @@ mod tests {
         let Some(http) = live_client().await else { return };
         let (progress, seen) = recorder();
         let started = std::time::Instant::now();
-        let image = ComfyUi::new(http, "http://127.0.0.1:8188".into(), None).generate(live_request("", Some(progress))).await.unwrap();
+        let image = ComfyUi::new(http, "http://127.0.0.1:8188".into(), None)
+            .generate(live_request("", Some(progress)))
+            .await
+            .unwrap();
         let steps = seen.lock().unwrap().clone();
         for (at, step) in &steps {
             eprintln!("  {:>6.2} s  step {}/{}", at.as_secs_f64(), step.done, step.total);
         }
-        eprintln!("painted {} bytes with {} in {:.1} s", image.bytes.len(), image.model, started.elapsed().as_secs_f64());
+        eprintln!(
+            "painted {} bytes with {} in {:.1} s",
+            image.bytes.len(),
+            image.model,
+            started.elapsed().as_secs_f64()
+        );
         let counts: Vec<(u32, u32)> = steps.iter().map(|(_, step)| (step.done, step.total)).collect();
         assert_eq!(counts, (1..=8).map(|done| (done, 8)).collect::<Vec<_>>());
     }
@@ -2465,7 +3028,10 @@ mod tests {
                 std::future::pending::<()>().await;
             }
             let text = self.inner.next_text().await?;
-            if text.as_deref().is_some_and(|text| text.contains(r#""type": "progress""#) || text.contains(r#""type":"progress""#)) {
+            if text
+                .as_deref()
+                .is_some_and(|text| text.contains(r#""type": "progress""#) || text.contains(r#""type":"progress""#))
+            {
                 self.left -= 1;
             }
             Ok(text)
@@ -2526,7 +3092,11 @@ mod tests {
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
             let id = live_running(http.as_ref()).await.expect("a running job");
-            let cancel = HttpRequest { method: HttpMethod::Post, url: format!("http://127.0.0.1:8188/api/jobs/{id}/cancel"), ..live_get("") };
+            let cancel = HttpRequest {
+                method: HttpMethod::Post,
+                url: format!("http://127.0.0.1:8188/api/jobs/{id}/cancel"),
+                ..live_get("")
+            };
             http.send(cancel).await.unwrap();
             std::time::Instant::now()
         };
@@ -2534,7 +3104,10 @@ mod tests {
         let heard_after = cancelled_at.elapsed();
         eprintln!("{result:?} {:.2} s after the cancel", heard_after.as_secs_f64());
         assert!(
-            matches!(&result, Err(AutoPaperError::ProviderUnavailable { reason: ProviderUnavailableReason::Stopped, .. })),
+            matches!(
+                &result,
+                Err(AutoPaperError::ProviderUnavailable { reason: ProviderUnavailableReason::Stopped, .. })
+            ),
             "{result:?}"
         );
         assert!(heard_after < Duration::from_secs(2), "heard on the socket, not at a later poll: {heard_after:?}");

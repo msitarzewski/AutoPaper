@@ -44,16 +44,15 @@ extension ProviderKind {
     }
 
     /// The model picker's blank choice: "Default (gpt-6-luna)", from the core's `default_model`. Ollama and
-    /// OpenAI-compatible servers have no fixed default (they use the first model they list); a ComfyUI workflow of
-    /// the person's own always loads its own model. ComfyUI's own workflows name their models, so its default reads
-    /// "Z-Image Turbo (default)" (the name from `models`, the list `list_models` gave; else AutoPaper's own name for
-    /// it, `BundledWorkflows`).
-    func defaultModelTitle(job: ProviderJob, ownWorkflow: Bool = false, models: [ModelInfo] = []) -> String {
+    /// OpenAI-compatible servers have no fixed default (they use the first model they list). ComfyUI's automatic
+    /// choice uses the first compatible model discovered; the person's own workflow always loads its own model.
+    func defaultModelTitle(job: ProviderJob, ownWorkflow: Bool = false, models: [ModelInfo] = [], listed: Bool = false) -> String {
         if self == .comfyUi && ownWorkflow { return "Default (your workflow's model)" }
-        let model = defaultModel(kind: self, job: job)
-        if self == .comfyUi && job == .images && !model.isEmpty {
-            return "\(BundledWorkflows.name(of: model, listed: models)) (default)"
+        if self == .comfyUi && job == .images {
+            if let first = models.first { return "Automatic (\(ModelMenu.title(of: first, kind: self)))" }
+            return listed ? "No compatible models available" : "Automatic"
         }
+        let model = defaultModel(kind: self, job: job)
         if !model.isEmpty { return "Default (\(model))" }
         switch self {
         case .ollama, .openAiCompatible: return "Default (the server's first model)"
@@ -92,26 +91,32 @@ enum ModelMenu {
         let title: String
     }
 
-    /// The blank choice (the default) first, then the listed models. ComfyUI's are named in words ("Krea 2 Turbo"),
-    /// the default's own entry being the blank choice and the rest by name; other providers' show the name and id
+    /// The blank choice (the default) first, then the listed models. ComfyUI's are named in words ("Krea 2 Turbo");
+    /// every model is also an explicit choice so it can stay pinned. Other providers show the name and id
     /// when they differ. A saved model the list doesn't have stays in the menu, so the menu shows what's saved: as
     /// is while the list couldn't be read (offline, no key yet), and marked "(not available)" for ComfyUI once the
     /// server has answered without it (no workflow for it, or its files are gone).
     static func items(kind: ProviderKind, job: ProviderJob, models: [ModelInfo], saved: String, listed: Bool) -> [Item] {
-        var items = [Item(tag: "", title: kind.defaultModelTitle(job: job, models: models))]
-        var others = models
-        if kind == .comfyUi {
-            let defaultID = defaultModel(kind: kind, job: job)
-            others = models.filter { $0.id != defaultID || $0.id == saved }
-                .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
-        }
+        var items = [Item(tag: "", title: kind.defaultModelTitle(job: job, models: models, listed: listed))]
         if !saved.isEmpty, !models.contains(where: { $0.id == saved }) {
             // ComfyUI's are named in words when AutoPaper knows the model; marked once the server has answered.
             let title = kind == .comfyUi ? BundledWorkflows.name(of: saved) : saved
             items.append(Item(tag: saved, title: kind == .comfyUi && listed ? "\(title) (not available)" : title))
         }
-        items += others.map { Item(tag: $0.id, title: title(of: $0, kind: kind)) }
+        items += models.map { Item(tag: $0.id, title: title(of: $0, kind: kind)) }
         return items
+    }
+
+    /// A connected ComfyUI server can still have no runnable workflow. Both refresh and Test say why.
+    static let noCompatibleModels = "ComfyUI is connected, but no compatible models are available. Install a supported model and its dependencies, then choose Refresh, or use your own workflow."
+
+    static func availabilityProblem(models: [ModelInfo], saved: String) -> String? {
+        if models.isEmpty { return noCompatibleModels }
+        let saved = saved.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !saved.isEmpty && !models.contains(where: { $0.id == saved }) {
+            return "ComfyUI is connected, but \(BundledWorkflows.name(of: saved)) isn't available. Choose another model or Automatic, or use your own workflow."
+        }
+        return nil
     }
 
     static func title(of info: ModelInfo, kind: ProviderKind) -> String {

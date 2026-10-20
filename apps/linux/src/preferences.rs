@@ -8,8 +8,7 @@ use std::rc::{Rc, Weak};
 use adw::prelude::*;
 use autopaper_core::{
     AutoPaperError, InvalidInputReason, MemoryStatus, ModelInfo, ProviderJob, ProviderKind, ProviderSelection,
-    ProviderUnavailableReason, Settings, StorageUsage, default_base_url, default_model, prices_as_of,
-    secret_account_for,
+    ProviderUnavailableReason, Settings, StorageUsage, default_base_url, prices_as_of, secret_account_for,
 };
 use gtk::{gio, glib};
 
@@ -421,8 +420,7 @@ struct ProviderGroup {
     model_ids: RefCell<Vec<String>>,
     /// The provider's models from `list_models` (empty until they load, or when they can't).
     models: RefCell<Vec<ModelInfo>>,
-    /// The blank choice as shown: "Default (gpt-6-luna)".
-    default_label: RefCell<String>,
+    listed: Cell<bool>,
     address: adw::EntryRow,
     quality: Option<adw::ComboRow>,
     /// ComfyUI: AutoPaper's workflow (one per model listed) or the person's own file.
@@ -593,7 +591,7 @@ impl ProviderGroup {
             model,
             model_ids: RefCell::new(vec![String::new()]),
             models: RefCell::new(Vec::new()),
-            default_label: RefCell::new("Default".into()),
+            listed: Cell::new(false),
             address,
             quality,
             workflow,
@@ -763,7 +761,7 @@ impl ProviderGroup {
             workflow.set_subtitle(if own {
                 "AutoPaper fills in its {{prompt}}, {{width}}, {{height}} and {{seed}}."
             } else {
-                "Tested with each model listed, each with its own encoder and settings."
+                "AutoPaper discovers compatible models on your ComfyUI server and chooses a workflow for each."
             });
             file.set_visible(comfy && own);
             line.set_visible(comfy && own);
@@ -799,7 +797,6 @@ impl ProviderGroup {
             _ => self.help.set_visible(false),
         }
         self.updating.set(false);
-        let label = strings::default_model_label(kind, self.job, own);
         let key = self.list_key();
         if kind == ProviderKind::Demo {
             // Demo has no models, key or server: nothing from the provider before it stays.
@@ -813,11 +810,13 @@ impl ProviderGroup {
             self.set_key_problem(None);
             // The models listed for the one before don't belong here (AutoPaper's workflows list theirs, the person's
             // own its loader's): the default alone until its own list loads.
-            self.default_label.replace(label);
-            self.fill_models(&[], &selection.model);
+            self.fill_models(&[], &selection.model, false);
             self.load_models(false);
         } else {
             self.select_model(&selection.model);
+            if comfy && !own && self.listed.get() {
+                self.set_status(strings::comfy_availability_problem(&self.models.borrow(), &selection.model));
+            }
             // Another model was chosen: its own estimate.
             let chosen = self.model_ids.borrow().iter().position(|id| *id == selection.model.trim()).unwrap_or(0);
             self.model.set_subtitle(&self.estimates.line(chosen as u32));
@@ -855,12 +854,18 @@ impl ProviderGroup {
             // A problem is said once, on the status line (or as the key link), never also on the model row.
             match models {
                 Ok(models) => {
-                    this.fill_models(&models, &current.model);
+                    this.fill_models(&models, &current.model, true);
                     this.load_estimates();
                     this.set_key_problem(None);
                     // A refused address the person is correcting stays said until they edit it.
                     if this.status.borrow().is_some() && !this.address_problem_said.get() {
                         this.set_status(None);
+                    }
+                    if current.kind == ProviderKind::ComfyUi
+                        && asked_for.as_ref().is_some_and(|(_, _, own)| !own)
+                        && !this.address_problem_said.get()
+                    {
+                        this.set_status(strings::comfy_availability_problem(&models, &current.model));
                     }
                     if announce {
                         this.model.announce(
@@ -870,7 +875,7 @@ impl ProviderGroup {
                     }
                 }
                 Err(error) => {
-                    this.fill_models(&[], &current.model);
+                    this.fill_models(&[], &current.model, false);
                     this.load_estimates();
                     tracing::info!(problem = %strings::provider_problem(&error), "couldn't list the models");
                     match key_problem(&error) {
@@ -890,32 +895,19 @@ impl ProviderGroup {
         });
     }
 
-    fn fill_models(&self, models: &[ModelInfo], current: &str) {
+    fn fill_models(&self, models: &[ModelInfo], current: &str, listed: bool) {
         self.models.replace(models.to_vec());
+        self.listed.set(listed);
         // Lines by place in the old list don't fit the new one: they come back with `load_estimates`.
         self.estimates.set(Vec::new());
-        let mut ids = vec![String::new()];
-        // The blank choice names the default in words once the provider has listed it ("Default (Z-Image Turbo)"
-        // rather than its file name).
-        let default_id = self.selection().map(|selection| default_model(selection.kind, self.job)).unwrap_or_default();
-        let named_default = models
-            .iter()
-            .find(|model| !default_id.is_empty() && model.id == default_id && !model.display_name.is_empty())
-            .map(|model| format!("Default ({})", model.display_name));
-        let own_workflow = self
-            .app
-            .upgrade()
-            .is_some_and(|app| app.state().settings.comfyui_workflow.as_deref().is_some_and(|text| !text.trim().is_empty()));
-        let mut labels = vec![named_default.filter(|_| !own_workflow).unwrap_or_else(|| self.default_label.borrow().clone())];
-        for model in models {
-            ids.push(model.id.clone());
-            labels.push(if model.display_name.is_empty() { model.id.clone() } else { model.display_name.clone() });
-        }
-        let current = current.trim();
-        if !current.is_empty() && !ids.iter().any(|id| id == current) {
-            ids.push(current.to_string());
-            labels.push(current.to_string());
-        }
+        let Some(selection) = self.selection() else {
+            return;
+        };
+        let own_workflow = self.app.upgrade().is_some_and(|app| {
+            app.state().settings.comfyui_workflow.as_deref().is_some_and(|text| !text.trim().is_empty())
+        });
+        let (ids, labels): (Vec<_>, Vec<_>) =
+            strings::model_choices(selection.kind, self.job, own_workflow, models, current, listed).into_iter().unzip();
         let refs: Vec<&str> = labels.iter().map(String::as_str).collect();
         self.updating.set(true);
         self.model.set_model(Some(&gtk::StringList::new(&refs)));
@@ -1115,11 +1107,13 @@ impl ProviderGroup {
         self.help_button.remove_css_class("suggested-action");
         let job = self.job;
         let weak = Rc::downgrade(self);
+        let asked_for = self.list_key();
         glib::spawn_future_local(async move {
             let kind = selection.kind;
             let result = spawn(async move { engine.test_provider(selection, job).await }).await;
             let Some(this) = weak.upgrade() else { return };
             this.testing.set(false);
+            if this.list_key() != asked_for { return; }
             // A key problem is said once, as the link to the key (not as a Test error too).
             if let Some(refused) = result.as_ref().err().and_then(key_problem) {
                 this.set_status(None);
@@ -1130,6 +1124,14 @@ impl ProviderGroup {
             }
             let text = match &result {
                 Ok(()) => format!("{} works.", strings::provider_name(kind)),
+                Err(AutoPaperError::InvalidInput { reason: InvalidInputReason::NoModels, .. })
+                    if kind == ProviderKind::ComfyUi && asked_for.as_ref().is_some_and(|(_, _, own)| !own) =>
+                {
+                    if let Some(current) = this.selection() {
+                        this.fill_models(&[], &current.model, true);
+                    }
+                    strings::NO_COMPATIBLE_MODELS.to_string()
+                }
                 Err(error) => strings::provider_problem(error),
             };
             if result.is_ok() {

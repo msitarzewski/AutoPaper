@@ -238,23 +238,42 @@ internal static class Text
     /// optional: only if the server asks for one).</summary>
     public static bool NeedsKey(ProviderKind kind) => kind is ProviderKind.OpenAi or ProviderKind.Google;
 
-    /// <summary>The model picker's blank choice: "Default (gpt-6-luna)", from the core's <c>default_model</c>, named
-    /// as the provider lists it when it does, else, for ComfyUI, by AutoPaper's own workflow for it ("Default (Z-Image
-    /// Turbo)" for the file z_image_turbo_bf16.safetensors, also while ComfyUI can't be asked). Ollama and
-    /// OpenAI-compatible servers have no fixed default (they use the first model they list).</summary>
-    public static string DefaultModelChoice(ProviderKind kind, ProviderJob job, IEnumerable<ModelInfo> listed)
+    /// <summary>The blank choice follows the core's default. ComfyUI uses the first compatible model discovered;
+    /// an empty successful list is different from a server that has not answered.</summary>
+    public static string DefaultModelChoice(ProviderKind kind, ProviderJob job, IEnumerable<ModelInfo> listed, bool loaded = false)
     {
+        if (kind == ProviderKind.ComfyUi && job == ProviderJob.Images)
+        {
+            var first = listed.FirstOrDefault();
+            return first is null
+                ? Loc.Get(loaded ? "Models_NoCompatible" : "Models_Automatic")
+                : Loc.Format("Models_AutomaticNamed", string.IsNullOrWhiteSpace(first.DisplayName) ? first.Id : first.DisplayName);
+        }
         var model = AutopaperCoreMethods.DefaultModel(kind, job);
         if (model.Length > 0)
         {
             var named = listed.FirstOrDefault(info => info.Id == model)?.DisplayName;
-            if (string.IsNullOrWhiteSpace(named) && kind == ProviderKind.ComfyUi)
-            {
-                named = AutoPaper.Models.BundledWorkflows.NameOf(model);
-            }
             return Loc.Format("Models_DefaultNamed", string.IsNullOrWhiteSpace(named) ? model : named);
         }
         return kind is ProviderKind.Ollama or ProviderKind.OpenAiCompatible ? Loc.Get("Models_DefaultFirst") : Loc.Get("Models_Default");
+    }
+
+    public static string UnlistedModelChoice(ProviderKind kind, string id, bool loaded)
+    {
+        var name = kind == ProviderKind.ComfyUi ? AutoPaper.Models.BundledWorkflows.NameOf(id) ?? id : id;
+        return kind == ProviderKind.ComfyUi && loaded ? Loc.Format("Models_Unavailable", name) : name;
+    }
+
+    public static string? ComfyAvailabilityProblem(IReadOnlyList<ModelInfo> models, string saved)
+    {
+        if (models.Count == 0)
+        {
+            return Loc.Get("Models_NoCompatibleHelp");
+        }
+        saved = saved.Trim();
+        return saved.Length > 0 && !models.Any(model => model.Id == saved)
+            ? Loc.Format("Models_SelectedUnavailable", AutoPaper.Models.BundledWorkflows.NameOf(saved) ?? saved)
+            : null;
     }
 
     /// <summary>The person's own lock screen put back (Restore my wallpaper, quit), or what Windows didn't let AutoPaper

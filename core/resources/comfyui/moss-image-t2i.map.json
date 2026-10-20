@@ -1,0 +1,74 @@
+{
+  "template": "moss-image-t2i.json",
+  "name": "MOSS-Image",
+  "format": "ComfyUI API-format prompt graph: {node_id: {class_type, inputs}}. POST it as the `prompt` field of POST /prompt.",
+  "model": "MOSS-Image SFT (OpenMOSS), ComfyUI repack Comfy-Org/MOSS-Image (int8 convrot weights, w4a8 GPTQ Qwen3.5 9B text encoder, small FLUX.2 VAE)",
+  "licence": {
+    "name": "Apache License 2.0",
+    "url": "https://huggingface.co/OpenMOSS-Team/MOSS-Image-SFT"
+  },
+  "source": "Comfy-Org's template image_moss_image_t2i (workflow_templates 0.11.89) converted to the API format: its files, sampling (25 steps, cfg 2.5, er_sde, simple) and recommended negative prompt, with its two switches as shipped: skip-layer guidance off, so the KSampler takes the UNETLoader's model directly. Its prompt upsampler (TextGenerate on the same text encoder) is left out because AutoPaper's writer already composes a full caption. The graph that painted the recorded request on the user's Mac.",
+  "requires": {
+    "diffusion_models": [
+      "moss_image_sft_int8_convrot.safetensors"
+    ],
+    "text_encoders": [
+      "qwen3.5_9b_w4a8_gptq.safetensors"
+    ],
+    "vae": [
+      "flux2-vae_small.safetensors"
+    ],
+    "custom_nodes": []
+  },
+  "tested_with": {
+    "comfyui": "0.41.0 (master 872eb6a3)",
+    "device": "mps (Apple Silicon)",
+    "date": "2026-10-18"
+  },
+  "placeholders": {
+    "prompt": {
+      "node": "4",
+      "input": "text",
+      "class_type": "CLIPTextEncode",
+      "token": "{{prompt}}",
+      "type": "string"
+    },
+    "width": {
+      "node": "7",
+      "input": "width",
+      "class_type": "EmptyFlux2LatentImage",
+      "token": "{{width}}",
+      "type": "int"
+    },
+    "height": {
+      "node": "7",
+      "input": "height",
+      "class_type": "EmptyFlux2LatentImage",
+      "token": "{{height}}",
+      "type": "int"
+    },
+    "seed": {
+      "node": "8",
+      "input": "seed",
+      "class_type": "KSampler",
+      "token": "{{seed}}",
+      "type": "int"
+    }
+  },
+  "output": {
+    "node": "10",
+    "class_type": "SaveImage"
+  },
+  "negative_prompt": "Node 5 holds the negative prompt the MOSS-Image user guide recommends (nsfw, worst quality, bad anatomy, watermark, jpeg artifact), as Comfy-Org's template does.",
+  "notes": [
+    "Native MOSS-Image support (CLIPLoader type 'moss_image', comfy/ldm/moss_image) landed in ComfyUI master on 2026-10-16 (PR #17095): AutoPaper offers this model only when the server lists that type.",
+    "The w4a8 GPTQ text encoder runs on Apple silicon through comfy-kitchen's eager w4a8_int8_linear.",
+    "Width and height must be multiples of 16. AutoPaper asks for at most 2048 a side and 2,965,760 pixels: the FLUX.2 VAE decodes 2048x1440 on Apple silicon and fails at 2048x1456 and 2048x2048 ('MPSGraph does not support tensor dims larger than INT_MAX'), the same bound as the 8x VAEs (core/src/providers/comfyui.rs MODEL_LIMITS). The model card's range is 0.25 to 4 megapixels.",
+    "MOSS-Image renders text well; AutoPaper's prompts ask for none, so it paints scenes like the others.",
+    "filename_prefix 'autopaper/wallpaper' makes ComfyUI write into output/autopaper/."
+  ],
+  "measured_seconds": {
+    "2032x1312_cold": "446 on M5 Max, 2026-10-18: the recorded request (tests/fixtures/comfyui/prompt-moss-image.request.json), 25 steps at 16.6-17.3 s a step, text encoder (7.0 GB) and model (5.2 GB) loaded from disk",
+    "1024x1024_cold": "160 on M5 Max, 2026-10-18 (25 steps, 5.84 s a step; that run had skip-layer guidance on)"
+  }
+}

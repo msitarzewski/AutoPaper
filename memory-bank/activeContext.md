@@ -1,8 +1,20 @@
 # Active Context
 
-## Current: 0.2.0 in progress (2026-10-15)
+## Current: 0.2.0 release in progress (2026-10-20)
+- User: “Ship the current work.” Branch `codex/comfy-discovery`, checkout `/private/tmp/autopaper-comfy-discovery-gs5xh94i`.
+- Scope: MOSS + live ComfyUI workflow discovery, Mac provider wizard/Now layout/Settings scrolling and activation,
+  plus the already committed experimental Foundry Local preset. Version 0.2.0, Mac build 11.
+- Source frozen for native/package checks. Signing, notarization, cross-platform publishing and documentation authorized.
+- `tasks/2026-10/261018_moss-image-workflow.md#Follow-up: discovery, Mac setup and window fixes (approved 2026-10-20)`
+  records implementation and prior QA. Final release results still pending.
+- Later roadmap features (Atmosphere, manual Image Playground, ChatGPT terms spike, sounds) are deferred beyond this batch.
+
+## Earlier 0.2.0 plan (2026-10-15)
 - v0.1.5 shipped on Mac and Windows only (tag `v0.1.5` stays; no Flatpak: the Linux build arrives with 0.2.0, user decision). Public release is **v0.1.5**.
 - 0.2.0 build order (approved plan in `progress.md#Next`): **1. Foundry Local preset: BUILT and committed 2026-10-15** (core `Settings.small_text_model`, `ComposeRequest.plain_json`, `OnDevice.plain_json`; Windows switch + warning dialog + "Find Foundry Local" button, `Services/Foundry.cs`; issue template `foundry_local_report.md`; untested on real GPU/NPU hardware, so it ships experimental and community-verified). 2. Atmosphere (light/dark + accent) next. Then Image Playground sheet, ChatGPT sign-in spike, sounds.
+- 2026-10-18 (user request): **MOSS-Image bundled ComfyUI workflow** built on branch `comfyui-moss-image`
+  (worktree `../autopaper-moss-image`), uncommitted: see `tasks/2026-10/261018_moss-image-workflow.md`. Not yet
+  installed on the Mac (installed app is still 0.1.1 build 6) or tested on Windows/Linux builds.
 - Before tagging 0.2.0: regenerate `packaging/flatpak/cargo-sources.json` if dependencies changed; re-run the OSV check; merge uuid #4 after 2026-10-17.
 
 ## (earlier) v0.1.5 (2026-10-14) [SHIPPED]

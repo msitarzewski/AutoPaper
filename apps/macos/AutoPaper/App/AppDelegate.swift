@@ -29,14 +29,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Only the welcome comes forward by itself: it opens on the first launch, which the person started. The main
         // window reopening at launch (perhaps at login) doesn't take focus from what the person is doing; opening it
         // from a menu, the Dock or a notification activates AutoPaper there (`AppModel.showMainWindow`).
-        if id == WindowID.welcome { Self.bringForwardAtFirstLaunch() }
+        if id == WindowID.welcome { Self.activateForUserRequest() }
     }
 
-    /// The welcome opens on the first launch, which the person started, so it should be in front. Launch Services
-    /// doesn't activate an agent (LSUIElement) app it opens, and with no event of AutoPaper's own the cooperative
-    /// `activate()` is declined, leaving the welcome behind whatever was in front (checked on macOS 27 with Stage
-    /// Manager). So the frontmost app is named as the source of the activation.
-    private static func bringForwardAtFirstLaunch() {
+    /// First-launch welcome and explicit window requests should come forward even while AutoPaper has no Dock
+    /// icon. Cooperative activation alone can be declined for an agent (LSUIElement) app, so name the frontmost
+    /// app as the source of the activation.
+    static func activateForUserRequest() {
         NSApp.activate()
         if let front = NSWorkspace.shared.frontmostApplication, front != NSRunningApplication.current {
             NSRunningApplication.current.activate(from: front, options: [])

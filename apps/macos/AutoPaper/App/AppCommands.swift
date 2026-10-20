@@ -11,6 +11,9 @@ struct AppCommands: Commands {
     let model: AppModel
 
     var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            SettingsCommands()
+        }
         CommandGroup(replacing: .newItem) {
             NewItemCommands(model: model)
         }
@@ -32,6 +35,15 @@ struct AppCommands: Commands {
         CommandGroup(after: .appInfo) {
             Button("Check for Updates…") { Updates.shared.checkForUpdates() }
         }
+    }
+}
+
+private struct SettingsCommands: View {
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        Button("Settings…") { SettingsWindow.show(openSettings) }
+            .keyboardShortcut(",", modifiers: .command)
     }
 }
 

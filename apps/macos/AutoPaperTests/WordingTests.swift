@@ -289,11 +289,11 @@ struct CoreDefaultTests {
         #expect(ProviderKind.ollama.defaultModelTitle(job: .concepts) == "Default (the server's first model)")
         #expect(ProviderKind.openAiCompatible.defaultModelTitle(job: .images) == "Default (the server's first model)")
         #expect(ProviderKind.comfyUi.defaultModelTitle(job: .images, ownWorkflow: true) == "Default (your workflow's model)")
-        // AutoPaper's ComfyUI workflows name their models: "Z-Image Turbo (default)", from the list, or from
-        // AutoPaper's own names while the server can't be asked.
-        #expect(ProviderKind.comfyUi.defaultModelTitle(job: .images) == "Z-Image Turbo (default)")
-        let listed = [ModelInfo(id: defaultModel(kind: .comfyUi, job: .images), displayName: "Z-Image Turbo")]
-        #expect(ProviderKind.comfyUi.defaultModelTitle(job: .images, models: listed) == "Z-Image Turbo (default)")
+        #expect(defaultModel(kind: .comfyUi, job: .images).isEmpty)
+        #expect(ProviderKind.comfyUi.defaultModelTitle(job: .images) == "Automatic")
+        let listed = [ModelInfo(id: "moss_image.safetensors", displayName: "MOSS-Image")]
+        #expect(ProviderKind.comfyUi.defaultModelTitle(job: .images, models: listed) == "Automatic (MOSS-Image)")
+        #expect(ProviderKind.comfyUi.defaultModelTitle(job: .images, listed: true) == "No compatible models available")
     }
 
     @Test func addressesComeFromTheCore() {
@@ -506,23 +506,40 @@ struct ModelMenuTests {
         ModelMenu.items(kind: .comfyUi, job: .images, models: models, saved: saved, listed: listed).map(\.title)
     }
 
-    @Test("The default first, then the others by name, each in words")
+    @Test("Automatic follows the first discovered model, with explicit choices for every model")
     func readableTitles() {
-        #expect(titles([qwen, zImage, krea]) == ["Z-Image Turbo (default)", "Krea 2 Turbo", "Qwen-Image 2.1"])
+        #expect(titles([qwen, zImage, krea]) == ["Automatic (Qwen-Image 2.1)", "Qwen-Image 2.1", "Z-Image Turbo", "Krea 2 Turbo"])
         let items = ModelMenu.items(kind: .comfyUi, job: .images, models: [zImage, krea, qwen], saved: "", listed: true)
-        #expect(items.map(\.tag) == ["", krea.id, qwen.id])
+        #expect(items.map(\.tag) == ["", zImage.id, krea.id, qwen.id])
+        #expect(titles([krea]) == ["Automatic (Krea 2 Turbo)", "Krea 2 Turbo"])
+    }
+
+    @Test("An empty result is different from a server that has not answered")
+    func emptyDiscovery() {
+        #expect(titles([]) == ["No compatible models available"])
+        #expect(titles([], listed: false) == ["Automatic"])
+        #expect(titles([], saved: krea.id) == ["No compatible models available", "Krea 2 Turbo (not available)"])
+    }
+
+    @Test("Test and Refresh require a runnable automatic or explicit model")
+    func availability() {
+        #expect(ModelMenu.availabilityProblem(models: [], saved: "") == ModelMenu.noCompatibleModels)
+        #expect(ModelMenu.availabilityProblem(models: [krea], saved: "") == nil)
+        #expect(ModelMenu.availabilityProblem(models: [krea], saved: krea.id) == nil)
+        #expect(ModelMenu.availabilityProblem(models: [krea], saved: qwen.id)
+            == "ComfyUI is connected, but Qwen-Image 2.1 isn't available. Choose another model or Automatic, or use your own workflow.")
     }
 
     @Test("A saved model the server no longer offers is marked, not offered")
     func unavailableModel() {
         let saved = "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors"
         #expect(titles([zImage, krea], saved: saved)
-            == ["Z-Image Turbo (default)", "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot (not available)", "Krea 2 Turbo"])
+            == ["Automatic (Z-Image Turbo)", "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot (not available)", "Z-Image Turbo", "Krea 2 Turbo"])
         // Before ComfyUI has answered (not running), it's what's saved, in words where AutoPaper knows the model.
         #expect(titles([], saved: saved, listed: false)
-            == ["Z-Image Turbo (default)", "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot"])
-        #expect(titles([], saved: krea.id, listed: false) == ["Z-Image Turbo (default)", "Krea 2 Turbo"])
-        #expect(titles([zImage], saved: qwen.id) == ["Z-Image Turbo (default)", "Qwen-Image 2.1 (not available)"])
+            == ["Automatic", "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot"])
+        #expect(titles([], saved: krea.id, listed: false) == ["Automatic", "Krea 2 Turbo"])
+        #expect(titles([zImage], saved: qwen.id) == ["Automatic (Z-Image Turbo)", "Qwen-Image 2.1 (not available)", "Z-Image Turbo"])
     }
 
     @Test("AutoPaper's names for its own workflows' models match the core's workflow files")
@@ -542,8 +559,7 @@ struct ModelMenuTests {
             found[String(model)] = name
         }
         #expect(found == BundledWorkflows.names)
-        // The core's default is one of them.
-        #expect(BundledWorkflows.names[defaultModel(kind: .comfyUi, job: .images)] == "Z-Image Turbo")
+        #expect(BundledWorkflows.names["z_image_turbo_bf16.safetensors"] == "Z-Image Turbo")
     }
 
     @Test("Other providers keep their name and id")
@@ -1051,6 +1067,64 @@ struct ProvenanceTests {
         #expect(settings.imageProvider.model == "gemini-3-pro-image")
         ProviderChoice.choose(model: "", for: .images, in: &settings)
         #expect(settings.imageProvider.model == "", "back to the default")
+    }
+}
+
+@Suite("First-run provider setup")
+struct WelcomeSetupTests {
+    private func settings() -> AutopaperCore.Settings {
+        AutopaperCore.Settings(
+            surprise: 0.35, cadence: .daily, paused: false, quietPeriod: .sixMonths, echoes: .sometimes,
+            textProvider: ProviderSelection(kind: .demo, model: "", baseUrl: nil),
+            imageProvider: ProviderSelection(kind: .demo, model: "", baseUrl: nil),
+            imageQuality: .standard, monthlyBudgetCents: 500, fallback: .revisitLiked, replaceDisliked: true,
+            setLockScreen: false, matchSystemTheme: true, smallTextModel: false, storageLimitMb: 2_048, comfyuiWorkflow: nil)
+    }
+
+    @Test func appleWriterUsesARealPainterAndPreservesConfiguredChoices() {
+        var value = settings()
+        WelcomeSetup.apply(writer: .system, painter: .comfyUi, to: &value)
+        #expect(value.textProvider.kind == .system)
+        #expect(value.imageProvider.kind == .comfyUi)
+        let painter = ProviderSelection(kind: .openAiCompatible, model: "installed-painter", baseUrl: "http://127.0.0.1:9000/v1")
+        value.imageProvider = painter
+        WelcomeSetup.apply(writer: .system, painter: .comfyUi, to: &value)
+        #expect(value.imageProvider == painter)
+        WelcomeSetup.apply(writer: .demo, painter: .demo, to: &value)
+        #expect(value.textProvider.kind == .demo && value.imageProvider.kind == .demo)
+    }
+
+    @Test func localSetupKeepsModelsAndCommitsFocusedAddressDrafts() {
+        var value = settings()
+        value.textProvider = ProviderSelection(kind: .ollama, model: "qwen3:8b", baseUrl: "http://127.0.0.1:11434")
+        value.imageProvider = ProviderSelection(kind: .comfyUi, model: "moss_image_sft.safetensors", baseUrl: "http://127.0.0.1:8188")
+        let before = value
+        WelcomeSetup.apply(writer: .ollama, painter: .comfyUi, to: &value)
+        #expect(value == before)
+        WelcomeSetup.apply(addresses: [.images: " http://127.0.0.1:18888 "], to: &value)
+        #expect(value.imageProvider.baseUrl == "http://127.0.0.1:18888")
+        #expect(value.imageProvider.model == before.imageProvider.model)
+        #expect(value.textProvider == before.textProvider)
+    }
+
+    @Test func unavailableModelsCannotCompleteRealSetup() {
+        let selection = ProviderSelection(kind: .comfyUi, model: "", baseUrl: nil)
+        #expect(WelcomeSetup.availabilityProblem(selection: selection, job: .images, models: []) != nil)
+        let available = [ModelInfo(id: "moss.safetensors", displayName: "MOSS-Image")]
+        #expect(WelcomeSetup.availabilityProblem(selection: selection, job: .images, models: available) == nil)
+        let missing = ProviderSelection(kind: .comfyUi, model: "missing.safetensors", baseUrl: nil)
+        #expect(WelcomeSetup.availabilityProblem(selection: missing, job: .images, models: available) != nil)
+        let writer = ProviderSelection(kind: .ollama, model: "", baseUrl: nil)
+        #expect(WelcomeSetup.availabilityProblem(selection: writer, job: .concepts, models: [])?.contains("no writing models") == true)
+        let demo = ProviderSelection(kind: .demo, model: "", baseUrl: nil)
+        #expect(WelcomeSetup.availabilityProblem(selection: demo, job: .images, models: []) != nil)
+    }
+
+    @Test func skippedOrIncompleteSetupDoesNotRestartSchedulingOnLaunch() {
+        #expect(WelcomeSetup.resumesLegacySetup(welcomeDone: false, inProgress: false))
+        #expect(!WelcomeSetup.resumesLegacySetup(welcomeDone: false, inProgress: true))
+        #expect(!WelcomeSetup.resumesLegacySetup(welcomeDone: true, inProgress: false))
+        #expect(!WelcomeSetup.resumesLegacySetup(welcomeDone: true, inProgress: true))
     }
 }
 

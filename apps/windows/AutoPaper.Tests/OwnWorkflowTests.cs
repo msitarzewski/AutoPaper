@@ -48,13 +48,12 @@ public sealed class OwnWorkflowTests
     }
 
     /// <summary>AutoPaper's own workflows are read from the files the core is built with: each names the model its
-    /// loader loads, and the core's default ComfyUI model is one of them (WordingTests: the picker's words).</summary>
+    /// loader loads (WordingTests checks the picker's automatic choice separately).</summary>
     [TestMethod]
     public void BundledWorkflowsNameTheirModels()
     {
-        Assert.HasCount(3, BundledWorkflows.All);
-        var model = AutopaperCoreMethods.DefaultModel(ProviderKind.ComfyUi, ProviderJob.Images);
-        Assert.AreEqual("Z-Image Turbo", BundledWorkflows.NameOf(model));
+        Assert.HasCount(4, BundledWorkflows.All);
+        Assert.AreEqual("Z-Image Turbo", BundledWorkflows.NameOf("z_image_turbo_bf16.safetensors"));
         Assert.AreEqual("Krea 2 Turbo", BundledWorkflows.NameOf("krea2_turbo_fp8_scaled.safetensors"));
         Assert.IsNull(BundledWorkflows.NameOf("not-one-of-ours.safetensors"));
     }

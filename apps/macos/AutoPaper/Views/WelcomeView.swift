@@ -2,7 +2,7 @@ import AutopaperCore
 import SwiftUI
 
 /// The first run (spec §4): "Tell your computer what you'd like to see." Three steps — a few keywords, who writes
-/// and paints, a key if one is needed — then Make My First Wallpaper. Skippable with Not Now. The examples are
+/// and paints, connections and models or a key — then Make My First Wallpaper. Skippable with Not Now. The examples are
 /// shown, never saved.
 struct WelcomeView: View {
     @Environment(AppModel.self) private var model
@@ -11,6 +11,10 @@ struct WelcomeView: View {
     @State private var keywords: [String] = []
     @State private var draft = ""
     @State private var start: AppModel.Start = .openAI
+    @State private var choseProvider = false
+    @State private var prepared = false
+    @State private var page = 0
+    @State private var addresses: [ProviderJob: String] = [:]
     /// A key has been entered for the chosen provider (OpenAI and Gemini need one).
     @State private var keyEntered: [AppModel.Start: Bool] = [:]
     /// Keywords the engine didn't take when Make My First Wallpaper was chosen, with why (the rest were saved).
@@ -55,10 +59,12 @@ struct WelcomeView: View {
         .fixedSize(horizontal: false, vertical: true)
         .onAppear {
             keywordFocused = true
-            preferOnThisMac()
+            prepareIfReady()
         }
         // The status arrives after launch; until the person has picked something else, the free, private writer leads.
         .onChange(of: model.systemModel?.available) { preferOnThisMac() }
+        .onChange(of: model.phase) { prepareIfReady() }
+        .onChange(of: page) { keywordFocused = page == 0 }
     }
 
     /// The tallest the steps may be: the screen's visible height less the title bar and the buttons (a 1280 × 800
@@ -69,7 +75,8 @@ struct WelcomeView: View {
 
     private var stepTitle: String {
         switch start {
-        case .demo, .onThisMac: "Nothing else to add"
+        case .demo: "Try gradients"
+        case .onThisMac: "Choose who paints"
         case .local: "Set up Ollama and ComfyUI"
         case .openAI, .gemini: "Add your key"
         }
@@ -91,7 +98,7 @@ struct WelcomeView: View {
                 }
             }
 
-            step(1, "Add a few keywords") {
+            if page == 0 { step(1, "Add a few keywords") {
                 HStack(spacing: 8) {
                     TextField("Keyword", text: $draft, prompt: Text("For example: \(Self.examples)"))
                         .textFieldStyle(.roundedBorder)
@@ -127,10 +134,15 @@ struct WelcomeView: View {
                 if savedOthers && !refusals.isEmpty {
                     Text("Your other keywords are saved.")
                 }
-            }
+            } }
 
-            step(2, "Choose who writes and paints") {
-                Picker("Who writes and paints", selection: $start) {
+            if page == 1 { step(2, "Choose who writes and paints") {
+                Picker("Who writes and paints", selection: Binding(get: { start }, set: { choice in
+                    choseProvider = true
+                    start = choice
+                    problem = nil
+                    model.prepareWelcome(start: choice)
+                })) {
                     ForEach(AppModel.Start.allCases.filter { $0 != .onThisMac || model.systemModel?.available == true }) { choice in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(choice.title)
@@ -141,9 +153,9 @@ struct WelcomeView: View {
                 }
                 .pickerStyle(.radioGroup)
                 .labelsHidden()
-            }
+            } }
 
-            step(3, stepTitle) {
+            if page == 2 { step(3, stepTitle) {
                 if needsKey {
                     // Why Make My First Wallpaper is dimmed, in words (a disabled button's help tag isn't reliable).
                     Label("Paste your key to continue.", systemImage: "key")
@@ -164,24 +176,18 @@ struct WelcomeView: View {
                     Text("A free Gemini key may let Google use what you send to improve its products; a paid project doesn't.")
                         .fixedSize(horizontal: false, vertical: true)
                 case .local:
-                    Text("Ollama and ComfyUI need to be running on this Mac, each with a model downloaded.")
+                    Text("Connect your local services and choose their installed models. AutoPaper checks both before making your first wallpaper.")
                         .fixedSize(horizontal: false, vertical: true)
-                    GroupBox {
-                        VStack(alignment: .leading, spacing: 10) {
-                            BrewBrowserHelp(kind: .ollama)
-                            Divider()
-                            BrewBrowserHelp(kind: .comfyUi)
-                        }
-                        .padding(6)
-                    }
+                    providerSetup(includeWriter: true)
                 case .onThisMac:
-                    Text("Apple Intelligence runs on this Mac: nothing to add and nothing is sent anywhere. Choose a painter any time in Settings → Providers.")
+                    Text("Apple Intelligence writes the ideas. Choose a painter to turn them into images; ComfyUI uses models installed on your Mac or local network.")
                         .fixedSize(horizontal: false, vertical: true)
+                    providerSetup(includeWriter: false)
                 case .demo:
                     Text("The Demo needs no key and costs nothing. Choose real providers any time in Settings → Providers.")
                         .fixedSize(horizontal: false, vertical: true)
                 }
-            }
+            } }
 
             if let problem {
                 // Next to the button that was chosen; also announced.
@@ -189,6 +195,7 @@ struct WelcomeView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .disabled(finishing)
     }
 
     private var buttons: some View {
@@ -198,14 +205,31 @@ struct WelcomeView: View {
                     dismissWindow(id: WindowID.welcome)
                 }
                 .keyboardShortcut(.cancelAction)
+                .disabled(finishing)
                 Spacer()
-                Button("Make My First Wallpaper") {
+                if page > 0 {
+                    Button("Back") { page -= 1; problem = nil }
+                        .disabled(finishing)
+                }
+                if page < 2 {
+                    Button("Continue") {
+                        if page == 0 { addDraft() }
+                        page += 1
+                    }
+                    .keyboardShortcut(keywordFocused ? nil : .defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.phase != .ready || !prepared)
+                } else {
+                Button(finishing ? "Checking setup…" : "Make My First Wallpaper") {
                     addDraft()
-                    let chosen = keywords, choice = start
+                    // Commit the active address field before reading the saved provider choices.
+                    NSApp.keyWindow?.makeFirstResponder(nil)
+                    let chosen = keywords, choice = start, drafts = addresses
                     finishing = true
                     problem = nil
                     Task {
-                        let outcome = await model.finishWelcome(keywords: chosen, start: choice)
+                        await Task.yield()
+                        let outcome = await model.finishWelcome(keywords: chosen, start: choice, addresses: drafts)
                         finishing = false
                         switch outcome {
                         case .started:
@@ -217,6 +241,7 @@ struct WelcomeView: View {
                             savedOthers = savedOthers || chosen.count > refused.count
                             keywords = refused.map(\.keyword)
                             refusals = refused
+                            page = 0
                             model.announce(refused.map { "“\($0.keyword)” wasn't added. \($0.reason)" }.joined(separator: " "))
                             keywordFocused = true
                         case .failed(let sentence):
@@ -229,16 +254,60 @@ struct WelcomeView: View {
                 // welcome with a keyword half typed; from anywhere else Return chooses this button.
                 .keyboardShortcut(keywordFocused ? nil : .defaultAction)
                 .buttonStyle(.borderedProminent)
-                .disabled(model.phase != .ready || needsKey || finishing || !refusals.isEmpty)
+                .disabled(model.phase != .ready || !prepared || needsKey || finishing || !refusals.isEmpty)
                 .help(needsKey ? "Add your key first"
                       : !refusals.isEmpty ? "Remove the keywords that weren't added first"
                       : "Saves your keywords and makes a wallpaper now")
+                }
             }
     }
 
     /// The chosen provider needs a key and none has been entered yet.
     private func preferOnThisMac() {
-        if model.systemModel?.available == true, start == .openAI { start = .onThisMac }
+        if !choseProvider, model.systemModel?.available == true, start == .openAI {
+            start = .onThisMac
+            if prepared { model.prepareWelcome(start: start) }
+        }
+    }
+
+    private func prepareIfReady() {
+        guard !prepared, model.phase == .ready else { return }
+        // Resume the saved writer and painter after an interrupted first run.
+        let resuming = model.welcomeStart != nil
+        if let saved = model.welcomeStart {
+            start = saved
+            choseProvider = true
+        } else if let settings = model.settings, settings.textProvider.kind != .demo || settings.imageProvider.kind != .demo {
+            switch settings.textProvider.kind {
+                case .system: start = .onThisMac
+                case .google: start = .gemini
+                case .openAi: start = .openAI
+                default: start = .local
+            }
+            choseProvider = true
+        } else {
+            preferOnThisMac()
+        }
+        prepared = true
+        model.prepareWelcome(start: start, applyPreset: !resuming)
+    }
+
+    @ViewBuilder
+    private func providerSetup(includeWriter: Bool) -> some View {
+        if let settings = model.settings {
+            Form {
+                if includeWriter {
+                    ProviderSection(job: .concepts, selection: settings.textProvider, onboarding: true,
+                        onAddressChange: { addresses[.concepts] = $0 })
+                }
+                ProviderSection(job: .images, selection: settings.imageProvider, quality: settings.imageQuality,
+                    workflow: settings.comfyuiWorkflow, onboarding: true,
+                    onAddressChange: { addresses[.images] = $0 })
+            }
+            .formStyle(.grouped)
+            .scrollDisabled(true)
+            .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private var needsKey: Bool {

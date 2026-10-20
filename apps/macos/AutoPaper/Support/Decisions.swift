@@ -1,7 +1,49 @@
 import Foundation
+import AutopaperCore
 
 // Small decisions the app makes about the Dock, the desktop and the schedule, kept apart from AppKit and the engine
 // so the unit tests (which compile only this folder) can check them.
+
+/// First-run presets select providers without erasing an address or model the person already chose.
+enum WelcomeSetup {
+    static func resumesLegacySetup(welcomeDone: Bool, inProgress: Bool) -> Bool {
+        !welcomeDone && !inProgress
+    }
+
+    static func apply(writer: ProviderKind, painter: ProviderKind, to settings: inout AutopaperCore.Settings) {
+        if settings.textProvider.kind != writer {
+            settings.textProvider = ProviderSelection(kind: writer, model: "", baseUrl: nil)
+        }
+        // Apple Intelligence only writes. Keep an already configured real painter, or offer ComfyUI setup.
+        if writer == .system && settings.imageProvider.kind != .demo { return }
+        if settings.imageProvider.kind != painter {
+            settings.imageProvider = ProviderSelection(kind: painter, model: "", baseUrl: nil)
+        }
+    }
+
+    static func apply(addresses: [ProviderJob: String], to settings: inout AutopaperCore.Settings) {
+        for (job, draft) in addresses {
+            let path = ProviderChoice.keyPath(job)
+            guard settings[keyPath: path].kind.takesAddress else { continue }
+            let address = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+            settings[keyPath: path].baseUrl = address.isEmpty ? nil : address
+        }
+    }
+
+    static func availabilityProblem(selection: ProviderSelection, job: ProviderJob, models: [ModelInfo], ownWorkflow: Bool = false) -> String? {
+        if selection.kind == .demo { return "Choose a real provider, or select Try it without AI to use gradients." }
+        if selection.kind == .system || ownWorkflow { return nil }
+        if selection.kind == .comfyUi {
+            return ModelMenu.availabilityProblem(models: models, saved: selection.model)
+        }
+        let role = job == .concepts ? "writing" : "painting"
+        if models.isEmpty { return "\(selection.kind.name) is connected, but no \(role) models are available. Add a model, then refresh the list." }
+        if !selection.model.isEmpty && !models.contains(where: { $0.id == selection.model }) {
+            return "The selected \(role) model isn't available. Choose a model from the refreshed list."
+        }
+        return nil
+    }
+}
 
 /// AutoPaper is a menu bar utility: in the Dock only while one of its windows is open, or when its menu bar item is
 /// hidden, so there's always a way in (AudioPaper's `updateDockPresence`).

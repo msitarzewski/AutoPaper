@@ -1,0 +1,104 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "moss_image_sft_int8_convrot.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "2": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "qwen3.5_9b_w4a8_gptq.safetensors",
+        "type": "moss_image",
+        "device": "default"
+      }
+    },
+    "3": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "flux2-vae_small.safetensors"
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "2",
+          0
+        ],
+        "text": "A wide landscape of a submerged forest floor where a moss-draped root reaches upward through layered silt, its surface shimmering under a thin veil of mist. The medium is photo realistic with macro precision on the moss, showing its intricate patterns in the damp, dark world below. Light refracts through the water, creating a soft glisten on the root’s surface. The environment is silent, cool, and alive with hidden detail, where time moves slowly beneath the surface. No surface, no reflection—only the quiet persistence of growth in a hidden realm."
+      }
+    },
+    "5": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "2",
+          0
+        ],
+        "text": "nsfw, worst quality, bad anatomy, watermark, jpeg artifact"
+      }
+    },
+    "7": {
+      "class_type": "EmptyFlux2LatentImage",
+      "inputs": {
+        "width": 2032,
+        "height": 1312,
+        "batch_size": 1
+      }
+    },
+    "8": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1",
+          0
+        ],
+        "seed": 6417253117930451,
+        "steps": 25,
+        "cfg": 2.5,
+        "sampler_name": "er_sde",
+        "scheduler": "simple",
+        "positive": [
+          "4",
+          0
+        ],
+        "negative": [
+          "5",
+          0
+        ],
+        "latent_image": [
+          "7",
+          0
+        ],
+        "denoise": 1.0
+      }
+    },
+    "9": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "8",
+          0
+        ],
+        "vae": [
+          "3",
+          0
+        ]
+      }
+    },
+    "10": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "9",
+          0
+        ],
+        "filename_prefix": "moss/autopaper_drowned_root_glow"
+      }
+    }
+  },
+  "client_id": "082693a6-14f0-4c4f-a9fa-c827feff34fb"
+}

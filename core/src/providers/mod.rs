@@ -181,11 +181,16 @@ pub trait TextProvider: Send + Sync {
 pub trait ImageProvider: Send + Sync {
     fn kind(&self) -> ProviderKind;
     fn default_model(&self) -> &str;
-    /// Whether this provider can be asked for `model` (blank: its default) at all, checked before anything is
-    /// spent (the engine's `prepare`). ComfyUI's own workflows exist for a few models only (`PaintingFailed`
-    /// otherwise); providers that pass any model name on and let the service decide say yes.
+    /// Whether this provider can be asked for `model` (blank: its default) at all. Providers that pass any
+    /// model name on and let the service decide say yes. Live inventory checks belong in `resolve_model`.
     fn check_model(&self, _model: &str) -> Result<()> {
         Ok(())
+    }
+    /// Resolve the requested model after connectivity checks, before writing or painting can spend anything.
+    /// Providers with live inventories may choose an available default or reject an unavailable selection.
+    async fn resolve_model(&self, requested: &str) -> Result<String> {
+        self.check_model(requested)?;
+        Ok(if requested.trim().is_empty() { self.default_model() } else { requested.trim() }.to_string())
     }
     /// As `TextProvider::check_ready`: a hosted painter needs its key.
     fn check_ready(&self) -> Result<()> {

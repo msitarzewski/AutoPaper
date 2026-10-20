@@ -11,34 +11,55 @@ struct NowView: View {
     @State private var palette: [Color]?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+        VStack(spacing: 0) {
+            Group {
                 switch model.phase {
                 case .starting:
                     ProgressView("Opening your library…")
-                        .frame(maxWidth: .infinity, minHeight: 240)
                 case .failed(let reason):
                     ContentUnavailableView("AutoPaper Couldn't Start", systemImage: "exclamationmark.triangle", description: Text(reason))
                 case .ready:
                     if let current = model.current {
-                        showing(current)
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 20) {
+                                showing(current)
+                            }
+                            .frame(maxWidth: 720, alignment: .leading)
+                            .padding(24)
+                            .frame(maxWidth: .infinity)
+                        }
+                    } else if model.isWorking {
+                        VStack(spacing: 16) {
+                            Text("Making Your First Wallpaper")
+                                .font(.title2.weight(.semibold))
+                                .accessibilityAddTraits(.isHeader)
+                            MakeControls()
+                        }
+                        .padding(32)
                     } else {
                         ContentUnavailableView {
                             Label("No Wallpaper Yet", systemImage: "sparkles")
                         } description: {
-                            Text("Choose New Wallpaper Now to make your first one from your current mood's keywords.")
+                            Text("Make a wallpaper from your current mood's keywords.")
                         } actions: {
                             MakeControls()
                         }
-                        .frame(minHeight: 260)
                     }
-                    Divider()
-                    StatusLines()
                 }
             }
-            .frame(maxWidth: 820, alignment: .leading)
-            .padding(24)
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if model.phase == .ready {
+                Divider()
+                StatusLines()
+                    .font(.callout)
+                    // As with MainWindow's budget notice, give the split view's intrinsic-size measurement a
+                    // usable width. Otherwise a wrapping status can demand a window taller than the screen.
+                    .frame(minWidth: 340, maxWidth: 720, alignment: .leading)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity)
+            }
         }
         .navigationTitle("Now")
         .toolbar {
@@ -57,7 +78,6 @@ struct NowView: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(.separator)
             }
-            .frame(maxHeight: 340)
             .frame(maxWidth: .infinity)
             .accessibilityElement()
             .accessibilityAddTraits(.isImage)
@@ -149,7 +169,7 @@ struct StatusLines: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let settings = model.settings {
+            if let settings = model.settings, !model.isWorking {
                 // What the app's own timer will do: before scheduled wallpapers have started (the welcome skipped,
                 // nothing made yet) the engine's due time isn't acted on, so it isn't promised.
                 Label(

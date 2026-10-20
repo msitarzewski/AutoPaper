@@ -258,7 +258,8 @@ final class AppModel {
         phase = .ready
         readyWaiters.forEach { $0.resume() }
         readyWaiters.removeAll()
-        if let settings, settings.textProvider.kind != .demo || settings.imageProvider.kind != .demo {
+        if WelcomeSetup.resumesLegacySetup(welcomeDone: welcomeDone, inProgress: welcomeSetupInProgress),
+           let settings, settings.textProvider.kind != .demo || settings.imageProvider.kind != .demo {
             // Providers were set up already (an earlier version, or the CLI): no welcome. It may already be open
             // (its launch behaviour is decided before the engine opens), so it's closed.
             if !welcomeDone {
@@ -267,7 +268,9 @@ final class AppModel {
             }
             scheduleArmed = true
         }
-        if current != nil { scheduleArmed = true }
+        if current != nil && WelcomeSetup.resumesLegacySetup(welcomeDone: welcomeDone, inProgress: welcomeSetupInProgress) {
+            scheduleArmed = true
+        }
         displayObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -426,6 +429,12 @@ final class AppModel {
     }
 
     func cancel() {
+        // Before the first wallpaper, the schedule is still due immediately. Stopping that first attempt
+        // leaves setup idle; New Wallpaper Now arms the schedule again when the person is ready.
+        if current == nil {
+            scheduleArmed = false
+            reschedule()
+        }
         core?.engine.cancel()
     }
 
@@ -779,9 +788,10 @@ final class AppModel {
         guard next != previous else { return }
         settings = next
         let wanted = next
+        let mayArmSchedule = welcomeDone && !welcomeSetupInProgress
         Task {
             do {
-                try await save(wanted, replacing: previous, using: core)
+                try await save(wanted, replacing: previous, using: core, mayArmSchedule: mayArmSchedule)
             } catch {
                 var shownByCaller = false
                 if let refused, let engineError = error as? AutoPaperError { shownByCaller = refused(engineError) }
@@ -804,7 +814,8 @@ final class AppModel {
         change(&next)
         guard next != previous else { return }
         settings = next
-        try await save(next, replacing: previous, using: core, then: follow)
+        try await save(next, replacing: previous, using: core,
+            mayArmSchedule: welcomeDone && !welcomeSetupInProgress, then: follow)
     }
 
     /// The write behind `updateSettings` and `saveSettings`. Writes run one at a time in the order they were asked
@@ -817,6 +828,7 @@ final class AppModel {
         _ wanted: EngineSettings,
         replacing previous: EngineSettings,
         using core: CoreBridge,
+        mayArmSchedule: Bool,
         then follow: (@Sendable (Engine) throws -> Void)? = nil
     ) async throws {
         let result: (EngineSettings, (any Error)?)
@@ -836,7 +848,7 @@ final class AppModel {
         }
         let (saved, followError) = result
         if settings == wanted || settings?.surprise != saved.surprise { settings = saved }
-        if saved.textProvider.kind != .demo || saved.imageProvider.kind != .demo {
+        if mayArmSchedule && welcomeDone && !welcomeSetupInProgress && (saved.textProvider.kind != .demo || saved.imageProvider.kind != .demo) {
             // A real provider chosen in Settings is the person's go-ahead, as at launch (`opened`): scheduled
             // wallpapers start now rather than after the next launch.
             scheduleArmed = true
@@ -1389,6 +1401,23 @@ final class AppModel {
 
     // MARK: First run
 
+    /// Persisted controls are still a draft until the wizard finishes, including after quitting midway.
+    private var welcomeSetupInProgress: Bool {
+        get { defaults.bool(forKey: "welcomeSetupInProgress") }
+        set { defaults.set(newValue, forKey: "welcomeSetupInProgress") }
+    }
+
+    var welcomeStart: Start? {
+        defaults.string(forKey: "welcomeStart").flatMap(Start.init(rawValue:))
+    }
+
+    func prepareWelcome(start: Start, applyPreset: Bool = true) {
+        welcomeSetupInProgress = true
+        defaults.set(start.rawValue, forKey: "welcomeStart")
+        scheduleArmed = false
+        if applyPreset { updateSettings { WelcomeSetup.apply(writer: start.text, painter: start.image, to: &$0) } }
+    }
+
     enum Start: String, CaseIterable, Identifiable {
         case openAI, gemini, local, onThisMac, demo
         var id: Self { self }
@@ -1408,7 +1437,7 @@ final class AppModel {
             case .openAI: "Writes ideas and paints with your OpenAI API key."
             case .gemini: "Writes ideas and paints with your Gemini API key."
             case .local: "Ollama writes ideas and ComfyUI paints, on this Mac. Free."
-            case .onThisMac: "Apple Intelligence writes ideas on this Mac, free and private. Paintings are gradients until you choose a painter."
+            case .onThisMac: "Apple Intelligence writes ideas on this Mac, free and private. Choose a painter in the next step."
             case .demo: "Gradients instead of paintings, for trying AutoPaper. Free."
             }
         }
@@ -1428,7 +1457,7 @@ final class AppModel {
             case .openAI: .openAi
             case .gemini: .google
             case .local: .comfyUi
-            case .onThisMac: .demo
+            case .onThisMac: .comfyUi
             case .demo: .demo
             }
         }
@@ -1456,7 +1485,7 @@ final class AppModel {
     /// "Make My First Wallpaper": saves the keywords (to the current mood) and providers, then makes one. When the
     /// engine refuses a keyword (too long, no letters), the others are saved and nothing else happens: the refusals
     /// come back for the welcome to show, so no keyword is dropped without a word.
-    func finishWelcome(keywords newKeywords: [String], start: Start) async -> WelcomeOutcome {
+    func finishWelcome(keywords newKeywords: [String], start: Start, addresses: [ProviderJob: String] = [:]) async -> WelcomeOutcome {
         var refusals: [KeywordRefusal] = []
         for text in newKeywords {
             if case .refused(let reason) = await addKeyword(text, announcing: false) {
@@ -1464,16 +1493,32 @@ final class AppModel {
             }
         }
         guard refusals.isEmpty else { return .refused(refusals) }
-        // Awaited, so the first wallpaper is made with the providers chosen here, not the Demo still saved.
+        // Provider controls save as they are edited. Wait for those writes and keep the exact choices.
         do {
-            try await saveSettings { settings in
-                settings.textProvider = ProviderSelection(kind: start.text, model: "", baseUrl: nil)
-                settings.imageProvider = ProviderSelection(kind: start.image, model: "", baseUrl: nil)
+            guard let core else { return .failed("AutoPaper is still opening. Try again in a moment.") }
+            // The focused address field may not have resigned yet. Commit its draft explicitly and await validation.
+            try await saveSettings { WelcomeSetup.apply(addresses: addresses, to: &$0) }
+            let chosen = try await core.write { try $0.settings() }
+            if start != .demo {
+                if chosen.textProvider.kind == .demo || chosen.imageProvider.kind == .demo {
+                    return .failed("Choose a writer and a painter, or select Try it without AI to use gradients.")
+                }
+                if chosen.textProvider.kind == .system && systemModel?.available != true {
+                    return .failed("Apple Intelligence isn't ready on this Mac. Choose another writer or enable it in System Settings.")
+                }
+                for (selection, job) in [(chosen.textProvider, ProviderJob.concepts), (chosen.imageProvider, .images)] {
+                    let models = try await listModels(selection, job: job)
+                    if let problem = WelcomeSetup.availabilityProblem(selection: selection, job: job, models: models,
+                        ownWorkflow: selection.kind == .comfyUi && chosen.comfyuiWorkflow != nil) {
+                        return .failed(problem)
+                    }
+                }
             }
         } catch {
             return .failed(sentence(for: error, retrying: false) ?? Sentences.internalProblem)
         }
         welcomeDone = true
+        welcomeSetupInProgress = false
         scheduleArmed = true
         newWallpaperNow()
         return .started
@@ -1481,6 +1526,8 @@ final class AppModel {
 
     func skipWelcome() {
         welcomeDone = true
+        welcomeSetupInProgress = false
+        scheduleArmed = false
     }
 
     // MARK: Windows

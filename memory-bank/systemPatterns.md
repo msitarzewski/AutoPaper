@@ -168,6 +168,7 @@ order in the serialized schema.
   | Qwen-Image 2.1 (`qwen_image_2_1`) | 2752 | 4,300,800 (2400×1792) | model card's supported sizes 2048², 2400×1792, 2528×1696, 2752×1536 |
   | Krea 2 Turbo (`krea2_turbo`, `krea_2_turbo`) | 2048 | 2,965,760 | Krea 2 README "1k ~ 2k", `--width/--height 1024 ~ 2048`; stepped down to the VAE bound |
   | Krea 2 Raw (`krea2`, `krea_2`) | 2048 | 1,048,576 | README "trained to generate upto 1k resolution" |
+  | MOSS-Image (`moss_image`) | 2048 | 2,965,760 | user guide "0.25M (512×512) to 4M (2K)"; stepped down to the VAE bound (its small FLUX.2 VAE decodes 2048×1440, fails 2048×1456 and 2048², measured 2026-10-18) |
   | anything else | 2048 | 2,088,960 (1920×1088) | conservative default |
 
   Sizes are multiples of 16 at the display's aspect (pixels capped by the display too); the renderer scales up per
@@ -185,7 +186,11 @@ order in the serialized schema.
 - Licences: Z-Image Turbo Apache-2.0 (the bundled ComfyUI default); Krea 2 Community License (outputs owned; revocable,
   content-filtering and AUP terms); Qwen-Image 2.1 Qwen Research License (outputs belong to the user per Qwen) — the
   person may choose any model in their own ComfyUI (all three have a bundled workflow since 2026-10-06); AutoPaper's
-  defaults stay permissive (Z-Image Turbo is the default).
+  defaults stay permissive (Z-Image Turbo is the default). MOSS-Image (Apache-2.0) has a bundled workflow since
+  2026-10-18: Comfy-Org's `image_moss_image_t2i` (int8 DiT, w4a8 Qwen3.5-9B encoder, small FLUX.2 VAE; 25 steps,
+  cfg 2.5, er_sde, the guide's negative prompt; skip-layer guidance off as the template ships it; its prompt
+  upsampler left out). It needs ComfyUI's native support (master since 2026-10-16, PR #17095: CLIP type
+  `moss_image`, `EmptyFlux2LatentImage`), which `missing` checks like any other choice.
 
 ## Composing and selection
 1. Build the request: Musts (all required), Maybes (use some; vary across candidates), Avoids (never),
@@ -637,3 +642,15 @@ CLI `--display WxH` passes a display hint like a host (e.g. `autopaper --display
 CLI `autopaper simulate --days N [--seed S] [--real-model]` runs the whole agent over simulated years with
 fakes and reports novelty, echoes and taste. Dev and test builds optimise dependencies
 (`[profile.dev.package."*"] opt-level = 2`); the core itself stays debug.
+
+## Live ComfyUI workflows and Mac first run (0.2.0)
+- Inventory comes from the configured server's `/object_info`. Compatible official `/templates/` JSON is converted
+  into an API graph only when installed nodes, model files, choices and supported connections all validate.
+  Existing bundled presets take priority; unknown templates retain conservative dimensions. No code/models installed.
+- Engine resolves the selected model before composing; Automatic has no speculative model/cost estimate.
+- Native menus preserve unavailable selections visibly and explain empty inventories. Refresh gets live state.
+- Mac first run reuses ProviderSection and performs read-only connection checks. Schedule eligibility is captured
+  before asynchronous settings saves; skipping or cancelling the first generation leaves the schedule unarmed.
+- Settings height is bounded by screen size. Explicit actions activate a captured NSWindow; passive changes don't.
+- Wrapped Now footer labels need an explicit minimum width, matching the main window budget notice pattern,
+  so an intrinsic height can't push the NavigationSplitView content outside the window.

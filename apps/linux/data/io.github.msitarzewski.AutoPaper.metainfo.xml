@@ -84,6 +84,12 @@
     <keyword>lock screen</keyword>
   </keywords>
   <releases>
+    <release version="0.2.0" date="2026-10-20">
+      <description>
+        <p>ComfyUI discovers compatible installed models and prepares their workflows automatically, including MOSS-Image. Missing models are caught before writing an idea. On Mac, a setup wizard connects your providers, Settings scrolls and comes forward reliably, and the Now view keeps its layout after a new wallpaper.</p>
+        <p>Windows adds an experimental Foundry Local preset for small writing models.</p>
+      </description>
+    </release>
     <release version="0.1.5" date="2026-10-14">
       <description>
         <p>A security update: the TLS library behind connections to OpenAI and Gemini is updated, along with two other libraries.</p>

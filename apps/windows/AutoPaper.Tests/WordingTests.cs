@@ -288,14 +288,24 @@ public sealed class WordingTests
         Assert.AreEqual("", Text.Estimate(ProviderJob.Images, null));
     }
 
-    /// <summary>The model picker's blank choice names the default the way the provider lists it; ComfyUI's also
-    /// while it can't be asked (named by AutoPaper's own workflow for it, not by its file).</summary>
+    /// <summary>ComfyUI's automatic choice follows discovery; empty and unknown lists are distinct.</summary>
     [TestMethod]
     public void TheDefaultModelIsNamedAsListed()
     {
-        var file = AutopaperCoreMethods.DefaultModel(ProviderKind.ComfyUi, ProviderJob.Images);
-        Assert.AreEqual("Default (Z-Image Turbo, bf16)", Text.DefaultModelChoice(ProviderKind.ComfyUi, ProviderJob.Images, [new ModelInfo(file, "Z-Image Turbo, bf16")]));
-        Assert.AreEqual("Default (Z-Image Turbo)", Text.DefaultModelChoice(ProviderKind.ComfyUi, ProviderJob.Images, []));
+        Assert.AreEqual("", AutopaperCoreMethods.DefaultModel(ProviderKind.ComfyUi, ProviderJob.Images));
+        Assert.AreEqual("Automatic (MOSS-Image)", Text.DefaultModelChoice(ProviderKind.ComfyUi, ProviderJob.Images,
+            [new ModelInfo("moss_image.safetensors", "MOSS-Image"), new ModelInfo("z_image_turbo_bf16.safetensors", "Z-Image Turbo")]));
+        Assert.AreEqual("Automatic", Text.DefaultModelChoice(ProviderKind.ComfyUi, ProviderJob.Images, []));
+        Assert.AreEqual("No compatible models available", Text.DefaultModelChoice(ProviderKind.ComfyUi, ProviderJob.Images, [], loaded: true));
+        Assert.AreEqual("Krea 2 Turbo (not available)", Text.UnlistedModelChoice(ProviderKind.ComfyUi, "krea2_turbo_fp8_scaled.safetensors", true));
+        Assert.AreEqual("Krea 2 Turbo", Text.UnlistedModelChoice(ProviderKind.ComfyUi, "krea2_turbo_fp8_scaled.safetensors", false));
+        Assert.AreEqual("custom", Text.UnlistedModelChoice(ProviderKind.Ollama, "custom", true));
+        var models = new List<ModelInfo> { new("moss_image.safetensors", "MOSS-Image") };
+        Assert.IsNull(Text.ComfyAvailabilityProblem(models, ""));
+        Assert.IsNull(Text.ComfyAvailabilityProblem(models, models[0].Id));
+        Assert.AreEqual("ComfyUI is connected, but Krea 2 Turbo isn't available. Choose another model or Automatic, or use your own workflow.",
+            Text.ComfyAvailabilityProblem(models, "krea2_turbo_fp8_scaled.safetensors"));
+        StringAssert.StartsWith(Text.ComfyAvailabilityProblem([], ""), "ComfyUI is connected, but no compatible models are available.");
         Assert.AreEqual("Default (the server's first model)", Text.DefaultModelChoice(ProviderKind.Ollama, ProviderJob.Concepts, []));
         Assert.AreEqual($"Default ({AutopaperCoreMethods.DefaultModel(ProviderKind.OpenAi, ProviderJob.Concepts)})",
             Text.DefaultModelChoice(ProviderKind.OpenAi, ProviderJob.Concepts, []));

@@ -3,9 +3,9 @@
 //! GNOME calls an app's settings "Preferences", so these sentences do too (the spec's "Settings").
 
 use autopaper_core::{
-    AutoPaperError, Cadence, EchoFrequency, Fallback, ImageQuality, InvalidInputReason, Keyword, KeywordWeight, Mood,
-    ProgressStage, ProviderJob, ProviderKind, ProviderUnavailableReason, QuietPeriod, Rating, RevisitReason,
-    SurpriseBand, default_model,
+    AutoPaperError, Cadence, EchoFrequency, Fallback, ImageQuality, InvalidInputReason, Keyword, KeywordWeight,
+    ModelInfo, Mood, ProgressStage, ProviderJob, ProviderKind, ProviderUnavailableReason, QuietPeriod, Rating,
+    RevisitReason, SurpriseBand, default_model,
 };
 use gtk::glib;
 use gtk::prelude::*;
@@ -266,17 +266,13 @@ pub fn is_address_problem(error: &AutoPaperError) -> bool {
 
 /// The model picker's blank choice: "Default (gpt-6-luna)", from the core's `default_model`. Ollama and
 /// OpenAI-compatible servers have no fixed default (they use the first model they list), and a ComfyUI workflow
-/// of the person's own always loads its own model. ComfyUI's default is named in words ("Default (Z-Image Turbo)"),
-/// also while the server can't be asked for its list.
+/// of the person's own always loads its own model. ComfyUI discovers its automatic choice from the server.
 pub fn default_model_label(kind: ProviderKind, job: ProviderJob, own_workflow: bool) -> String {
     if kind == ProviderKind::ComfyUi && own_workflow {
         return "Default (your workflow's model)".into();
     }
-    if kind == ProviderKind::ComfyUi
-        && job == ProviderJob::Images
-        && let Some(name) = autopaper_core::providers::comfyui::bundled_model_name()
-    {
-        return format!("Default ({name})");
+    if kind == ProviderKind::ComfyUi && job == ProviderJob::Images {
+        return "Automatic".into();
     }
     let model = default_model(kind, job);
     if !model.is_empty() {
@@ -286,6 +282,60 @@ pub fn default_model_label(kind: ProviderKind, job: ProviderJob, own_workflow: b
         ProviderKind::Ollama | ProviderKind::OpenAiCompatible => "Default (the server's first model)".into(),
         _ => "Default".into(),
     }
+}
+
+pub const NO_COMPATIBLE_MODELS: &str = "ComfyUI is connected, but no compatible models are available. Install a supported model and its dependencies, then choose Refresh, or use your own workflow.";
+
+pub fn comfy_availability_problem(models: &[ModelInfo], saved: &str) -> Option<String> {
+    if models.is_empty() { return Some(NO_COMPATIBLE_MODELS.to_string()); }
+    let saved = saved.trim();
+    if !saved.is_empty() && !models.iter().any(|model| model.id == saved) {
+        let name = model_in_words(ProviderKind::ComfyUi, saved);
+        return Some(format!("ComfyUI is connected, but {name} isn't available. Choose another model or Automatic, or use your own workflow."));
+    }
+    None
+}
+
+/// Choice ids stay independent of their labels, including a saved model missing from the successful list.
+pub fn model_choices(
+    kind: ProviderKind,
+    job: ProviderJob,
+    own_workflow: bool,
+    models: &[ModelInfo],
+    current: &str,
+    listed: bool,
+) -> Vec<(String, String)> {
+    let name = |model: &ModelInfo| {
+        if model.display_name.is_empty() { model.id.clone() } else { model.display_name.clone() }
+    };
+    let automatic = kind == ProviderKind::ComfyUi && job == ProviderJob::Images && !own_workflow;
+    let default_label = if automatic {
+        match models.first() {
+            Some(first) => format!("Automatic ({})", name(first)),
+            None if listed => "No compatible models available".to_string(),
+            None => "Automatic".to_string(),
+        }
+    } else {
+        let default_id = default_model(kind, job);
+        models
+            .iter()
+            .find(|model| !own_workflow && !default_id.is_empty() && model.id == default_id)
+            .map(|model| format!("Default ({})", name(model)))
+            .unwrap_or_else(|| default_model_label(kind, job, own_workflow))
+    };
+    let mut choices = vec![(String::new(), default_label)];
+    choices.extend(models.iter().map(|model| (model.id.clone(), name(model))));
+    let current = current.trim();
+    if !current.is_empty() && !models.iter().any(|model| model.id == current) {
+        let label = if kind == ProviderKind::ComfyUi {
+            let label = model_in_words(kind, current);
+            if listed { format!("{label} (not available)") } else { label }
+        } else {
+            current.to_string()
+        };
+        choices.push((current.to_string(), label));
+    }
+    choices
 }
 
 fn provider_key_name(kind: ProviderKind) -> &'static str {
@@ -450,7 +500,7 @@ pub fn spoken_description(description: &str, rating: Rating) -> String {
 
 /// Names for model ids when the provider's own list hasn't been read (as macOS's `Provenance.knownNames`): Google's
 /// from its model list, ComfyUI's from AutoPaper's bundled workflows. OpenAI's list names models by id.
-const KNOWN_MODELS: [(&str, &str); 10] = [
+const KNOWN_MODELS: [(&str, &str); 11] = [
     ("gemini-3.1-flash-image", "Nano Banana 2"),
     ("gemini-3.1-flash-lite-image", "Nano Banana 2 Lite"),
     ("gemini-3-pro-image", "Nano Banana Pro"),
@@ -461,6 +511,7 @@ const KNOWN_MODELS: [(&str, &str); 10] = [
     ("z_image_turbo_bf16.safetensors", "Z-Image Turbo"),
     ("krea2_turbo_fp8_scaled.safetensors", "Krea 2 Turbo"),
     ("qwen_image_2.1_int8_convrot.safetensors", "Qwen-Image 2.1"),
+    ("moss_image_sft_int8_convrot.safetensors", "MOSS-Image"),
 ];
 
 /// A model in words: AutoPaper's name for it, else (ComfyUI) its file's name without folders or extension, else its
@@ -983,13 +1034,47 @@ mod tests {
             format!("Default ({})", default_model(ProviderKind::OpenAi, ProviderJob::Concepts))
         );
         assert!(!default_model(ProviderKind::OpenAi, ProviderJob::Concepts).is_empty());
-        assert_eq!(default_model_label(ProviderKind::ComfyUi, ProviderJob::Images, false), "Default (Z-Image Turbo)");
-        assert_eq!(default_model_label(ProviderKind::ComfyUi, ProviderJob::Images, true), "Default (your workflow's model)");
-        assert_eq!(default_model_label(ProviderKind::Ollama, ProviderJob::Concepts, false), "Default (the server's first model)");
+        assert_eq!(default_model_label(ProviderKind::ComfyUi, ProviderJob::Images, false), "Automatic");
+        assert_eq!(
+            default_model_label(ProviderKind::ComfyUi, ProviderJob::Images, true),
+            "Default (your workflow's model)"
+        );
+        assert_eq!(
+            default_model_label(ProviderKind::Ollama, ProviderJob::Concepts, false),
+            "Default (the server's first model)"
+        );
         assert_eq!(
             default_model_label(ProviderKind::OpenAiCompatible, ProviderJob::Images, false),
             "Default (the server's first model)"
         );
+    }
+
+    #[test]
+    fn comfy_model_choices_follow_discovery_and_keep_saved_unavailable_models() {
+        let kind = ProviderKind::ComfyUi;
+        let job = ProviderJob::Images;
+        let moss = ModelInfo { id: "moss_image.safetensors".into(), display_name: "MOSS-Image".into() };
+        let krea = "krea2_turbo_fp8_scaled.safetensors";
+        assert_eq!(comfy_availability_problem(&[], ""), Some(NO_COMPATIBLE_MODELS.to_string()));
+        assert_eq!(comfy_availability_problem(std::slice::from_ref(&moss), ""), None);
+        assert_eq!(comfy_availability_problem(std::slice::from_ref(&moss), &moss.id), None);
+        assert_eq!(comfy_availability_problem(std::slice::from_ref(&moss), krea),
+            Some("ComfyUI is connected, but Krea 2 Turbo isn't available. Choose another model or Automatic, or use your own workflow.".to_string()));
+        assert_eq!(model_choices(kind, job, false, &[], "", false), [("".into(), "Automatic".into())]);
+        assert_eq!(
+            model_choices(kind, job, false, &[], "", true),
+            [("".into(), "No compatible models available".into())]
+        );
+        assert_eq!(
+            model_choices(kind, job, false, &[moss], krea, true),
+            [
+                ("".into(), "Automatic (MOSS-Image)".into()),
+                ("moss_image.safetensors".into(), "MOSS-Image".into()),
+                (krea.into(), "Krea 2 Turbo (not available)".into()),
+            ]
+        );
+        assert_eq!(model_choices(kind, job, false, &[], krea, false)[1], (krea.into(), "Krea 2 Turbo".into()));
+        assert_eq!(model_choices(kind, job, true, &[], "", true)[0].1, "Default (your workflow's model)");
     }
 
     #[test]

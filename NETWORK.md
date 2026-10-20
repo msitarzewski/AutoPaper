@@ -91,7 +91,10 @@ The address you give; `http://127.0.0.1:8188` unless you change it. No key.
 | `GET /history/{id}` | After 1 s, then every 2 s until the job ends (at once when the progress socket says it has) | — | 30 s, 16 MB |
 | `GET /view?filename=…&subfolder=…&type=…` | Once, when the painting is done, for the file ComfyUI named | — | 120 s, 50 MB |
 | `POST /api/jobs/{id}/cancel`, or `POST /queue` with `{"delete": [id]}` on older ComfyUI | When you cancel, or when a job stops making progress or passes its time limit | That job's ID. Never `/interrupt`, which would stop whatever is running, someone else's job too | 30 s |
-| `GET /object_info` (`/object_info/{node}` with your own workflow) | Model list, **Test**: which of AutoPaper's workflows your ComfyUI has the models and nodes for | — | 30 s, 16 MB |
+| `GET /object_info` (`/object_info/{node}` with your own workflow) | Model list, **Test**, and before generation: installed models, node classes and supported inputs | — | 30 s, 16 MB (availability preflight is limited to 8 s) |
+| `GET /templates/index.json` and `GET /templates/{name}.json` | Model discovery and selection before writing: compatible local text-to-image workflows from your configured ComfyUI server | — | 8 s and 4 MB per request; at most 128 candidate graphs, four at a time, with a 20 s graph-discovery deadline |
+
+Template discovery downloads JSON only; it installs no models or code. Old servers without a template catalog still use compatible bundled workflows. No prompt is sent during discovery.
 
 A ComfyUI painting has no fixed time limit: it can take as long as it keeps making progress. It's given up and stopped when no progress arrives for 3 minutes after a step (or 4 times its slowest step, if that's longer), or 10 minutes while a step-less part of the job runs (loading a model, decoding the picture), or when it passes the longer of 30 minutes and 3 times AutoPaper's estimate for it. Waiting in ComfyUI's queue behind someone else's job doesn't count. The bundled workflows save each painting in ComfyUI's own `output/autopaper/` folder, as any ComfyUI job does; AutoPaper doesn't delete anything there.
 

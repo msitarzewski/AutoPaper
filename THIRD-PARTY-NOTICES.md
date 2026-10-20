@@ -76,7 +76,7 @@ SOFTWARE.
 
 ## ComfyUI workflow templates
 
-The workflows in `core/resources/comfyui/` (Z-Image Turbo, Krea 2 Turbo, Qwen-Image 2.1) follow Comfy Org's [workflow templates](https://github.com/Comfy-Org/workflow_templates) (`image_z_image_turbo`, `image_krea2_turbo_t2i` and `image_qwen_image_2_1_t2i`), converted to ComfyUI's API format with placeholders for the prompt, size and seed. The models they load aren't part of AutoPaper: you install them in your own ComfyUI, under their own licences.
+The workflows in `core/resources/comfyui/` (Z-Image Turbo, Krea 2 Turbo, Qwen-Image 2.1, MOSS-Image) follow Comfy Org's [workflow templates](https://github.com/Comfy-Org/workflow_templates) (`image_z_image_turbo`, `image_krea2_turbo_t2i`, `image_qwen_image_2_1_t2i` and `image_moss_image_t2i`), converted to ComfyUI's API format with placeholders for the prompt, size and seed. The models they load aren't part of AutoPaper: you install them in your own ComfyUI, under their own licences.
 
 ```
 MIT License

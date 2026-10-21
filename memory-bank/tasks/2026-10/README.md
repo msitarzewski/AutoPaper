@@ -1,5 +1,17 @@
 # October 2026
 
+### 2026-10-21: Release documentation closure [COMPLETE]
+- Reconciled Memory Bank, release procedures, public docs, security review and website text with the published 0.2.0.
+- Regenerated the existing third-party notices from the release lockfile (385 crates).
+- Documentation QA passed: eight-page site build, 478 local links/resources across Markdown/site, notice freshness,
+  whitespace and redacted diff secret scan. App code and signed artifacts unchanged.
+- Final release CI passed all seven jobs; Pages deployment and live public distribution checks passed.
+- Recorded immutable runtime source `2f8b79e`, test-only follow-up `df7cc19`, publication commit `f8f668b`,
+  asset sizes/hashes and remaining QA limits in the existing
+  [release closure record](261018_moss-image-workflow.md#release-closure-verified-2026-10-21).
+- Older local-build/reboot records below are dated history, not pending release instructions. For current work,
+  start with [Active Context](../../activeContext.md).
+
 ### 2026-10-20: 0.2.0 release [RELEASED]
 - Published the approved ComfyUI/MOSS discovery, Mac setup and window batch plus experimental Foundry Local.
 - Reuses [the MOSS task record](261018_moss-image-workflow.md#follow-up-discovery-mac-setup-and-window-fixes-approved-2026-10-20).
@@ -12,10 +24,28 @@
   macOS/Linux name tables; docs. Needs ComfyUI's native support (master since 2026-10-16).
 - See [261018_moss-image-workflow.md](261018_moss-image-workflow.md).
 
+### 2026-10-14: v0.1.5 security update [RELEASED]
+- Mac and Windows received dependency security updates; Linux followed in 0.2.0 by user decision.
+- See [Progress](../../progress.md#done-public-release-history) and the [security review](../../../docs/security-review-2026-10.md).
+
+### 2026-10-13: v0.1.4 security round [RELEASED]
+- Cross-platform credential/data/network hardening, signed Mac appcast, pinned CI/NuGet, Windows CFG,
+  isolated signing VM and rotated Flatpak key. Existing Linux installs need to trust the new repository key.
+- See the [security review](../../../docs/security-review-2026-10.md) and [Decisions](../../decisions.md).
+
+### 2026-10-10: v0.1.3 on-device writing and Console polish [RELEASED]
+- Mac Apple Intelligence writer, Console chart/duration/detail improvements and JSON/instructions disclosures.
+- See [Progress](../../progress.md#done-public-release-history).
+
 ### 2026-10-09: v0.1.2: Match my appearance, Mac Moods polish [COMPLETE; RELEASED]
 - Core `match_system_theme` setting (default on) + `set_system_appearance` + one composer prompt line; toggles and appearance reporting on macOS, Windows and Linux.
 - Mac: native Moods list, Use / In Use button, Dock/menu raise windows. Docs: README, site (home, help, reference), PRIVACY.md, `docs/app-spec.md`.
 - See `activeContext.md#v012-2026-10-09` and `decisions.md` (2026-10-09).
+
+### 2026-10-08: v0.1.1 Console and native UI batch [RELEASED]
+- Released the Console/budget, native list/form and service-preflight work recorded below, plus local inference
+  timeout updates. The earlier local-build publication deferrals ended with this release.
+- See [the batch record](261007_console-budget-transparency.md) and [Progress](../../progress.md#done-public-release-history).
 
 ### 2026-10-07: Service availability preflight [COMPLETE; MAC INSTALLED]
 - User authorized checking both selected services before wallpaper generation, logging both outcomes in Console,
@@ -28,10 +58,10 @@
   Signed universal build 6 installed/opened and installed/build equality verified; public releases remain deferred.
 - Details: [follow-up 4](261007_console-budget-transparency.md#follow-up-4--service-availability-and-selected-mood-fallback-local-build-6).
 
-## Reboot checkpoint — 2026-10-07 local / 2026-10-08 UTC
-All completed tasks below are now documented in the existing task records at the user's explicit request.
+## Historical reboot checkpoint — 2026-10-07 local / 2026-10-08 UTC
+At this checkpoint, all completed tasks below were documented in the existing task records at the user's explicit request.
 Local Mac: **0.1.1 build 6** (supersedes reboot baseline build 5); public release: **v0.1.0**; branch: **`codex/console-runs`**, uncommitted.
-Read `../../activeContext.md#Reboot checkpoint` first after restart. Persistent review patch:
+For the current state read [Active Context](../../activeContext.md); its reboot section preserves this old snapshot. Persistent review patch:
 `.scratch/autopaper-console-review.patch`; do not rely on the `/private/tmp` copy.
 
 ### 2026-10-07: Native list/form defaults [MAC INSTALLED; REVIEW PENDING]

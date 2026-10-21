@@ -1,12 +1,16 @@
 # Project Brief — AutoPaper
 
-**Status (2026-10-07): v0.1.0 released** for macOS, Windows and Linux (https://github.com/msitarzewski/AutoPaper, MIT, taking PRs).
-Distribution: macOS notarized DMG + Sparkle; Windows signed MSIX via App Installer (Azure Artifact Signing; winget pending); Linux own
-signed Flatpak repository (no Flathub). Updates are served from the author's server msitarzewski.com and GitHub Pages/Releases.
+**Status (verified 2026-10-21): [v0.2.0 released](https://github.com/msitarzewski/AutoPaper/releases/tag/v0.2.0)**
+for macOS, Windows and Linux (MIT, taking PRs). Distribution: notarized macOS DMG + Sparkle; Windows signed
+MSIX via App Installer (Azure Artifact Signing; winget submission pending); Linux own signed Flatpak
+repository. Updates are served from msitarzewski.com and GitHub Pages/Releases.
 
-**Local follow-ups (2026-10-07):** Console/budget transparency, real run/model charts, Mac Moods cleanup,
-native list/form defaults, and service availability with selected-mood fallback implemented; Mac 0.1.1 build 6 installed. Public release stays
-v0.1.0 until the user requests a substantial batch. See `activeContext.md#Reboot checkpoint` and October tasks.
+The current release includes live compatible ComfyUI model discovery, MOSS-Image, the Mac provider setup
+wizard and window/layout fixes, and experimental Foundry Local on Windows. Full semantic memory is bundled
+on every platform. Release QA passed 761 tests; final seven-job CI and Pages publication passed. See the
+[release verification record](tasks/2026-10/261018_moss-image-workflow.md#release-closure-verified-2026-10-21)
+for artifact provenance, publication checks and remaining manual QA limits. Earlier Console/budget and
+native list/form work shipped in 0.1.1; those local-development checkpoints are historical.
 
 A native desktop app for macOS, Windows and Linux that keeps making new wallpapers you're unlikely to
 ever see twice. You give it a few keywords ("rain • ruins • peaceful • night • blue") instead of an
@@ -42,5 +46,5 @@ each OS permits it.
 
 ## Reference app
 AudioPaper (`~/Software/AudioPaper`) is the UX and engineering template on macOS: menu bar menu (not a
-popover), Settings panes sized to content, Keychain fields that auto-save, plugin protocols, untrusted-
+popover), Settings panes sized to content within the display, scrolling long panes, Keychain fields that auto-save, plugin protocols, untrusted-
 response hardening, PRIVACY.md + NETWORK.md kept true, AX-API accessibility audits, Sparkle updates.

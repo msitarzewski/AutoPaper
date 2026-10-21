@@ -22,7 +22,7 @@ echo band 0.72–0.93. **Why**: offline, identical on every platform, no extra A
 desktop-layer window, so they set the real wallpaper and restore the person's own (and the lock screen, Windows).
 
 ### 2026-10-06: Per-model ComfyUI workflows, largest supported size, performance history
-**Status**: Approved (user)
+**Status**: Approved (user); extended by the 2026-10-20 compatible-workflow discovery decision below
 **Decision**: bundled tested workflows per model (Z-Image Turbo default, Krea 2 Turbo, Qwen-Image 2.1), offered only
 when installed; paint at each model's largest supported size (Apple-silicon 8×-VAE cap 2,965,760 px); record every
 provider call's timing locally → progress, time left, learned timeouts (stall/30-min ceiling), estimates, early starts.
@@ -89,7 +89,9 @@ and Settings keeps showing Spotlight). Both are explained in PRIVACY.md and show
 Basic $9.99/mo); SignTool + the Artifact Signing dlib, timestamped. Certificates last 3 days and renew; signatures stay valid.
 Microsoft's documented validation time is 1–20 business days (it took hours here). The same account can sign the user's other
 Windows apps. Mac: Developer ID + notarization + Sparkle EdDSA key ("AutoPaper", login Keychain). Linux: a dedicated GPG key for the
-Flatpak repository (`~/.config/autopaper/flatpak-gnupg`, no passphrase, public key committed).
+Flatpak repository (`~/.config/autopaper/flatpak-gnupg`, originally without a passphrase, public key committed).
+**Security follow-up**: that key was retired and replaced with a passphrase-protected key; the login Keychain
+supplies the passphrase during publishing. See the [security follow-up](../docs/security-review-2026-10.md#follow-up-fixes-and-re-review-2026-10-10).
 
 ### 2026-10-07: Release order and "all three together" relaxed, then restored
 **Status**: Approved (user)
@@ -131,8 +133,11 @@ Mac mood list shows names only; editable name lives in detail; Use/Delete are co
 ### 2026-10-07: Substantial release batches; local builds are separate
 **Status**: Explicit user decision
 **Decision**: Gather meaningful changes before publishing/signing a public release. Local builds/installations continue;
-0.1.1 build 5 is installed on Mac, while public feeds remain v0.1.0. Windows signing readiness persists for the final
-batch, but no cached/stale 0.1.1 package may be reused. Reboot documentation does not authorize commit/push/publication.
+reboot documentation alone does not authorize commit/push/publication. At the October 7 checkpoint, Mac had local
+0.1.1 build 5 while public feeds remained v0.1.0; Windows signing was ready for a later batch, requiring fresh packages.
+**Later outcomes**: the October 7 batch shipped in **0.1.1 on October 8**. A later user-authorized batch shipped
+**0.2.0 on October 20** across all three platforms. These completed releases supersede the old pending-release
+state, while preserving the distinction between local builds and publication.
 **References**: `tasks/2026-10/261007_console-budget-transparency.md`, `activeContext.md#Reboot checkpoint`.
 
 ### 2026-10-07: Check both services before generation; revisit the selected mood
@@ -167,12 +172,55 @@ progress stage (needs an FFI enum change and text in all three apps — left for
 ### 2026-10-10: Security review and hardening round
 **Status**: Shipped in 0.1.4 (2026-10-13)
 **Context**: No pen test had been done. Nine reviewers (core, secrets, macOS, Windows, Linux, release chain, dependencies, privacy claims) plus verifiers; then two re-review passes attacking the fixes. Report: `docs/security-review-2026-10.md`.
-**Decision**: No critical/high vulnerabilities found. Fixed the medium/low items (exact-value credential scrubbing via a process-wide registry, keywords out of logs, owner-only data folder, local-address-only `.local` names, SHA-pinned Actions, attestation-bound Flatpak publishing, locked NuGet, accurate privacy docs). Deferred: signed Sparkle feed, Flatpak/Sparkle key rotation, VM share isolation, image-decode memory.
+**Decision**: No critical/high vulnerabilities found. Fixed the medium/low items (exact-value credential scrubbing via a process-wide registry, keywords out of logs, owner-only data folder, local-address-only `.local` names, SHA-pinned Actions, attestation-bound Flatpak publishing, locked NuGet, accurate privacy docs). Initially deferred: signed Sparkle feed, Flatpak/Sparkle key rotation, VM share isolation, image-decode memory.
+**Follow-up**: signed-feed verification, Flatpak key replacement/protection, the isolated VM exchange and tighter
+image-decode allocation limits were subsequently completed. Same-user Keychain trust and the other remaining
+limitations are recorded in the [security review](../docs/security-review-2026-10.md#follow-up-fixes-and-re-review-2026-10-10);
+this does not claim that the Sparkle key was rotated.
 **Consequences**: `publish-flatpak.sh` needs `--tag` (or `--no-attestation` for pre-attestation bundles such as 0.1.3); `release.sh` supports `APPLE_NOTARY_PROFILE`.
 
 ### 2026-10-15: Foundry Local ships as an experimental, community-verified preset
-**Status**: Approved (user: "Maybe we ask the community to verify and put its enabling behind a warning?")
+**Status**: Approved (user: "Maybe we ask the community to verify and put its enabling behind a warning?"); shipped as experimental, including in 0.2.0. Broader hardware validation remains open.
 **Context**: Foundry Local serves an OpenAI-compatible API on a dynamic port. Spike on an ARM64 VM without NPU/GPU: `/v1/models` works, a model must be loaded first, `response_format: json_schema` gave garbage; speed and quality could not be judged.
 **Decision**: `Settings.small_text_model` (default off) makes an OpenAI-compatible writer use the built-in model's compact instructions with the schema written into them (`ComposeRequest.plain_json`, no `response_format` sent) and `composer::repair`. Windows shows a switch (warning dialog first) and a "Find Foundry Local" button that runs `foundry server start` then `foundry server status -o json` and accepts a loopback address only. A "Foundry Local test report" issue template collects results.
 **Alternatives**: hard-wiring a preset without a flag (no way to opt out of untested behaviour); waiting for hardware to test (may never come); Phi Silica (needs NPU and a Limited Access token).
 **Consequences**: new Settings field (Swift/C# constructors updated); it graduates after a couple of good reports, or is removed if nobody tests it.
+
+### 2026-10-20: Discover compatible installed ComfyUI workflows
+**Status**: User-requested and shipped in 0.2.0
+**Context**: The user wanted MOSS-Image and asked what happens when other users have different installed models,
+then requested live discovery with an appropriate workflow for each model.
+**Decision**: Extend the shared ComfyUI provider's installed-node/file validation with official templates served by
+the configured ComfyUI instance. Keep tested bundled presets first, including MOSS-Image. Adapt supported UI
+templates only when their inputs, installed files and connections resolve unambiguously; preserve the template's
+model-specific encoder/VAE/sampling defaults. Reject unsupported graphs rather than guess a model architecture.
+Blank selection means Automatic over compatible installed workflows. Resolve the actual painter before composing,
+and show unavailable saved selections and empty-server states in every native model menu.
+**Consequences**: other users see their own compatible inventory; installing a supported model can add an option
+on refresh without an AutoPaper release. Not every official template is supported, and discovery installs no
+models or custom code. Custom API workflows remain available. Unfamiliar workflows retain conservative size limits.
+**References**: `core/src/providers/comfyui.rs:677`, `core/src/providers/comfyui/templates.rs:36`,
+`core/src/engine.rs:2019`; [pattern](systemPatterns.md#live-comfyui-workflows-and-mac-first-run-020),
+[release record](tasks/2026-10/261018_moss-image-workflow.md).
+
+### 2026-10-20: Explicit provider setup before the Mac's first wallpaper
+**Status**: User-requested and shipped in 0.2.0
+**Decision**: Reuse the real provider settings in the welcome flow after keywords and route selection, with
+read-only connection/model checks. Apple Intelligence supplies writing only and requires an explicit painting
+provider. Demo remains an explicit choice. Preserve first-run scheduling eligibility across asynchronous settings
+saves; skip, interruption or Stop must leave the schedule unarmed.
+**Consequences**: welcome and Settings share provider behavior, and setup does not silently choose a painter or
+start later generation after the user cancels the first run.
+**References**: `apps/macos/AutoPaper/Views/WelcomeView.swift:296`;
+[release record](tasks/2026-10/261018_moss-image-workflow.md).
+
+### 2026-10-20: Activate Mac windows on explicit requests and constrain layout to the screen
+**Status**: User-requested fixes, shipped in 0.2.0
+**Decision**: Capture the actual Settings window and activate it when the user requests Settings; passive pane or
+model updates must not steal focus. Bound Settings form height to the visible screen with scrolling. Keep Now's
+image/caption scrollable and footer fixed, with an explicit minimum width for wrapped notices.
+**Consequences**: Settings opens in front when requested and controls remain reachable on smaller screens;
+the Now layout recovers on existing profiles without resetting saved data.
+**References**: `apps/macos/AutoPaper/App/AutoPaperApp.swift:80`,
+`apps/macos/AutoPaper/Settings/SettingsView.swift:45`, `apps/macos/AutoPaper/Views/NowView.swift:58`;
+[release record](tasks/2026-10/261018_moss-image-workflow.md).

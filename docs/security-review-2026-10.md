@@ -1,5 +1,10 @@
 # Security review, 2026-10-10 (AutoPaper 0.1.3)
 
+This is the dated 0.1.3 review, preserved with its original findings. Remediation is recorded in the
+[October 10 follow-up](#follow-up-fixes-and-re-review-2026-10-10); the later
+[0.2.0 release addendum](#follow-up-020-release-checks-2026-10-2021) records dependency applicability and
+package/publication checks without treating them as a new penetration test.
+
 A defensive review of the code and release chain by nine read-only reviewers, one per surface, run with a multi-agent workflow. Every finding rated above *info* that a reviewer classed as a **vulnerability** was then checked by independent verifiers told to refute it. Findings the reviewers classed as **hardening** were not independently re-verified; each carries the reviewer's file:line evidence. This is not an external penetration test.
 
 **Result: no critical, high or medium vulnerabilities were confirmed.** Four items were claimed as vulnerabilities; verification downgraded all four to *info* (three are documentation inaccuracies; one is a narrow Console link). One *medium* hardening gap: the Flatpak publish step signs a bundle on a checksum from the same CI artifact.
@@ -651,7 +656,7 @@ The flatpak-builder state dir (downloaded sources and previously built modules) 
 - Flatpak: the manifest pins the embedding model by Hugging Face commit and SHA-256 (io.github.msitarzewski.AutoPaper.yml:52-66), builds offline from cargo-sources.json which is cross-checked against Cargo.lock (linux-release.sh:108-119), and pins flatpak-cargo-generator by commit and SHA-256 (L32-33,126). finish-args are narrow (network, wayland/x11, dri, ipc, one tray bus name). `.flatpak` bundles are published only through signed OSTree commits.
 - Shell script hygiene: release.sh, publish-flatpak.sh, publish-windows.sh, pipx-app-updates.sh and fetch-model.sh all use `set -euo pipefail` (or `set -eu`), quote variables, and use mktemp -d with traps. There is no eval, no curl|sh, and no StrictHostKeyChecking=no. ssh uses BatchMode, rsync runs under umask 027, and server paths are constants under /srv/www/msitarzewski.com/app-updates/autopaper. fetch-model.sh uses https-only with SHA-256 verification before the files are renamed into place. pipx-app-updates.sh refuses to run as root, backs up the Caddy config and restores it if validation fails, and only touches its marked block.
 - Dependencies: Cargo.lock is committed and CI/builds use `--locked`. Windows NuGet references use exact versions. Sparkle is exact-versioned (but see supply-chain-3).
-- Static site: site/layout.html and site/pages contain no <script> elements, no external subresources, and no third-party requests beyond ordinary links. The footer states it loads nothing from elsewhere, which matches the code. build_site.py html-escapes titles and descriptions, and its inputs are repo-authored markdown and fragments. GitHub Pages cannot set a CSP header, and there is no inline script to need one.
+- Static site: site/layout.html and site/pages contain no `<script>` elements, no external subresources, and no third-party requests beyond ordinary links. The footer states it loads nothing from elsewhere, which matches the code. build_site.py html-escapes titles and descriptions, and its inputs are repo-authored markdown and fragments. GitHub Pages cannot set a CSP header, and there is no inline script to need one.
 - SECURITY.md claims about updates (Sparkle EdDSA, signed MSIX plus App Installer feed, Flatpak) and NETWORK.md's update section (no system profiling, EdDSA verification, GPG-signed Flatpak repo) match project.yml, appcast.py, windows-release.ps1 and publish-flatpak.sh. The disclosure channels are present and workable.
 - Public Flatpak key packaging/flatpak/autopaper-repo.gpg contains only a public key (RSA 4096, matching the fingerprint documented in scripts).
 
@@ -844,7 +849,7 @@ Four documentation inaccuracies. (1) Both documents are labelled as describing A
 - Prompt contents match the documented list: composer.rs:675-790 sends keywords, Surprise, up to 20 recent summaries, up to 8 'too close' summaries, up to 6+6 taste hints, language, one appearance sentence, fixed instructions, and for echoes the original concept. No file paths, username, hostname, device name, mood name, dates or time of day, spend, or display size appear in the captured request. OpenAI sends store:false and no `user` field (openai.rs:253). The image request carries only prompt, size, n and response_format for compat servers.
 - Appearance reporting is exactly one light or dark sentence (composer.rs:757-770). The macOS system-profile claim holds: Info.plist sets no SUEnableSystemProfiling and the feed is a static appcast on github.io with EdDSA enclosures (appcast.xml). The macOS Apple Intelligence writer uses only LanguageModelSession on SystemLanguageModel.default (AppleSystemModel.swift:9,45).
 - Update channels match the docs. The Windows .appinstaller (build/windows/0.1.3/AutoPaper.appinstaller) points only at msitarzewski.com with OnLaunch HoursBetweenUpdateChecks=0 and AutomaticBackgroundTask. The Flatpak finish-args are --share=network plus display, GPU and portals, with no filesystem access. The model fetch script pins a Hugging Face revision with SHA-256 checks and --proto =https (fetch-model.sh:20-90). No scripts ship in the app bundles.
-- Site claim 'loads nothing from anywhere else' holds. There are no <script>, @font-face, CDN, analytics or iframe in site/, and style.css has no url(). External hrefs are plain links only.
+- Site claim 'loads nothing from anywhere else' holds. There are no `<script>`, @font-face, CDN, analytics or iframe in site/, and style.css has no url(). External hrefs are plain links only.
 - Local storage and key handling: Windows keys use CRED_PERSIST_LOCAL_MACHINE and not PasswordVault, so they do not roam (CredentialStore.cs:11-14,70). macOS keys are plain login-keychain generic passwords with no synchronizable flag. Linux keys go through oo7 and the Secret portal. Windows Log.cs skips AutoPaperException; the Windows file log has no keywords. Filesystem writes by the core are confined to the data dir (imaging.rs:303-320, engine.rs removals). Wallpaper-setting writes outside it go through OS APIs only, which the docs describe: NSWorkspace.setDesktopImageURL, LockScreen.SetImageFileAsync and the GNOME Wallpaper portal.
 - Network policy as built: plain http only to localhost, .local, .localhost, loopback, private and link-local addresses, and IPv4-mapped IPv6 is unwrapped (net.rs:57-107). Credentials in the URL are rejected (net.rs:33). Redirects: at most 3, same host, no https-to-http (net.rs:~300). WebSocket is ws:// to local addresses only and is connected directly. The OpenAI-compatible image-URL follow is restricted to the server's own origin (openai_compat.rs:168-182). Responses are size-capped while streaming (net.rs read_body). The proxy applies to non-local hosts only (net.rs client_for).
 
@@ -875,4 +880,39 @@ Two further agent passes attacked the fixes (the second round of fixes got its o
 - Same-user access to keys and data on Windows and Linux (full-trust MSIX, Secret Service): the platform baseline; documented as out of scope.
 - Actions cache restore keys on tag builds: needs repository write access to poison.
 
-**Open question from the last pass**: `pages.yml` no longer has `configure-pages` (its output was unused); watch the first Pages run after the next push to `main`.
+**Historical question from the last pass**: `pages.yml` no longer has `configure-pages` (its output was unused);
+watch the first Pages run after the next push to `main`. Publication was subsequently verified: the final 0.2.0
+[Pages run](https://github.com/msitarzewski/AutoPaper/actions/runs/39381286459) succeeded and the live site was checked
+on October 21.
+
+## Follow-up: 0.2.0 release checks (2026-10-20/21)
+
+Scope: the shipped `v0.2.0` application source is immutable commit `2f8b79e`. `df7cc19` corrects a stale Windows
+test assertion only; final release metadata is `f8f668b`. This addendum records the release checks and dependency
+assessment from the [release task](../memory-bank/tasks/2026-10/261018_moss-image-workflow.md), not a repeat of the
+full October 10 review. The open Keychain trust, same-user access and Actions cache limitations above remain open.
+
+**Dependency applicability.** OSV scanned `Cargo.lock` and the Windows application lockfile. Four maintenance
+notices remain for `paste`, `zbus_names`, `zvariant` and `zvariant_derive`. Three `zip` 8.6.0 extraction advisories
+(RUSTSEC-2026-0367, RUSTSEC-2026-0368 and RUSTSEC-2026-0369) were assessed against the locked dependency source:
+`zip` is transitive through Candle 0.11, whose optional NumPy/Pickle readers read named archive entries and do not
+call `ZipArchive::extract` or `ZipStreamReader::extract`. AutoPaper's `core/src/embed.rs` loads its bundled
+safetensors model instead of those archive formats. The affected extraction APIs are not reachable from the
+app's model-loading path. This is an applicability assessment, not a clean dependency scan. Track Candle's
+eventual zip 9 migration and maintained D-Bus replacements separately; reassess if model-loading paths change.
+Details: [dependency scan](../memory-bank/tasks/2026-10/261018_moss-image-workflow.md#release-dependency-scan-2026-10-20).
+
+**Release-chain checks.** macOS production signing, notarization/stapling, bundled model hashes and Sparkle
+archive/feed signatures passed. Windows production signatures were timestamped and verified on both architecture
+packages and the MSIX bundle; both packaged core DLLs and all six bundled model files matched their checked hashes.
+Both Flatpak builds and attestations passed, and a fresh client verified the published repository summary and both
+architecture refs using the public key. All nine GitHub release asset digests matched; public update feeds and the
+site were verified live. New versioned winget manifests were generated, with no registry submission.
+
+[Final CI](https://github.com/msitarzewski/AutoPaper/actions/runs/39381286539) passed all seven jobs at `f8f668b`.
+Local suites passed 761 tests (515 core/CLI, 123 Mac, 37 Linux, 86 Windows; 12 existing core tests ignored).
+GUI checks used isolated guest profiles and preserved host data. These results do not establish broad hardware or
+full screen-reader coverage. Linux's installed-model popup passed; other GUI/error-state and selection-persistence
+checks were not exercised, and eight nonfatal GTK startup assertions remain unexplained. See
+[package verification](../memory-bank/tasks/2026-10/261018_moss-image-workflow.md#final-package-verification-2026-10-20)
+for the exact evidence and remaining limits.

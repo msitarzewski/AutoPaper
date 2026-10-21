@@ -1,8 +1,13 @@
 # System Patterns
 
-Status: **core built (2026-10-05)** — `autopaper-core` (every module, no `todo!()`), the `autopaper` CLI and the
-macOS XCFramework/Swift bindings. All native apps shipped v0.1.0; local 0.1.1 Console/Moods/native form
-follow-ups are built/verified, with Mac build 5 installed and public release deferred. Phase 2 core changes (2026-10-05, user
+Status: **0.2.0 shipped on all three platforms (2026-10-20)**. Application source is the immutable `v0.2.0`
+tag at `2f8b79e`; dynamic compatible ComfyUI discovery and the Mac setup/window fixes below are released.
+The [release task](tasks/2026-10/261018_moss-image-workflow.md#final-package-verification-2026-10-20) records
+761 passing tests, signed package/feed checks and the remaining hardware, accessibility and Linux GUI limits.
+
+**Historical architecture/build notes (2026-10-05–07):** `autopaper-core` (every module, no `todo!()`), the `autopaper` CLI and the
+macOS XCFramework/Swift bindings were built. All native apps had shipped v0.1.0; local 0.1.1 Console/Moods/native form
+follow-ups were built/verified, with Mac build 5 installed and public release then deferred. Phase 2 core changes (2026-10-05, user
 decisions): narrow keywords (retries stop when they don't help; `keywords_are_narrow`), every new wallpaper
 restarts the schedule, old failed rows pruned, hosted timeouts as `ProviderUnavailable`, `describe` without
 the rating, and the build scripts (`scripts/build-xcframework.sh`, `scripts/build-core-windows.ps1`). Core
@@ -323,17 +328,17 @@ thumbnails and embeddings run on the runtime's blocking pool.
     1234) and/or image (`/v1/images/generations`; LocalAI 8080, stable-diffusion.cpp `sd-server`).
   - **ComfyUI** — image: `POST /prompt` → poll `/history/{id}` (or `/ws`) → `GET /view`; port 8188.
     A workflow template plus a node-input map (prompt, negative, width, height, seed), since node IDs vary.
-    **One bundled workflow per model (2026-10-06, after the user's bug):** the old picker listed every diffusion
+    **Compatible workflow per model (extended in 0.2.0):** the original picker listed every diffusion
     model and only swapped `unet_name`, so Qwen-Image 2.1 ran with Z-Image's encoder/VAE and KSampler failed ("Given
-    normalized_shape=[4096] … size[1, 95, 2560]"), which the app called retryable. Now `core/resources/comfyui/` has
-    Z-Image Turbo (default), Krea 2 Turbo and Qwen-Image 2.1, each the graph that painted the website examples, with a
-    map declaring `name` and `requires` (diffusion model, text encoder, VAE, custom nodes). A chosen model picks its
-    own workflow (never another's); blank = Z-Image Turbo; a model without one → `InvalidInput` `Other` from
-    `ImageProvider::check_model`, which the engine calls in `prepare` (before an idea is paid for, nothing recorded).
-    `list_models` (bundled) does one `GET /object_info` and lists a model only if its declared files are among
-    UNETLoader/CLIPLoader/VAELoader's choices, every node class of its graph exists, and every other fixed combo
-    value (CLIP type, sampler) is offered — named in words, default first, then by name. A person's own workflow
-    keeps the old behaviour (its loader decides; its loader's choices listed). Krea 2 Turbo drops the website graph's
+    normalized_shape=[4096] … size[1, 95, 2560]"), which the app called retryable. `core/resources/comfyui/` now has
+    tested presets for Z-Image Turbo, Krea 2 Turbo, Qwen-Image 2.1 and MOSS-Image, each with its own graph and a map
+    declaring `name` and `requires` (model files and nodes). The configured server's `/object_info` validates node
+    classes, loader files and fixed choices. Compatible official `/templates/` workflows extend the menu when
+    they can be adapted without guessing; a bundled preset wins for the same installed model. Blank means
+    Automatic: resolve the first compatible installed workflow, preferring Z-Image Turbo when available.
+    A selected unavailable model fails before composition. A person's own API workflow keeps its loader-driven
+    model selection. See [Live ComfyUI workflows and Mac first run](#live-comfyui-workflows-and-mac-first-run-020)
+    for conversion boundaries, limits and native menu behaviour. Krea 2 Turbo drops the website graph's
     `ConditioningKrea2Rebalance` (third-party Rebalance-Pack): Comfy-Org's own template doesn't use it, and an A/B at
     768×432 with a composer-style prompt painted as well without it; stock nodes only. Failures name model and node:
     "ComfyUI rejected the workflow for Qwen-Image 2.1: …", "ComfyUI couldn't paint with Qwen-Image 2.1: the KSampler
@@ -644,13 +649,32 @@ fakes and reports novelty, echoes and taste. Dev and test builds optimise depend
 (`[profile.dev.package."*"] opt-level = 2`); the core itself stays debug.
 
 ## Live ComfyUI workflows and Mac first run (0.2.0)
-- Inventory comes from the configured server's `/object_info`. Compatible official `/templates/` JSON is converted
-  into an API graph only when installed nodes, model files, choices and supported connections all validate.
-  Existing bundled presets take priority; unknown templates retain conservative dimensions. No code/models installed.
-- Engine resolves the selected model before composing; Automatic has no speculative model/cost estimate.
-- Native menus preserve unavailable selections visibly and explain empty inventories. Refresh gets live state.
-- Mac first run reuses ProviderSection and performs read-only connection checks. Schedule eligibility is captured
-  before asynchronous settings saves; skipping or cancelling the first generation leaves the schedule unarmed.
-- Settings height is bounded by screen size. Explicit actions activate a captured NSWindow; passive changes don't.
-- Wrapped Now footer labels need an explicit minimum width, matching the main window budget notice pattern,
-  so an intrinsic height can't push the NavigationSplitView content outside the window.
+
+- The shared core discovers inventory from the configured server's `/object_info`, then examines local
+  text-to-image entries in `/templates/index.json` (`core/src/providers/comfyui.rs:677`). Compatibility uses the
+  actual graph and installed node/loader choices, not model-family guesses from filenames. Tested bundled
+  presets take priority. An exact filename basename can bind to a server subfolder only when unique.
+- The UI-template adapter (`core/src/providers/comfyui/templates.rs:36`) flattens supported subgraphs and
+  preserves encoder, VAE, sampler and negative-prompt defaults. It binds AutoPaper's composed positive prompt,
+  dimensions and seed to unambiguous inputs and emits a stock image-saving endpoint. Unknown nodes, unsupported
+  modes, paid/API nodes, required external image/video inputs and ambiguous graphs are rejected. Unsupported
+  templates are omitted; this is not a general interpreter for every ComfyUI UI workflow. Discovery installs
+  neither custom nodes nor model files.
+- Object-info metadata is capped at 16 MiB and each template response at 4 MiB; discovery considers at most 128 candidates with four concurrent
+  fetches, an eight-second template timeout and a 20-second candidate-fetch budget. Conversion limits graph traversal
+  to 256 nodes and 32 levels. Known model limits remain authoritative; unfamiliar compatible workflows use
+  conservative limits bounded by their template's declared pixel area (`core/src/providers/comfyui.rs:553`).
+- `Engine` resolves the selected painting model before composing (`core/src/engine.rs:2019`). Automatic picks
+  a compatible installed workflow, and its unresolved state has no speculative model/cost estimate. Missing
+  selections fail before a writer is paid. Native menus retain unavailable selections visibly, explain empty
+  inventories and refresh from live server metadata.
+- Mac first run reuses `ProviderSection` (`apps/macos/AutoPaper/Views/WelcomeView.swift:296`) and read-only
+  connection checks. The Apple Intelligence writer still needs an explicit painter; Demo is opt-in. Schedule
+  eligibility is captured before asynchronous settings saves; skipping, interrupting or stopping the first
+  generation leaves the schedule unarmed.
+- Settings forms scroll within a height bounded by the visible screen (`apps/macos/AutoPaper/Settings/SettingsView.swift:45`).
+  Explicit Settings actions activate the captured `NSWindow` (`apps/macos/AutoPaper/App/AutoPaperApp.swift:80`); passive pane/model
+  changes do not steal focus. Now's scrollable image/caption and fixed footer use a 340-point minimum width
+  (`apps/macos/AutoPaper/Views/NowView.swift:58`) so wrapped labels cannot push split-view content beyond the window.
+- Release evidence and untested cases remain in the [task record](tasks/2026-10/261018_moss-image-workflow.md).
+  Foundry Local remains an experimental preset; shipping 0.2.0 did not establish general hardware compatibility.

@@ -3,6 +3,13 @@
 Research date: 2026-10-06. This answers one question: can the models that ship with macOS, Windows and Linux do AutoPaper's two
 jobs?
 
+**Implementation update (0.2.0, shipped 2026-10-20):** this research and its proposed defaults remain historical.
+The Mac's Apple Intelligence writer is implemented, and first run requires explicit provider setup and a painter.
+Windows' Foundry Local integration is shipped behind an experimental warning, using dynamic server discovery and
+the compact plain-JSON writer mode; broad hardware/quality validation remains open. See the
+[decisions](../../memory-bank/decisions.md#2026-10-15-foundry-local-ships-as-an-experimental-community-verified-preset)
+and [release record](../../memory-bank/tasks/2026-10/261018_moss-image-workflow.md) for current behavior and QA limits.
+
 - **Writing:** turn keywords into 4 structured JSON concept candidates. The real request (captured from `autopaper compose`)
   is a 6,983-character system prompt plus an 888-character user prompt plus a 2,083-character JSON Schema, and the answer
   is about 1,400 tokens.

@@ -2,12 +2,12 @@
 
 AutoPaper makes new wallpapers with AI: a language model writes each scene, and an image model paints it. Unless both run on your own computer or network, that means some of what you give AutoPaper leaves your computer. This page says exactly what, to whom, and what stays on your computer. For every request, host and limit, see [NETWORK.md](./NETWORK.md).
 
-This page describes AutoPaper 0.1.5 on macOS, Windows and Linux, and changes with the apps.
+This page describes AutoPaper 0.2.0 on macOS, Windows and Linux, and changes with the apps.
 
 ## The short version
 
 - **No telemetry, no analytics, no accounts, no AutoPaper server.** AutoPaper talks only to the providers you set up, and only to make wallpapers or to check that a provider works. The one exception is the Mac app's update check, if you allow it (see [Updates](#updates)); on Windows and Linux, updates are your system's job, from the author's own server, which keeps no access logs.
-- **Out of the box it sends nothing.** Until you choose a provider, AutoPaper uses **Demo**, which writes simple ideas and paints gradients on your computer, without any network.
+- **No wallpaper is generated just by opening a new install.** Provider setup can make read-only connection and model checks, without keywords, prompts or images. **Demo** writes simple ideas and paints gradients on your computer, without any network.
 - **On this Mac:** if you choose *On this Mac* as the writer, Apple's on-device model writes the ideas, and nothing about your keywords, wallpapers or taste leaves your Mac for that step.
 - **What leaves your computer**, when you use a hosted provider: to write a scene, the current mood's keywords and Surprise, short descriptions of your 20 most recent wallpapers (from all your moods, not only the current one), a few things you've liked or disliked, your language (the language and region only, never your calendar or other regional preferences), and whether your computer is in light or dark mode (only while Match my appearance is on); to paint it, the finished prompt, the size and the quality. Plus AutoPaper's version, your system's name and version, and your IP address, as with any request online.
 - **What stays on your computer:** your images, the history and ratings themselves, mood names, spending, timings and settings. (Short descriptions of recent wallpapers, from **every** mood and not only the current one, and a few phrases from what you liked or disliked, do go to a hosted writer with each request, as above. A mood is a set of keywords, not a privacy boundary.) Memory (the check that a new idea isn't one you've had) runs on your computer with a small bundled model.
@@ -18,7 +18,7 @@ This page describes AutoPaper 0.1.5 on macOS, Windows and Linux, and changes wit
 
 | Who | Learns | When |
 |---|---|---|
-| **OpenAI** (`api.openai.com`), if you choose it | What's sent to write a scene and to paint it (below), and that your key is in use | For each new wallpaper; and when Settings lists its models or you choose **Test** |
+| **OpenAI** (`api.openai.com`), if you choose it | What's sent to write a scene and to paint it (below), and that your key is in use | For each new wallpaper; and when provider setup or Settings lists its models, or you choose **Test** |
 | **Google** (`generativelanguage.googleapis.com`), if you choose Google Gemini | The same | The same |
 | **Your own servers**: Ollama, LM Studio or another server that works like OpenAI's API, ComfyUI | The same, plus, for ComfyUI, the whole workflow AutoPaper runs (AutoPaper's own or yours) | The same, at the address you gave |
 | **A hosted service you point AutoPaper at** (an OpenAI-compatible address on the internet) | The same | The same. AutoPaper doesn't know or vouch for such a service; its own terms apply |
@@ -43,6 +43,16 @@ Each provider's own policy is the one that applies; you hold the key, so you're 
 
 Before composing a new wallpaper, AutoPaper checks both selected services with read-only model-list requests (ComfyUI uses `/object_info`). These checks send credentials to their own provider as usual, but no keywords, prompts or images. Demo needs no network; a budget block makes no checks. If a check fails, a saved usable wallpaper from the selected mood can be shown without generation. Both results stay in Console on this computer.
 
+**ComfyUI discovery** reads installed model and node information and compatible official workflow templates from the
+ComfyUI address you configured. It downloads JSON, not model files or executable code, and sends no prompt during
+discovery. Your custom workflow is sent to that server only when painting.
+
+**Foundry Local on Windows (experimental):** choosing **Find Foundry Local** runs the installed Foundry command to
+start its service and find its loopback address. No keys, keywords or prompts are passed to those commands. Once
+small-model mode is enabled, AutoPaper lists models at that address; writing uses the same OpenAI-compatible
+requests described below. It does not install Foundry or download a model. Foundry is a separate program with its
+own service and network behavior; see [Network](./NETWORK.md#foundry-local-on-windows).
+
 **To write a scene** (one request; two or three when the first ideas are too close to ones you've had, and one more if a provider declines an idea):
 
 - the current mood's **keywords** (Must, Maybe and Avoid) and its **Surprise**;
@@ -58,13 +68,13 @@ Not sent: the mood's name, dates or the time of day, your display's size, what y
 
 **To paint it:** the finished **prompt** (at most 2,500 characters), the **size** (from your display's shape), and the **quality** (Standard or High). ComfyUI also gets the workflow, with a random seed.
 
-**With every request:** a User-Agent such as `AutoPaper/0.1.0 (macOS/26.6 AutoPaper/0.1.0; +https://github.com/msitarzewski/AutoPaper)`, which names AutoPaper's version and your system's name and version; the key, for the service it belongs to; and your IP address. No cookies, no device ID, no account.
+**With every request:** a User-Agent such as `AutoPaper/0.2.0 (macOS/26.6 AutoPaper/0.2.0; +https://github.com/msitarzewski/AutoPaper)`, which names AutoPaper's version and your system's name and version; the key, for the service it belongs to; and your IP address. No cookies, no device ID, no account.
 
 **Your descriptions after clearing history:** **Clear History…** with **Keep memory** keeps each wallpaper's description so AutoPaper can still avoid repeats, and the most recent of those can still be sent as "recent" descriptions. **Clear History and Memory** (Windows: **Clear everything**; Linux: **Forget everything**) deletes them.
 
 ## What AutoPaper does to keep this small
 
-- **Nothing until you choose.** Demo is the default, and a new install makes no requests at all: on a Mac, it asks before it ever checks for updates.
+- **Setup checks do not generate.** The Mac welcome can list models and check the selected services before you finish, but sends no keywords, prompts or images until you ask for the first wallpaper. Skipping or interrupting setup leaves scheduled generation off. On a Mac, AutoPaper asks before it ever checks for updates.
 - **Only what a wallpaper needs.** Memory, taste, the budget and the time estimates are all worked out on your computer; only the writing and painting go to a provider.
 - **Keys stay with their service.** Each key is sent only to its own provider. A key for an OpenAI-compatible server belongs to that server's address and is never sent anywhere else. Redirects are followed only within the same host, and a change of scheme or port drops the key first.
 - **Your network stays yours.** Plain `http` is used only for addresses on your own computer or local network; anything further away needs `https`. Hosted providers are reached only at their own API host, over `https`.
@@ -87,7 +97,7 @@ Everything AutoPaper keeps is in its own data folder, plus a few preferences. No
 | A ComfyUI workflow of your own, if you chose one | macOS preferences; Windows `workflows\` in the data folder; Linux GSettings | Until you choose another |
 | App preferences (for example notifications, the last Settings pane) | macOS preferences; Windows app settings; Linux GSettings (`io.github.msitarzewski.AutoPaper`) | Until you change them |
 | API keys | Keychain; Credential Manager; Secret Service | Until you remove them in Settings |
-| Console runs (original mood/keywords/Surprise, prompts, provider/model choices, sanitized requests and responses, retry checks, timing, estimated cost and outcome) | `runs` in `autopaper.sqlite3`; visible in Console | At most 200 runs for 30 days; Clear Console deletes them independently of wallpapers and memory; clearing history or memory does not clear Console, so use Clear Console to remove the prompts and keywords it kept. Each trace is size-limited, with omitted details labeled. Requests made before this version were not recorded |
+| Console runs (original mood/keywords/Surprise, prompts, provider/model choices, sanitized requests and responses, retry checks, timing, estimated cost and outcome) | `runs` in `autopaper.sqlite3`; visible in Console | At most 200 runs for 30 days; Clear Console deletes them independently of wallpapers and memory; clearing history or memory does not clear Console, so use Clear Console to remove the prompts and keywords it kept. Each trace is size-limited, with omitted details labeled. Requests made before Console was added were not recorded |
 | Diagnostics | macOS: the system log (errors, and a line naming the providers and models that made each wallpaper); Windows: `logs\autopaper.log` in the data folder (unexpected errors only, at most 256 KB, plus one older file); Linux: standard error only (a desktop session usually keeps it in the journal), no log file of AutoPaper's own | No keys, prompts or keywords in any of them (a failed wallpaper is described by its kind, never by the keyword it missed) |
 
 The data folder is private to you: AutoPaper makes it readable by its owner only (macOS, Linux), and on Windows it sits in your own profile. The data folder is:

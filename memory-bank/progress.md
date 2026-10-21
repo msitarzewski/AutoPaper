@@ -1,13 +1,18 @@
 # Progress
 
-## Current release: 0.2.0 (2026-10-20)
+## Current release: 0.2.0 (published 2026-10-20; closure verified 2026-10-21)
 - Published for Mac, Windows and Linux: https://github.com/msitarzewski/AutoPaper/releases/tag/v0.2.0.
 - Live ComfyUI/MOSS discovery, Mac setup wizard and window fixes, experimental Foundry Local; full semantic memory.
 - 761 passing core/native tests, both Windows architecture smokes, signed packages and verified update artifacts.
-- Details: `tasks/2026-10/261018_moss-image-workflow.md#Final package verification (2026-10-20)`.
+- Runtime source/tag: `2f8b79e` / `v0.2.0`; Windows test-only correction: `df7cc19`; release metadata: `f8f668b`.
+- Final [CI run 39381286539](https://github.com/msitarzewski/AutoPaper/actions/runs/39381286539) passed all seven jobs.
+  Pages deployed successfully; live Mac, Windows and Linux update feeds and all nine GitHub assets were verified.
+- Details: [release closure](tasks/2026-10/261018_moss-image-workflow.md#release-closure-verified-2026-10-21).
 - Atmosphere, manual Image Playground, ChatGPT sign-in investigation and sounds remain future work.
 
 ## Earlier local batch (historical reboot record)
+These checkpoints describe October 7–8 development and VM state at that time. The batch shipped in
+[v0.1.1](https://github.com/msitarzewski/AutoPaper/releases/tag/v0.1.1) on October 8; it is not pending release.
 - **Service availability:** both roles checked before paid work; both Console outcomes recorded, newest usable
   non-disliked selected-mood image returned when unavailable, current preserved when no same-mood image remains.
   Core 465 + CLI 6 pass, 10 existing ignored, strict clippy. Mac 108 tests / 163 cases and Linux 35 / 1 ignored
@@ -26,16 +31,20 @@
   Final core 459 tests (10 existing ignored), strict clippy pass. Native builds/tests and applicable VM
   data/export/clear checks pass. Local builds 2/3 superseded by build 5.
 - All tasks recorded in `tasks/2026-10/261007_console-budget-transparency.md`; reboot/resume details
-  in `activeContext.md#Reboot checkpoint`. Source remains uncommitted on `codex/console-runs`.
+  in `activeContext.md#Reboot checkpoint`. Source was then uncommitted on `codex/console-runs`; it was later committed and released in 0.1.1.
 - Windows locked visual/physical/native-file-save checks and Linux model-popup/clipboard/full screen-reader
-  checks remain open. Public release stays v0.1.0; new packaging/signing/publication deliberately deferred.
+  checks were not completed in that batch. Packaging/signing/publication were deferred until the 0.1.1 release.
 
 ## Done (public release history)
 - 2026-10-20: **v0.2.0** on all three platforms: live compatible ComfyUI discovery, MOSS-Image, Mac provider setup wizard and window fixes, experimental Foundry Local. Signed/notarized packages and full semantic memory included.
-- 2026-10-09: **v0.1.2** on all three platforms: Match my appearance (core setting + prompt line + reporting and toggles on Mac/Windows/Linux), native Mac Moods list with Use / In Use, Dock/menu raise the windows.
-- 2026-10-14: **v0.1.5**: security update: `rustls` 0.23.46 (RUSTSEC-2026-0346..0349), tokenizers 0.23, sha2 0.11, `rand` 0.10; CoreSmoke lock covers x64 and arm64; Dependabot has a 7-day cooldown and stays on uniffi 0.31 until uniffi-bindgen-cs supports 0.32.
+- 2026-10-14: **v0.1.5** on Mac and Windows (Linux followed in 0.2.0): security update: `rustls` 0.23.46 (RUSTSEC-2026-0346..0349), tokenizers 0.23, sha2 0.11, `rand` 0.10; CoreSmoke lock covers x64 and arm64; Dependabot has a 7-day cooldown and stays on uniffi 0.31 until uniffi-bindgen-cs supports 0.32.
 - 2026-10-13: **v0.1.4**: security round on all three platforms (full report `docs/security-review-2026-10.md`): credentials scrubbed everywhere, owner-only data folder, local-only direct connections, image-decode limit, Sparkle verify-before-extract + signed appcast, pinned CI actions + locked NuGet, Control Flow Guard on the Windows core, new Flatpak signing key (Linux installs re-add the remote), signing VM isolated to `~/vm-exchange`.
 - 2026-10-10: **v0.1.3**: Mac "On this Mac" writer (Apple Foundation Models via the core's `SystemModel` port; default on the welcome when available), Console charts, details-first events, JSON/instructions disclosures; `docs/research/built-in-models.md` section 7.
+- 2026-10-09: **v0.1.2** on all three platforms: Match my appearance (core setting + prompt line + reporting and toggles on Mac/Windows/Linux), native Mac Moods list with Use / In Use, Dock/menu raise the windows.
+- 2026-10-08: **v0.1.1 released** on all three platforms (Console, budget transparency, Moods cleanup, local inference timeouts).
+- 2026-10-07: **v0.1.0 released** on all three platforms; initial native apps and signed update channels.
+
+## Earlier implementation milestones
 - 2026-10-05: Plan approved (shared Rust core + native SwiftUI / WinUI 3 / GTK4 apps). Repo scaffolded: licence, ignore
   rules, secret scanning config, memory bank, core design (`systemPatterns.md`). Toolchains proven on all three platforms
   (Swift/C# UniFFI round trips; WinUI MSIX sideload; GTK4 on Scratch). Website built (AudioPaper style, red, Lighthouse 100s),
@@ -60,13 +69,16 @@
   `pipx-app-updates.sh`, `publish-flatpak.sh`, `publish-windows.sh`, `flatpak-repo-key.sh`; CI `flatpak.yml`.
 - 2026-10-07: **Azure Artifact Signing** set up (account, identity validation, PublicTrust profile); Windows bundle signed and
   verified; **v0.1.0 released** on all three platforms; real-key Sparkle update test passed; site shows the real Download buttons.
-- 2026-10-08: **v0.1.1 released** on all three platforms (Console, budget transparency, Moods cleanup, local inference timeouts).
 
 ## Next
-- MOSS-Image, live ComfyUI discovery and the experimental Foundry Local preset are included in the current 0.2.0 batch.
 - Deferred from the earlier plan: Atmosphere light/dark + accent (settings off by default; accent applies inside
   the app on macOS/Windows); Image Playground "Paint by hand" (Mac, manual only: the sheet needs a person);
   Sign in with ChatGPT (investigate OpenAI's terms first; drop if not permitted); gentle bundled sounds.
 - Foundry Local remains experimental, off by default, pending broader community GPU/NPU reports.
 - Smaller: Linux "pick my picture" restore; full VoiceOver/Narrator/Orca passes; optional winget submission; verify Nano Banana 2.1 / Gemini Omni pricing; a `cargo fmt` check needs a one-off reformat (~500 chunks) first.
-- Phi Silica waits for Aion Instruct (Windows, from Nov 2026). uuid 1.28 (#4) merges after 2026-10-17.
+- Release QA follow-ups: Linux empty/missing/offline model-picker GUI states and selection persistence;
+  investigate eight nonfatal GTK startup assertions. Full screen-reader passes remain open; release QA is not an accessibility certification.
+- Dependency PRs still open as of 2026-10-21: #4 uuid, #6 base64, #7 sha2 and #8 serde_json. Review and test separately;
+  the earlier uuid cooldown date has passed and does not mean the PR was merged. Track the October 20 OSV maintenance
+  notices and Candle's zip upgrade per the [release scan assessment](tasks/2026-10/261018_moss-image-workflow.md#release-dependency-scan-2026-10-20).
+- Phi Silica remains deferred; recheck the Aion Instruct roadmap before planning that work.

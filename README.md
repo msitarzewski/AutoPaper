@@ -32,7 +32,7 @@ AutoPaper is a desktop app for **macOS, Windows and Linux** that keeps making ne
 It's native on every platform, MIT-licensed and open source, with **no accounts, no telemetry and no AutoPaper server.**
 
 > [!NOTE]
-> **v0.1.2 is out for macOS, Windows and Linux.** [Download it](https://github.com/msitarzewski/AutoPaper/releases/latest) or see [Install](#install). It makes wallpapers that suit your light or dark mode, brings AutoPaper's windows forward from the Dock and menu, and tidies the Mac's Moods list. (0.1.1 added a Console for every wallpaper run, clearer budget messages, and longer waits for local models.) Bug reports and ideas are very welcome as [issues](https://github.com/msitarzewski/AutoPaper/issues/new/choose).
+> **v0.2.0 is out for macOS, Windows and Linux.** [Download it](https://github.com/msitarzewski/AutoPaper/releases/latest) or see [Install](#install). It discovers compatible ComfyUI models and workflows, adds MOSS-Image, improves setup and windows on the Mac, and adds experimental Foundry Local setup on Windows. All three apps include the model for Full Memory. Bug reports and ideas are very welcome as [issues](https://github.com/msitarzewski/AutoPaper/issues/new/choose).
 
 <p align="center">
   <img src="site/static/examples/rain-ruins-960.jpg" width="820" alt="Soft rain falls on a ruined stone colonnade standing in still water at night, lit in deep blues by a moon behind thin cloud.">
@@ -85,7 +85,7 @@ Every one of these came from a handful of keywords, composed the way AutoPaper c
 
 - **Moods.** Named sets of keywords, each with its own Surprise: *Rainy beach*, *Night city*, *Winter forest*. One is current, and switching never makes a wallpaper by itself. A **Your Moods** summary shows what each one has made. On a Mac, each mood has a **Use** button (**In Use** for the current one) in its header.
 - **Light or dark, to match.** *Match my appearance* (on by default, in Settings → General) asks for wallpapers that suit your computer's light or dark mode: bright and airy on a light desktop, deep and moody on a dark one. Your keywords still come first.
-- **A writer that needs no key.** On a Mac with Apple Intelligence, *On this Mac* writes ideas with Apple's on-device model: free, private, with no key: the writing step stays on your Mac (the finished prompt still goes to your painter). AutoPaper asks it for fewer ideas with shorter instructions and fixes what it gets wrong, such as a keyword left out. Painting still needs a painter (or Demo's gradients). [Foundry Local](https://msitarzewski.github.io/AutoPaper/help.html#foundry) works the same way on Windows through *OpenAI-compatible*.
+- **A writer that needs no key.** On a Mac with Apple Intelligence, *On this Mac* writes ideas with Apple's on-device model: free, private, with no key: the writing step stays on your Mac (the finished prompt still goes to your painter). AutoPaper asks it for fewer ideas with shorter instructions and fixes what it gets wrong, such as a keyword left out. Painting still needs a painter (or Demo's gradients). On Windows, the experimental **Find Foundry Local** helper finds [Foundry Local](https://msitarzewski.github.io/AutoPaper/help.html#foundry) under *OpenAI-compatible* and offers a small-model writing mode.
 - **Memory.** Each new idea is compared, on your computer, with everything from your quiet period (a month to two years). Ideas too close to one you've had are asked for again, so the same scene doesn't come back next week.
 - **Echoes.** Once the quiet period has passed, an old idea can return seen differently (other weather, another hour or season, years of decay), linked to the original.
 - **Taste.** Like or Dislike any wallpaper and AutoPaper leans towards what you like. Taste is a hint; Avoid is the rule.
@@ -122,7 +122,7 @@ No web views and no cross-platform UI kit. Each app follows its own platform's g
 
 ## Install
 
-AutoPaper v0.1.0 is available for macOS, Windows and Linux.
+AutoPaper v0.2.0 is available for macOS, Windows and Linux.
 
 ### macOS
 
@@ -156,6 +156,7 @@ Each [release](https://github.com/msitarzewski/AutoPaper/releases/latest) also h
 | OpenAI | Yes | Yes | Your own API key |
 | Google Gemini | Yes | Yes (needs a paid project) | Your own API key |
 | Ollama | Yes | No | None: it runs on your computer or network |
+| On this Mac (Apple Intelligence) | Yes, on supported Macs | No | None |
 | LM Studio and other OpenAI-compatible servers | Yes | Yes, if the server can | Optional |
 | ComfyUI | No | Yes, with discovered compatible workflows, tested Z-Image Turbo, Krea 2 Turbo, Qwen-Image 2.1 and MOSS-Image presets, or your own | None |
 | Demo | Simple ideas | Soft gradients | None, and no network: try the app without AI |
@@ -166,7 +167,7 @@ Keys are kept in your system's secure store, sent only to the service they belon
 
 The full account is in **[PRIVACY.md](./PRIVACY.md)** (who learns what, what's stored) and **[NETWORK.md](./NETWORK.md)** (every host, request and limit). In brief:
 
-- No telemetry, analytics, accounts or AutoPaper server. Out of the box AutoPaper uses Demo and sends nothing to a provider (Windows' App Installer and the Mac's update check are the system's and Sparkle's, see PRIVACY.md).
+- No telemetry, analytics, accounts or AutoPaper server. Opening a new install does not generate a wallpaper. Provider setup can make read-only connection and model checks; Demo uses no network (Windows' App Installer and the Mac's update check are the system's and Sparkle's, see PRIVACY.md).
 - To write a scene, the provider you chose gets the current mood's keywords and Surprise, short descriptions of your 20 most recent wallpapers (from all your moods, not only the current one), a few things you've liked or disliked, your language, and whether your computer is in light or dark mode (while *Match my appearance* is on). To paint it, the finished prompt, the size and the quality.
 - Your images, the history and ratings themselves, spending and settings stay on your computer; the descriptions and phrases above are what a hosted writer gets. Memory runs on your computer with a small bundled model. With local models, nothing leaves your network.
 - Updates are checked by Sparkle on a Mac (the feed on this project's GitHub Pages, no system profile), by Windows' App Installer (from msitarzewski.com, the author's own server, which keeps no access logs) or winget, and by Flatpak on Linux (from the same server).
@@ -265,7 +266,7 @@ AutoPaper is MIT-licensed open source, and pull requests are welcome, from a typ
 
 Good places to start:
 
-- **Providers.** A new writer or painter is one file in `core/src/providers/` plus a registry entry, and every app gets it.
+- **Providers.** A new writer or painter lives in `core/src/providers/` with a registry entry, and every app gets it.
 - **Accessibility.** Hands-on passes with VoiceOver, Narrator and Orca, and reports of anything that gets in the way.
 - **Desktops.** KDE Plasma, Cinnamon, Xfce and multi-monitor setups we haven't tried.
 - **Translations.** The Windows app keeps its words in resource files already; the Mac app (String Catalogs) and the Linux app (gettext) need the same before AutoPaper can speak more languages.
@@ -276,8 +277,8 @@ Found a bug or have an idea? [Open an issue](https://github.com/msitarzewski/Aut
 ## Roadmap
 
 - **Atmosphere:** let the wallpaper set the mood beyond the picture: your accent colour, switching your computer between light and dark to suit it, and gentle sounds.
-- **More built-in writers:** Foundry Local and Windows' own models as one-click choices on Windows (today Foundry Local works as an OpenAI-compatible server).
-- **Sign in with ChatGPT**, so a ChatGPT plan can do the writing without an API key.
+- **More built-in writers:** Windows' own models as writing choices, alongside the experimental Foundry Local setup available today.
+- **Investigate ChatGPT sign-in** for writing without an API key, subject to supported integrations and terms.
 - **Image Playground** on a Mac, to paint a wallpaper by hand when you want to.
 
 ## Built with Agency Agents

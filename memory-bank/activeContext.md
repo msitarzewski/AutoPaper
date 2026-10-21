@@ -1,10 +1,13 @@
 # Active Context
 
-## Current: 0.2.0 released (2026-10-20)
+## Current: 0.2.0 released (2026-10-20; closure verified 2026-10-21)
 - User authorized “Ship the current work.” Public release:
   https://github.com/msitarzewski/AutoPaper/releases/tag/v0.2.0 (nine verified assets).
 - Runtime source: `2f8b79e`, immutable tag `v0.2.0`. Test-only follow-up `df7cc19` corrects the old Windows
-  assertion for ComfyUI's now-discovered default; no packaged runtime changes. Release metadata follows on main.
+  assertion for ComfyUI's now-discovered default; no packaged runtime changes. Release metadata is `f8f668b`.
+- Final [CI run 39381286539](https://github.com/msitarzewski/AutoPaper/actions/runs/39381286539) passed all seven
+  jobs at `f8f668b`; [Pages run 39381286459](https://github.com/msitarzewski/AutoPaper/actions/runs/39381286459)
+  built and deployed successfully. The user requested this documentation reconciliation on October 21.
 - Shipped: MOSS-Image and live compatible ComfyUI workflow discovery on all platforms; Mac provider setup wizard,
   Now layout/relaunch recovery, scrolling Settings and explicit window activation; experimental Foundry Local.
 - Core+CLI 515 tests pass (12 existing opt-in ignored), Mac 123, Windows 86, Linux 37 including Secret Service:
@@ -17,31 +20,42 @@
   fresh client verified the public summary and both signed commits. Installed-model GUI passed; empty/missing/
   unavailable GUI states and selection persistence were not exercised (automated model-state checks pass).
 - Windows and Linux feeds are published and verified over HTTPS. GitHub asset sizes/SHA-256 match all nine
-  local artifacts. Signed Mac feed and the updated site are included in the release metadata for Pages publication.
+  local artifacts. Pages serves the byte-identical signed Mac feed (version 11) and the updated 0.2.0 site;
+  the archive URL returns HTTP 200 and GitHub latest resolves to v0.2.0.
 - Full BGE semantic memory is bundled on every platform. Host app/profile were not changed; GUI QA ran in VMs.
-- Cleanup: Linux original app resumed and all 300 profile files/preferences/background hashes match baseline;
+- Release-time cleanup (not a current VM-state observation): Linux original app resumed and all 300 profile files/preferences/background hashes match baseline;
   Scratch retains its original running state. Mac task VM stopped; unrelated glasspowertools-mac26 untouched.
   Windows profile/preferences/background restored; Windows 11 returned to its original suspended state.
 - Exact evidence and dependency-scan applicability are in
-  `tasks/2026-10/261018_moss-image-workflow.md#Final package verification (2026-10-20)`.
+  [the release closure record](tasks/2026-10/261018_moss-image-workflow.md#release-closure-verified-2026-10-21).
 - Later roadmap work: Atmosphere, manual Image Playground, ChatGPT terms investigation and sounds. Foundry
   remains experimental. Investigate the eight nonfatal Linux GTK startup assertions seen during QA separately.
 - Packaging artifacts remain in `/private/tmp/autopaper-comfy-discovery-gs5xh94i/build/` and Windows artifacts
   in `~/vm-exchange/out/build/windows/0.2.0`; earlier preview worktrees remain unchanged.
 
-## Earlier 0.2.0 plan (2026-10-15)
-- v0.1.5 shipped on Mac and Windows only (tag `v0.1.5` stays; no Flatpak: the Linux build arrives with 0.2.0, user decision). Public release is **v0.1.5**.
-- 0.2.0 build order (approved plan in `progress.md#Next`): **1. Foundry Local preset: BUILT and committed 2026-10-15** (core `Settings.small_text_model`, `ComposeRequest.plain_json`, `OnDevice.plain_json`; Windows switch + warning dialog + "Find Foundry Local" button, `Services/Foundry.cs`; issue template `foundry_local_report.md`; untested on real GPU/NPU hardware, so it ships experimental and community-verified). 2. Atmosphere (light/dark + accent) next. Then Image Playground sheet, ChatGPT sign-in spike, sounds.
-- 2026-10-18 (user request): **MOSS-Image bundled ComfyUI workflow** built on branch `comfyui-moss-image`
-  (worktree `../autopaper-moss-image`), uncommitted: see `tasks/2026-10/261018_moss-image-workflow.md`. Not yet
-  installed on the Mac (installed app is still 0.1.1 build 6) or tested on Windows/Linux builds.
-- Before tagging 0.2.0: regenerate `packaging/flatpak/cargo-sources.json` if dependencies changed; re-run the OSV check; merge uuid #4 after 2026-10-17.
+## Historical checkpoints
+The dated implementation and reboot records below preserve the evidence available at that time. Statements
+about uncommitted work, installed builds, pending publication and VM state are historical, not resume
+instructions. Use the current release summary above and the current recipes/open items below.
 
-## (earlier) v0.1.5 (2026-10-14) [SHIPPED]
-- Public release is **v0.1.4** (0.1.5 in progress) (security round; see `progress.md` and `decisions.md#2026-10-10-security-review-and-hardening-round`). Earlier sections below are historical task records.
-- Release recipe: commit; Windows via `scripts/vm-exchange.sh push` then the VM build/sign (`windows-release.ps1 -SkipCore`, Azure CLI login must be live) then `publish-windows.sh X --from ~/vm-exchange/out/build/windows/X`; Mac `release.sh` (Sparkle key + appcast signing prompt: choose Allow); push the tag, then `publish-flatpak.sh --tag vX` (Keychain passphrase prompt); `gh release create`; push main last.
-- Flatpak repository key rotated 2026-10-13 (fingerprint F4562E1A6706E16CFBFA5DAEF91A07754E829612); Linux installs re-add the remote.
-- Still open: remove Keychain auto-trust for the Sparkle and Flatpak key items (Keychain Access); first run of the attest job and `pages.yml` is watched after the 0.1.4 tag push.
+## Earlier 0.2.0 plan (2026-10-15; superseded by the shipped batch)
+- v0.1.5 had shipped on Mac and Windows only; Linux received the security updates in 0.2.0 by user decision.
+- Foundry Local was built and committed October 15 and shipped experimentally in 0.2.0. The originally
+  planned Atmosphere, Image Playground, ChatGPT sign-in investigation and sounds remain deferred.
+- MOSS-Image began October 18 in `../autopaper-moss-image` and was extended with live discovery, the Mac
+  wizard and window fixes. It is now committed, tested across platforms and released; see
+  [the task record](tasks/2026-10/261018_moss-image-workflow.md).
+- Release dependencies/Flatpak sources and the OSV assessment were checked before tagging. The uuid PR was
+  not merged; its expired cooldown is not release work still waiting to run.
+
+## Earlier v0.1.5 security release (2026-10-14) [SHIPPED]
+- v0.1.5 followed the v0.1.4 security round; details are in `progress.md` and
+  `decisions.md#2026-10-10-security-review-and-hardening-round`.
+- Flatpak repository key rotated October 13 to fingerprint `F4562E1A6706E16CFBFA5DAEF91A07754E829612`;
+  installations trusting the old key need to re-add the remote. The 0.2.0 signed summary/commits were verified
+  with the current public key by a fresh client.
+- Keychain item access-policy review and confirmation that the rotated private key was backed up remain
+  separate maintenance items; the old first-attestation/Pages-watch reminders are superseded by successful runs.
 
 ## Service availability preflight (2026-10-07 local / 2026-10-08 UTC) [COMPLETE; MAC INSTALLED]
 
@@ -239,18 +253,24 @@
 - Persistent review patch: `.scratch/autopaper-console-review.patch`; regenerate after source/documentation changes.
   Task record: `tasks/2026-10/261007_console-budget-transparency.md`.
 
-**State (2026-10-09): v0.1.2 RELEASED** (v0.1.1 on 2026-10-08, v0.1.0 on 2026-10-07) for macOS, Windows and Linux. Public repo https://github.com/msitarzewski/AutoPaper
-(MIT, branch `main`, tags `v0.1.0`, `v0.1.1`, `v0.1.2`), site https://msitarzewski.github.io/AutoPaper/. CI green. Next work is optional
-polish and the backlog (below); the implemented Console/Moods/native form follow-ups are documented above. Spec for every app: `docs/app-spec.md`;
-design: `systemPatterns.md`; toolchains/VMs/infrastructure: `techContext.md`; history: `progress.md`,
-`tasks/2026-10/`; decisions: `decisions.md`.
+## Current working rules and distribution
+Public repository: https://github.com/msitarzewski/AutoPaper (MIT, `main`). Site:
+https://msitarzewski.github.io/AutoPaper/. Spec: `docs/app-spec.md`; design: `systemPatterns.md`;
+toolchains/VMs/infrastructure: `techContext.md`; history: `progress.md`, `tasks/2026-10/`; decisions: `decisions.md`.
 
-**Commit rule for this repo:** the user authorized the v0.1.0, v0.1.1 and v0.1.2 releases (commits + pushes); anything after needs fresh approval. Commit trailer: `Co-Authored-By: Claude <model> <noreply@anthropic.com>`; never put Claude session URLs anywhere.
+**Authorization:** the user authorized shipping 0.2.0 (commits, packages, feeds and publication), then explicitly
+requested all applicable Memory Bank and release documentation updates on October 21. Earlier release
+approvals are historical; unrelated future work needs authorization appropriate to its scope. Attribute commit
+contributors accurately; do not fabricate another agent's co-author credit or include private session URLs.
 
-## What shipped (all verified end to end)
+## Distribution architecture
+The original end-to-end update tests below are dated historical checks. The
+[0.2.0 task record](tasks/2026-10/261018_moss-image-workflow.md#release-closure-verified-2026-10-21)
+contains the current package/feed checks and their limits.
 - **macOS** — notarized DMG + Sparkle 2.10.0 zip on the GitHub release; feed `https://msitarzewski.github.io/AutoPaper/appcast.xml`
   (`site/static/appcast.xml`, pushed LAST at release time). Real-key update test passed in the VM (0.0.9 → 0.1.0).
-  Bundle ID `com.autopaper`, team 7JQGQ7CRH8, installed on the user's Mac via `scripts/macos-install.sh`.
+  Bundle ID `com.autopaper`, team 7JQGQ7CRH8. Earlier local builds were installed via `scripts/macos-install.sh`;
+  the 0.2.0 release task did not install or replace the host app.
 - **Windows** — signed MSIX bundle (x64+arm64, self-contained, ~391 MB) + `AutoPaper.appinstaller` served from
   `https://msitarzewski.com/app-updates/autopaper/` (bundle under `windows/`), also attached to the GitHub release.
   Signed with **Azure Artifact Signing** (account `msitarzewski-signing`, East US, endpoint `https://eus.codesigning.azure.net/`,
@@ -260,7 +280,7 @@ design: `systemPatterns.md`; toolchains/VMs/infrastructure: `techContext.md`; hi
   (App Installer, by the next launch). winget manifests are in `packaging/winget/` — **not yet submitted** to
   microsoft/winget-pkgs (optional; the docs say "once reviewed").
 - **Linux** — own GPG-signed Flatpak repository `https://msitarzewski.com/app-updates/autopaper/flatpak` (key fingerprint
-  `6D6197DA7830EF13C5C25AC1005CC961E908702D`, public key `packaging/flatpak/autopaper-repo.gpg`), one-click
+  `F4562E1A6706E16CFBFA5DAEF91A07754E829612` (rotated October 13), public key `packaging/flatpak/autopaper-repo.gpg`), one-click
   `AutoPaper.flatpakref`, signed `.flatpak` files on the release. **No Flathub** (its AI-generated-manifest policy;
   user: "fuck Flathub"). Ubuntu needs `sudo apt install flatpak` first. Inside Flatpak, restoring the person's own
   wallpaper is impossible without host dconf (hidden, explained in Preferences); the FileChooser-portal "pick your picture
@@ -274,8 +294,8 @@ design: `systemPatterns.md`; toolchains/VMs/infrastructure: `techContext.md`; hi
   templates. Settings: Issues/Wiki/Projects on, Discussions off, Pages = Actions, Dependabot alerts on, private vulnerability
   reporting on, secret scanning + push protection on, default workflow permissions read.
 
-## After v0.1.2 (uncommitted, 2026-10-09)
-Built, not committed or released: **On this Mac** writer (core `ProviderKind::System`, `SystemModel` trait, `providers/system.rs`, on-device composer profile + `repair`; Mac host `AppleSystemModel`, Settings/Welcome/error wording; real end-to-end run on this Mac: 7-30 s per wallpaper, Must keywords present; see `decisions.md`), Console polish (chart labels, friendly durations on all three platforms, provider names in error text via `Display for ProviderKind`, run detail first with the overview below, JSON bodies and instructions behind disclosures with colouring/markdown), and the chart/duration fixes. Tests: core 409 + 71, Mac 115, Linux 35, Windows 86 (re-run after the last Windows edit). The e2e harness is `.scratch/e2e` (SwiftPM, real engine + Apple model).
+## After v0.1.2 (historical October 9 checkpoint; shipped in v0.1.3)
+Built at this checkpoint, then committed and released October 10: **On this Mac** writer (core `ProviderKind::System`, `SystemModel` trait, `providers/system.rs`, on-device composer profile + `repair`; Mac host `AppleSystemModel`, Settings/Welcome/error wording; real end-to-end run on this Mac: 7-30 s per wallpaper, Must keywords present; see `decisions.md`), Console polish (chart labels, friendly durations on all three platforms, provider names in error text via `Display for ProviderKind`, run detail first with the overview below, JSON bodies and instructions behind disclosures with colouring/markdown), and the chart/duration fixes. Tests: core 409 + 71, Mac 115, Linux 35, Windows 86 (re-run after the last Windows edit). The e2e harness is `.scratch/e2e` (SwiftPM, real engine + Apple model).
 
 ## v0.1.2 (2026-10-09) — released on all three platforms
 Contents: **Match my appearance** (`Settings.match_system_theme`, default on; hosts report light/dark through `Engine::set_system_appearance`; when on and known,
@@ -307,32 +327,47 @@ in `packaging/winget/` (not submitted). Lessons: the Windows VM can wake from su
 timeout of Never helps during releases); when two sessions share a working tree, commit one's work first and move the other's to a new branch (and never
 `git checkout HEAD --` a file you only think is yours: diff it first).
 
-## Release recipes (next release; versions in `Cargo.toml` workspace, `apps/macos/project.yml`, Linux metainfo `<release>`)
-1. **Mac:** `set -a; source ~/.config/brew-browser/signing.env; set +a; scripts/release.sh` → `build/release/AutoPaper-X.dmg|zip|sha256`
-   and the feed entry in `site/static/appcast.xml` (leave it uncommitted until the GitHub release exists).
-2. **Windows:** `scripts/vm-exchange.sh push` on the Mac (the VM sees only `~/vm-exchange`, as `\\Mac\Exchange`; the Mac home is not shared with it), then in the VM robocopy `\\Mac\Exchange\src` to `C:\Users\michael\dev\autopaper-release` and `scripts\windows-release.ps1 -Version X -CopyTo \\Mac\Exchange\out` with
-   `AUTOPAPER_SIGN_ENDPOINT/ACCOUNT/PROFILE` and `AUTOPAPER_SIGN_PUBLISHER` set and `az login --use-device-code` done in the
-   VM (user approves in a browser; Azure CLI 2.91 + x64 .NET 8 runtime are installed there); then on the Mac
-   `scripts/publish-windows.sh X --from ~/vm-exchange/out/build/windows/X` (bundle first, feed last; keeps 3 bundles; refuses dev feeds).
-3. **Linux:** tag `vX` and push (the `Flatpak` workflow builds x86_64 + aarch64), then `scripts/publish-flatpak.sh --tag vX`
-   (Docker signs with `~/.config/autopaper/flatpak-gnupg`, rsyncs to pipx in four passes), upload `build/flatpak/release/*`.
-4. `gh release create vX` with the DMG, zip, sha256s, flatpaks, msixbundle, appinstaller; THEN commit + push the appcast and
-   site; then check links, the feed, and a Flatpak install in the Scratch VM. Update the home hero/README/Help if platforms change.
+## Release recipes
+Reuse the scripts and the detailed release notes in `techContext.md`. Version inputs include workspace
+`Cargo.toml`/`Cargo.lock`, `apps/macos/project.yml`, Windows project/package manifest and Linux metainfo.
+Freeze the source commit before building; never move a published tag to include later tests or documentation.
 
-## Open items
-- **Back up `~/.config/autopaper/flatpak-gnupg/`** (no passphrase; loss = no Linux updates for installed copies; the user
-  confirmed this is done) and the Sparkle private key (login Keychain, account "AutoPaper"; loss = no Mac updates).
-- winget submission (user decides); Linux own-wallpaper restore picker; extra empty Azure subscription "Michael - App
-  Signing" (user: leave it); user feedback on the installed native list/form build.
-- Backlog awaiting the user's go-ahead: **ChatGPT-plan writer**
-  (Sign in with ChatGPT: Responses API only, streaming, no temperature, no image generation — `docs/research/built-in-models.md`),
-  **Foundry Local** preset on Windows, manual "Paint with Image Playground…" (ImageCreator is deprecated in macOS 27; verified).
-- Known gaps/ideas: the user's failing mood's keywords (the "ideas didn't follow the keywords" report) were never identified, only
-  the retry feedback and typed `KeywordNotFollowed` error were added; full VoiceOver/Narrator/Orca passes are still to do; no
-  `cargo fmt` check in CI (≈1,440 diffs: needs a one-off format first); `docs/research/rust-linux.md`'s manifest sketch is stale;
-  Nano Banana 2.1's price and Gemini Omni image output not yet verified before making them defaults.
+1. **Mac:** `APPLE_NOTARY_PROFILE=AutoPaper-notary scripts/release.sh` uses the existing notarization Keychain
+   profile and produces `build/release/AutoPaper-X.dmg|zip|sha256` plus the signed appcast entry. Check signatures,
+   notarization/stapling, full BGE resources and the exact production bundle in the Mac VM. Keep the new feed
+   unpublished until its GitHub archive exists. Do not rewrite the signed feed for a documentation-only change.
+2. **Windows:** `scripts/vm-exchange.sh push` exposes only `~/vm-exchange` to the VM. Build both core architectures
+   together with `scripts\build-core-windows.ps1 -Arch all`, then run `scripts\windows-release.ps1 -Version X
+   -CopyTo \\Mac\Exchange\out` with signing configuration and a valid Azure login inside the VM. Use `-SkipCore`
+   only after fresh source/DLL receipts for both architectures. Verify timestamps/signatures, packaged model
+   hashes and real ARM64/x64 smokes; use an isolated self-contained x64 smoke if the global runtime is absent.
+   Publish with `scripts/publish-windows.sh X --from ~/vm-exchange/out/build/windows/X` (bundle first, feed last).
+3. **Linux:** push the frozen `vX` tag; wait for both Flatpak architecture builds and build attestations. Use
+   `scripts/publish-flatpak.sh --tag vX` to verify provenance, sign and publish. A fresh client using only the
+   public key must verify the remote summary and both commits. Do not bypass attestations for a new release.
+4. Stage all platform artifacts on the draft GitHub release; verify every uploaded size/SHA-256, then publish.
+   Push the final appcast/site metadata to main last. Check Pages deployment, live HTTPS downloads, signed Mac
+   feed, Windows feed headers/checksum/range response and Linux remote. Keep release notes, README, Help and
+   Memory Bank consistent with the published version and actual QA limits.
 
-## Standing user decisions (2026-10-05..07)
+## Open items (reviewed 2026-10-21)
+- Verify backup of the **rotated October 13 Flatpak private key** and its Keychain-held passphrase; the earlier
+  backup confirmation predates that rotation. Keep the Sparkle private key backed up. Keychain item access-policy
+  review is still recorded as pending; do not infer its current state from a successful signature.
+- Release QA follow-ups: Linux empty/missing/offline model-picker GUI states and selection persistence;
+  investigate the eight nonfatal GTK startup assertions. Full VoiceOver/Narrator/Orca passes remain open.
+- Experimental Foundry Local is shipped and off by default; gather broader GPU/NPU community reports.
+  Deferred features: Atmosphere, manual Image Playground, ChatGPT sign-in terms investigation and bundled sounds.
+- Dependency PRs #4 (uuid), #6 (base64), #7 (sha2), #8 (serde_json) are open as of October 21; review/test separately.
+  Track the October 20 OSV maintenance notices and Candle's zip migration using the release task's applicability
+  assessment; do not describe that scan as clean.
+- Optional winget submission (0.2.0 manifests exist), Linux own-wallpaper restore picker and 0.2.0 user feedback.
+  Leave the extra empty Azure subscription alone, as requested.
+- Earlier verification gaps remain where not superseded by release QA: Windows native exported-file save and
+  physical keyboard/drag checks, independent Linux clipboard read. Recheck provider pricing before changing
+  defaults. A `cargo fmt` gate still needs a separate formatting pass; the old research manifest is historical.
+
+## Standing user decisions (through 2026-10-21)
 - Batch changes into substantial releases; local development builds/installations do not need a public release each time.
 - Native apps on macOS/Windows/Linux, native UX only, accessible (WCAG 2.2 AA via WCAG2ICT). Shared Rust core + UniFFI.
 - Providers: OpenAI, Google Gemini, local/OpenAI-compatible (Ollama, LM Studio, ComfyUI); users' own keys.
@@ -344,18 +379,21 @@ timeout of Never helps during releases); when two sessions share a working tree,
   Control. **Pause keeps the current wallpaper** on all platforms; Restore My Wallpaper / Quit uncover/restore the person's own
   (Windows also restores the lock screen picture; Linux only on GNOME outside Flatpak).
 - Local painting at **the largest size each model supports** (Apple-silicon VAE cap for 8× VAEs: 2,965,760 px); per-model bundled
-  ComfyUI workflows (Z-Image Turbo default, Krea 2 Turbo, Qwen-Image 2.1) + "Your own". Keep per-machine performance history.
+  ComfyUI presets (Z-Image Turbo, Krea 2 Turbo, MOSS-Image, Qwen-Image 2.1), compatible official server templates
+  and "Your own". Automatic resolves an actually available compatible workflow; never assume another user has
+  the developer's models. Keep per-machine performance history.
 - Moods = named keyword sets + own Surprise; macOS three-column Moods (sidebar › list › detail), reload/stop in the detail's toolbar.
 - Never GUI-test on the user's Mac (use the macOS test VM); never SendMessage agents a Workflow is running; never copy `.env`
   anywhere (all robocopy syncs use `/XF .env .env.*`; three stray copies in the Windows VM were deleted 2026-10-06).
 - Push notifications only when the user is needed or a build is ready.
 
 ## Environment facts
-- Installed app: `/Applications/AutoPaper.app` (0.1.1 build 6 Release, Developer ID, no get-task-allow).
+- Last recorded manual host install: `/Applications/AutoPaper.app`, 0.1.1 build 6 on October 8 (Developer ID,
+  no get-task-allow). This is historical, not a current installed-version assertion; the 0.2.0 release left it alone.
 - macOS test VM: `scripts/macvm/macvm.sh` (tart `autopaper-mac26`, throwaway `autopaper-mac26-run`; only `scripts/macvm` is shared).
   Windows VM "Windows 11" (ARM64), Linux VM "Scratch" (Ubuntu 26.04, GNOME 50). See `techContext.md`.
 - ComfyUI: `~/Software/ComfyUI`, `./run.sh`, 127.0.0.1:8188. The user's real wallpaper is a macOS Aerial (no public API to restore).
 - Hosting: pipx (`ssh pipx`) serves msitarzewski.com; docs `~/Clean/pipx/DEPLOYING.md`; setup script `scripts/pipx-app-updates.sh`.
-- The user's Azure: signed in on the Mac with `az login` (and in the Windows VM); subscription "Azure subscription 1"
+- Azure configuration (check authentication afresh for each release): subscription "Azure subscription 1"
   (fc33e2dc-8746-4f5d-8733-5551655f8313), resource group `app-signing`; the user holds Identity Verifier + Certificate Profile Signer.
 - Keys for live provider checks are in `.env` (git-ignored, mode 600): never print or share.

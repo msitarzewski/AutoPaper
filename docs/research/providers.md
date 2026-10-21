@@ -2,6 +2,12 @@
 
 Research date: 2026-10-05. Every fact below was checked against the provider's official documentation on that date, unless it sits under **Uncertain / unverified** (section 6). Doc pages were downloaded and searched as raw HTML or Markdown wherever possible, so that a summarizing model could not misreport them. A citation tag such as `[OAI-IMG]` points to the URL list in section 7.
 
+**Implementation update (0.2.0, shipped 2026-10-20):** the ComfyUI capabilities and recommendations below are
+dated API research. AutoPaper now discovers compatible installed workflows from the configured server, with a
+tested MOSS-Image preset; arbitrary checkpoints/templates are not automatically supported. Current behavior and
+conversion limits are in [System Patterns](../../memory-bank/systemPatterns.md#live-comfyui-workflows-and-mac-first-run-020),
+with verification in the [release record](../../memory-bank/tasks/2026-10/261018_moss-image-workflow.md).
+
 > **The model landscape has moved past mid-2025 assumptions:**
 > - OpenAI's current image models are `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` (released 2026-09-08). DALL·E 2 and 3 were retired on 2026-05-12. The cheap current text model is `gpt-6-luna` (released 2026-09-22).
 > - Google has **shut down Imagen**, so the `:predict` endpoint is no longer usable for images. Image generation now goes through "Nano Banana" Gemini models. `gemini-2.5-flash-image` was scheduled to shut down on 2026-10-02 (already past). Google now recommends the **Interactions API** (`/v1beta/interactions`) for new projects. `generateContent` is "legacy" but "remains fully supported".

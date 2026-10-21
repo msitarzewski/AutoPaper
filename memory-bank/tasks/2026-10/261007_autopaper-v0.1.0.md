@@ -38,6 +38,7 @@ self-hosted updates instead of Flathub, release order, Qwen examples).
 The v0.1.0 release and its QA above remain historical. Subsequent Console/budget transparency, Console
 charts/help, Mac Moods cleanup, native list/form tasks and service preflight/selected-mood fallback are recorded in
 [261007_console-budget-transparency.md](261007_console-budget-transparency.md).
-Current local Mac is 0.1.1 build 6; public feeds remain v0.1.0. These follow-ups are uncommitted on
-`codex/console-runs`; the user explicitly deferred public releases to gather a larger batch.
-See `../../activeContext.md#Reboot checkpoint` for exact installed hash, latest QA, open checks and resume steps.
+At that checkpoint, the local Mac was 0.1.1 build 6 and public feeds were v0.1.0. The follow-ups were then
+uncommitted on `codex/console-runs`, while the user gathered a larger batch. They shipped in v0.1.1 on October 8.
+See [Active Context](../../activeContext.md) for the current state and the
+[0.2.0 closure record](261018_moss-image-workflow.md#release-closure-verified-2026-10-21) for current release QA.

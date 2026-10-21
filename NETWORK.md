@@ -2,9 +2,9 @@
 
 Every network request AutoPaper makes: host, trigger, what's sent, and the limits. For what this means for your privacy, see [PRIVACY.md](./PRIVACY.md).
 
-This page describes AutoPaper 0.1.5, and changes with the code.
+This page describes AutoPaper 0.2.0, and changes with the code.
 
-All requests for wallpapers are made by AutoPaper's shared core, the same code on macOS, Windows and Linux, through one HTTP client (`core/src/net.rs`: reqwest, with rustls and your system's own certificate checks). The apps themselves make no requests, apart from the Mac app's update check ([below](#checking-for-updates)): otherwise they only open links in your browser when you click them. The client keeps **no cookies and no cache, and sends no Referer**. Every request carries the User-Agent `AutoPaper/<version> (<system>/<version> AutoPaper/<version>; +https://github.com/msitarzewski/AutoPaper)`, for example `AutoPaper/0.1.0 (macOS/26.6 AutoPaper/0.1.0; +https://github.com/msitarzewski/AutoPaper)`. Outgoing connections only; AutoPaper opens no listening sockets.
+All requests for wallpapers are made by AutoPaper's shared core, the same code on macOS, Windows and Linux, through one HTTP client (`core/src/net.rs`: reqwest, with rustls and your system's own certificate checks). The apps themselves make no requests, apart from the Mac app's update check ([below](#checking-for-updates)). Links open in your browser when you click them; Windows' experimental Foundry helper can also start its separate local service ([below](#foundry-local-on-windows)). The client keeps **no cookies and no cache, and sends no Referer**. Every request carries the User-Agent `AutoPaper/<version> (<system>/<version> AutoPaper/<version>; +https://github.com/msitarzewski/AutoPaper)`, for example `AutoPaper/0.2.0 (macOS/26.6 AutoPaper/0.2.0; +https://github.com/msitarzewski/AutoPaper)`. Outgoing connections only; AutoPaper itself opens no listening sockets.
 
 The same client enforces:
 
@@ -21,14 +21,16 @@ The same client enforces:
 
 | Moment | Network? |
 |---|---|
-| Installing, first launch | **None.** Writing and painting both start on **Demo**, which works without any network |
+| Installing, opening the welcome before provider setup | **None.** No wallpaper is generated just by opening a new install |
 | Using Demo | **None** |
 | A new wallpaper is due on your schedule (checked again when your computer wakes or you unlock it) | Read-only availability checks for both selected providers, then one writing request and one painting request (below). A scheduled wallpaper may start a little early, by its estimated time, so it's ready when due |
 | **New Wallpaper Now**, **Make an Echo**, or **Dislike** with *Replace wallpapers I dislike* on | The same |
 | The **New Wallpaper** action in Siri or Shortcuts (macOS) | The same |
 | The next wallpaper would exceed the monthly budget | **None**: the current wallpaper stays, and a notice shows spending, the limit and the next wallpaper's estimated cost |
 | Showing a past wallpaper again, rating, switching moods, editing keywords, browsing History or Console, clearing Console, exporting a run report, the memory check | **None** |
-| Settings → Providers opens, or you change a provider, address, workflow or key; **Refresh** and **Test** | The chosen providers' model lists (below) |
+| Settings → Providers opens, the Mac welcome reaches provider setup, or you change a provider, address, workflow or key; **Refresh** and **Test** | The chosen providers' model lists and ComfyUI workflow discovery (below), without prompts or images |
+| **Make My First Wallpaper** | Setup validation and the same availability checks, writing and painting as a manual wallpaper |
+| **Find Foundry Local** (Windows, experimental) | Runs the installed Foundry command to start/find its local service; once small-model mode is enabled, lists models at the discovered loopback address ([below](#foundry-local-on-windows)) |
 | Clicking **Get a key**, a Brew Browser button, or an install link for Ollama or ComfyUI | Opens the page in your browser, or Brew Browser itself (`brewbrowser://bundle/local-llm` or `brewbrowser://bundle/image-gen`); AutoPaper makes no request |
 | Checking for updates | On a Mac, the update feed ([below](#checking-for-updates)): about once a day if you allowed automatic checks, or when you choose **Check for Updates…**. On Windows and Linux, AutoPaper makes none: the system's own installer does it |
 
@@ -75,10 +77,20 @@ The address you give; there's no default, and `/v1` is added when the address ha
 
 | Request | When | Sends | Time limit, size limit |
 |---|---|---|---|
-| `POST {address}/chat/completions` | Writing a scene | The model (if chosen), the instructions and message, the answer's schema as `response_format`, the temperature, `stream: false` | 10 minutes or more (see below), 8 MB |
+| `POST {address}/chat/completions` | Writing a scene | The model (if chosen), the instructions and message, the answer's schema as `response_format` (omitted in small-model mode), the temperature, `stream: false` | 10 minutes or more (see below), 8 MB |
 | `POST {address}/images/generations` | Painting | The model (if chosen), the prompt, the size (at most 2048 px a side and never more pixels than your display), `n: 1`, `response_format: b64_json` | 10 minutes or more (see below), 72 MB |
 | `GET` the link the server returned | Only if the server answers with a link instead of the image | — The link is followed only if it's on the server's own address (the same scheme, host and port) | 120 s, 50 MB |
 | `GET {address}/models` | Model list, **Test**, and before writing when no model is chosen | — | 20 s, 4 MB |
+
+### Foundry Local on Windows
+
+Only when you choose **Find Foundry Local**, AutoPaper runs the installed `foundry` command with `server start`
+(waiting up to 90 seconds), then `server status -o json` (waiting up to 20 seconds). No keys, keywords or prompts are
+passed to these commands. It accepts only an `http` loopback address without user information. Once the experimental
+small-model mode is enabled (with confirmation before first enabling it), it saves that address and lists models
+through the core's OpenAI-compatible client.
+AutoPaper does not install Foundry or request a model download. Foundry is a separate program: its service and any
+network activity it performs are controlled by Foundry, outside AutoPaper's HTTP client.
 
 ## ComfyUI (painting only)
 
@@ -158,5 +170,5 @@ Flatpak installs only what the repository's GPG key signed. A `.flatpak` file fr
 ## Verifying it yourself
 
 - **Watch it live:** macOS's Network privacy report, Little Snitch or LuLu; Resource Monitor's Network tab on Windows; OpenSnitch, or `ss -tp`, on Linux. You'll see only the hosts above, and only at the moments above.
-- **Read the code:** the rules above are in `core/src/net.rs`; each provider is one file in `core/src/providers/` (`openai.rs`, `google.rs`, `ollama.rs`, `openai_compat.rs`, `comfyui.rs`), with its host, requests and limits at the top.
+- **Read the code:** the rules above are in `core/src/net.rs`; providers live in `core/src/providers/` (`openai.rs`, `google.rs`, `ollama.rs`, `openai_compat.rs`, `comfyui.rs` and its template adapter), with their hosts, requests and limits documented there. Windows' Foundry helper is `apps/windows/AutoPaper/Services/Foundry.cs`.
 - **Run it from the terminal:** the developer CLI, `autopaper` (in `cli/`), runs the same core, with keys from a `.env` file: `autopaper compose` makes one writing request and prints the ideas and how they scored; `autopaper generate` makes a whole wallpaper.

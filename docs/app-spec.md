@@ -14,13 +14,14 @@ context actions, accessibility and functional image/list viewport geometry remai
 ## Identity
 | | macOS | Windows | Linux |
 |---|---|---|---|
-| App ID | `com.autopaper` (team 7JQGQ7CRH8, as AudioPaper) | MSIX `AutoPaper`, publisher from the dev cert | `io.github.msitarzewski.AutoPaper` |
+| App ID | `com.autopaper` (team 7JQGQ7CRH8, as AudioPaper) | MSIX `AutoPaper`, production family `AutoPaper_0a7ap1vxmmc6t`; publisher `CN=Michael Sitarzewski, O=Michael Sitarzewski, L=Dallas, S=tx, C=US`, signed with Azure Artifact Signing | `io.github.msitarzewski.AutoPaper` |
 | Data dir (`EngineConfig.data_dir`) | Application Support/AutoPaper (sandbox container) | `ApplicationData.Current.LocalFolder` (real `LocalState` path) | `$XDG_DATA_HOME/autopaper` (Flatpak's own) |
 | Model dir | bundled `Models/bge-small-en-v1.5` | bundled in the package | installed data dir |
 | Icon | `apps/macos/AppIcon.icon` (red display + sparkles) | same artwork as Fluent-style PNG assets | same artwork as a GNOME-style SVG |
 
-Dev builds take the embedding model from the repo's `models/bge-small-en-v1.5` (`scripts/fetch-model.sh`). If it's
-missing the engine falls back to reduced memory; `memory_status()` says so and Settings → Memory shows it.
+Releases on all three platforms bundle `bge-small-en-v1.5` for Full Memory. Dev builds take the embedding model from
+the repo's `models/bge-small-en-v1.5` (`scripts/fetch-model.sh`). If it is missing or cannot load, the engine falls back
+to reduced memory; `memory_status()` says so and Settings → Memory shows it.
 
 ## Voice
 AudioPaper's: plain, specific, short. No hype, no "AI magic", no exclamation marks. macOS menu items and buttons in
@@ -105,6 +106,9 @@ from the app grid; KDE gets an SNI tray (ksni) with the same menu.
 - Like / Dislike toggle buttons (state announced), **New Wallpaper Now**, and while generating the stage + Cancel.
 - Status lines: next one ("Next new wallpaper at 9:00", or "Paused" / "Only when you ask"), budget ("$1.20 of $5.00
   this month (estimated)"), any error or revisit reason, the narrow-keywords note.
+- macOS: the empty and first-generation states are centered, with status lines pinned below. The current image and
+  text share a column up to 720 points wide. The status column has a 340-point minimum so multiline notices wrap
+  without inflating the window's minimum height or pushing navigation offscreen.
 **Sidebar** (macOS, user 2026-10-06): Now · **Moods** (a disclosure group, expanded by default, listing every mood in the
 person's order with the current one checkmarked — "Rainy beach, current mood" to VoiceOver; the same right-click menu as
 the mood list; selecting a mood opens its detail, selecting the Moods row itself shows list › detail) · History · Console.
@@ -159,6 +163,9 @@ button in the Now page's command bar / header bar that turns into a stop button 
   Finder/Explorer/Files** (image path), **Delete…** (confirmation).
 
 ### 3. Settings (macOS Settings window with panes; Windows Settings page with SettingsCards; GNOME AdwPreferencesDialog)
+macOS: long panes scroll within 600 points of content height, or less on a smaller display, with tabs fixed above;
+short panes keep their natural height. Explicit Settings actions bring the actual window forward, including when
+it is already open behind another app; passive pane updates do not steal focus.
 **General**: New wallpaper (Every hour · 3 hours · 6 hours · 12 hours · **Every day** · Every week · Only when I ask);
 Pause; Also set the lock screen (where supported; otherwise explain why it's unavailable); Replace wallpapers I dislike; Match my appearance (on by default: wallpapers suit light or dark mode);
 When a new one can't be made (**Bring back one I liked** · Keep the current one); Open at login; macOS: Show in menu bar;
@@ -176,7 +183,9 @@ and empty inventories are explained, never silently replaced) or **Your own…**
 chooser; API-format JSON with `{{prompt}}`, `{{width}}`, `{{height}}`, `{{seed}}`; the Model menu becomes a read-only
 line naming the model the file loads; "Choose another…"). A ComfyUI failure is one line + a link to Providers. Brew Browser help for local kinds per
 systemPatterns ("Setting up local models"). Gemini note: "A free Gemini key may let Google use what you send to improve
-its products; a paid project doesn't."
+its products; a paid project doesn't." Windows: OpenAI-compatible writing also offers **Small model (experimental)**
+and **Find Foundry Local**. The latter starts/finds the installed Foundry service, accepts only its loopback address,
+asks before enabling small-model mode, and lists downloaded models. It does not install Foundry or download models.
 **Keys** (macOS "Accounts" like AudioPaper): OpenAI API key, Google Gemini API key, and the OpenAI-compatible server's key
 (saved under `secret_account_for(selection)` — label "Key for <address>"). Secure fields that save as you type to the
 platform store (no Save button), each with a "Get a key" link (platform.openai.com/api-keys, aistudio.google.com/apikey)
@@ -188,8 +197,8 @@ still avoids repeats; afterwards History and Now are empty — `current()` is no
 picture), **Reset What It Learned…**.
 **Budget**: Monthly budget (No limit · $1 · $2 · **$5** · $10 · $20 · custom), this month's estimated spend, estimated
 cost per wallpaper and per month at the current cadence (`spend_summary()`), "Prices as of <`prices_as_of()`>".
-**About**: icon, AutoPaper, version (build), one-line description, links (Website · Privacy · Help when they exist —
-leave TODO comments until then), "MIT · © 2026 Michael Sitarzewski". Settings reopen on the last pane (AudioPaper).
+**About**: icon, AutoPaper, version (build), one-line description, links (Website · Privacy · Help),
+"MIT · © 2026 Michael Sitarzewski". Settings reopen on the last pane (AudioPaper).
 
 ### 4. First run
 If no provider is configured beyond Demo: a welcome (macOS: a window/sheet; Windows: a first-run page; GNOME:
@@ -198,8 +207,8 @@ suggestions are fine to *show* as examples, not to save), choose who writes and 
 Try it without AI), add a key if needed → **Make My First Wallpaper**. Skippable.
 On Mac, step three reuses the full Providers controls and checks both selected services before finishing. Apple
 Intelligence can write but still requires an explicit painter; Demo is opt-in. Skip, interrupted setup, or stopping
-the first run leaves the schedule unarmed. Settings panes scroll to fit the display, and explicit Settings actions
-bring the actual window forward without passive updates stealing focus.
+the first run leaves the schedule unarmed; a manual **New Wallpaper Now** arms it again. **Continue** advances the
+first two pages; **Back** preserves the setup already entered.
 
 ### 5. Notifications (Windows toast, Linux GNotification; macOS off unless the person turns it on)
 "New wallpaper: <title>" with **Like** / **Dislike** actions (and **Show** opening the window). Never for routine

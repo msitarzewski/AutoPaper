@@ -1,14 +1,16 @@
 # 261007_console-budget-transparency
 
-## Latest checkpoint — reboot handoff
-This existing record now covers the entire local 0.1.1 follow-up batch: Console/budget transparency,
-Console layout/help/statistics, Mac Moods cleanup, and native list/form refinement. The user explicitly
-requested documentation of all tasks before reboot (2026-10-07 local / 2026-10-08 UTC).
+## Historical checkpoint — local batch later shipped in 0.1.1
+This record covers the October 7–8 local batch: Console/budget transparency, Console layout/help/statistics,
+Mac Moods cleanup, native list/form refinement and service availability with selected-mood fallback.
+The user requested the original documentation before reboot. The batch then shipped in **v0.1.1 on October 8**;
+its earlier uncommitted/deferred-publication notes below preserve the state at each checkpoint.
 
-Latest installed app: **macOS 0.1.1 build 5**. Latest QA: **459 core tests**, **107 Mac tests / 162 cases**,
-**83 Windows tests**, **34 Linux tests**; 10 core and 1 Linux existing ignored tests. Builds and applicable
-strict clippy pass. Source is uncommitted on `codex/console-runs`; no new public release. Details below
-preserve the initial build 2 snapshot and record each subsequent completed task separately.
+Final local follow-up 4 installed **macOS 0.1.1 build 6** and passed **465 core + 6 CLI tests**,
+**108 Mac tests / 163 cases**, **86 Windows tests**, and **35 Linux tests** (10 core and 1 Linux existing ignored).
+Earlier build 2–5 results remain below as historical evidence. For current work use
+[Active Context](../../activeContext.md) and the
+[0.2.0 release closure](261018_moss-image-workflow.md#release-closure-verified-2026-10-21).
 
 ## Objective
 Expose native date → runs → outcomes diagnostics for wallpaper generation, explain budget blocks exactly,

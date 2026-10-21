@@ -1,6 +1,29 @@
 # Tech Context
 
-## Current local build and reboot facts (2026-10-07 local)
+## Current release: 0.2.0 (published 2026-10-20; verified 2026-10-21)
+
+- All three platforms shipped [v0.2.0](https://github.com/msitarzewski/AutoPaper/releases/tag/v0.2.0).
+  Immutable tag/application source: `2f8b79e`; Windows test-only correction: `df7cc19`; release metadata: `f8f668b`.
+  All nine uploaded assets match their recorded SHA-256 digests. Sparkle, App Installer and the signed Flatpak
+  repository are live; both Flatpak architectures were verified from a fresh client using the public key.
+- [Final CI](https://github.com/msitarzewski/AutoPaper/actions/runs/39381286539): all seven jobs passed at
+  `f8f668b`. [Pages](https://github.com/msitarzewski/AutoPaper/actions/runs/39381286459) passed and the live site was verified.
+  Local suites: 515 core/CLI + 123 macOS + 37 Linux + 86 Windows = **761 passed**; 12 existing core tests ignored.
+- ComfyUI menus now discover compatible installed workflows; MOSS-Image has a tested bundled preset.
+  Mac first run requires explicit provider setup, and window activation follows explicit user requests.
+  Foundry Local remains experimental. New winget 0.2.0 manifests were generated; registry submission was not performed.
+- GUI QA used guest profiles only. The host app/profile was not changed by release QA. Mac test VM stopped,
+  Windows restored to its original suspended state, Scratch left originally running with its original process,
+  profile and wallpaper restored. Broad hardware and full screen-reader QA remain open. Linux's installed-model
+  popup passed; other GUI/error-state and selection-persistence checks were not exercised. Eight nonfatal GTK
+  startup assertions remain unexplained, with no observed crash or menu failure.
+- Evidence and remaining limits: [release task](tasks/2026-10/261018_moss-image-workflow.md#final-package-verification-2026-10-20).
+  Release packaging practices are recorded under [Release infrastructure](#release-infrastructure).
+
+## Historical local build and reboot facts (2026-10-07 local)
+
+This is the October 7 checkpoint, including then-current installs and pending work; it is not the current release status.
+
 - Mac installed Release **0.1.1 build 6** at `/Applications/AutoPaper.app`; universal x86_64/arm64,
   Developer ID team 7JQGQ7CRH8, deep/strict verification and installed/final-build equality pass.
   Executable SHA256 `2437884218b47dc2756a4f2395aeb8adfa2bfc0d2b5b71d8f9c1bc32840817fb`.
@@ -21,8 +44,8 @@
   does not establish a bad signature. Last installed signature was verified with system trust access.
 - Working branch `codex/console-runs`, uncommitted. Persistent review patch `.scratch/autopaper-console-review.patch`;
   session log `.scratch/session-log.jsonl`; Windows final core receipt `.scratch/windows/console-statistics-core-receipt.json`.
-- Public release remains v0.1.0. Final batch packaging/signing/publication awaits the user; existing build5
-  installation is a local development build. Full task history/resume steps are in activeContext/tasks.
+- At this checkpoint, the public release was v0.1.0 and final batch packaging/signing/publication awaited the
+  user. The installed builds were local development builds. Full task history is in activeContext/tasks.
 
 Versions verified 2026-10-05 (sources in `docs/research/rust-linux.md`, `docs/research/providers.md`,
 `docs/research/windows.md`).
@@ -256,7 +279,8 @@ the VM; nothing appears on the Mac's screen.
   from an isolated copy (`C:\Users\michael\dev\autopaper-corecheck`, target dir
   `C:\Users\michael\dev\autopaper-corecheck-target`, both left there as a warm cache): arm64 5 min 41 s, x64
   4 min 55 s (prebuilt NASM), no warnings; `autopaper_core.cs` 250,810 B (`namespace AutoPaper.Core;`, `public class
-  Engine`), DLLs 12.8 MB (arm64) / 14.5 MB (x64). Not yet compiled into a C# project.
+  Engine`), DLLs 12.8 MB (arm64) / 14.5 MB (x64). Those initial measurements are historical; both architectures
+  passed real BGE runtime smokes and were packaged in 0.2.0.
 - Rust on Windows ARM64 needs **clang-cl** (VS Build Tools "C++ Clang tools") for ring/aws-lc-rs and tract;
   on x64 aws-lc-rs needs NASM or `AWS_LC_SYS_PREBUILT_NASM=1`. The VM has clang-cl at
   `C:\BuildTools\VC\Tools\Llvm\{ARM64,x64}\bin` (not on PATH; aws-lc-sys finds it there) and no nasm (checked
@@ -265,15 +289,15 @@ the VM; nothing appears on the Mac's screen.
   2026-10-05: .NET SDK 10.0.401 arm64, rustup (rustc 1.99.0, aarch64 + x86_64 MSVC targets) for `michael`,
   uniffi-bindgen-cs, winapp 0.7.1, WinUI templates, AxeWindowsCLI 2.4.2 (`C:\Tools\AxeWindowsCLI-2.4.2`),
   Developer Mode on. Already present: VS Build Tools 2022 17.14 (ARM64/x64 C++, Windows SDK 10.0.26100), Git 2.55.
-  - **Since 2026-10-10 the VM shares only `~/vm-exchange` (`\\Mac\Exchange`; `scripts/vm-exchange.sh push`), not the Mac home**, because it builds third-party code next to a live Azure signing session. Older notes below that say `\\Mac\Home\Clean\autopaper` mean `\\Mac\Exchange\src` now. `prlctl set … --isolate-vm on` blocks `prlctl exec`, so it is off.
-  - Repo (old note): `\\Mac\Home\Clean\autopaper` (desktop user: `Z:\Clean\autopaper`). **Packages can't be registered
-    from the share (0x80073CFD)**: `robocopy \\Mac\Home\Clean\autopaper C:\Users\michael\dev\autopaper /MIR
-    /XD .git bin obj target AppX .scratch /XF .env .env.*` (never copy `.env`), build/run/pack there; `CARGO_TARGET_DIR` on local disk too.
+  - **Since 2026-10-10 the VM shares only `~/vm-exchange` (`\\Mac\Exchange`; `scripts/vm-exchange.sh push`), not the Mac home**, because it builds third-party code next to a live Azure signing session. `prlctl set … --isolate-vm on` blocks `prlctl exec`, so it is off.
+  - Source is staged at `\\Mac\Exchange\src`. **Packages can't be registered from the share (0x80073CFD)**:
+    after `scripts/vm-exchange.sh push`, use `robocopy \\Mac\Exchange\src C:\Users\michael\dev\autopaper /E
+    /XD bin obj target AppX Generated /XF .env .env.*`, then build/run/pack locally; `CARGO_TARGET_DIR` stays on local disk too.
   - `prlctl exec "Windows 11" <cmd>` = SYSTEM (elevated: machine installs, cert trust, HKLM);
     `prlctl exec "Windows 11" --current-user <cmd>` = `windows-arm\michael`, not elevated (dotnet, cargo,
     winapp, Add-AppxPackage, UI tests; apps appear on the desktop).
-  - Scripts: put `.ps1` in `.scratch/windows/`, run `powershell -NoProfile -ExecutionPolicy Bypass -File
-    '\\Mac\Home\Clean\autopaper\.scratch\windows\x.ps1'` (long `-EncodedCommand` fails through prlctl).
+  - Stage QA `.ps1` scripts in the isolated exchange, then run `powershell -NoProfile -ExecutionPolicy Bypass
+    -File '\\Mac\Exchange\scripts\x.ps1'` (long `-EncodedCommand` fails through prlctl).
   - Screenshots: `prlctl capture "Windows 11" --file out.png` (1465×839). Accessibility: `winapp ui inspect -a
     <proc> -i`, AxeWindowsCLI.
   - Reference smoke projects left in `C:\Users\michael\dev\ApSmoke` and `C:\Users\michael\dev\uniffi-smoke`.
@@ -318,7 +342,7 @@ the VM; nothing appears on the Mac's screen.
 pipeline). Example wallpapers in `site/static/examples/` are painted locally with ComfyUI from
 `examples.json` (not made by the app; captioned as such).
 
-## Release infrastructure (2026-10-06/07)
+## Release infrastructure
 - **GitHub**: public repo `msitarzewski/AutoPaper`; workflows `ci.yml` (secret scan with gitleaks pinned to 8.30.1 because the action's
   default can't read `[[allowlists]]`; core on ubuntu/macos-26/windows-2025; macOS app, Windows app, Linux app builds), `pages.yml`
   (site from `site/` + PRIVACY.md/NETWORK.md; watches `appcast.xml`), `flatpak.yml` (tags `v*`: x86_64 on ubuntu-24.04, aarch64 on
@@ -328,13 +352,36 @@ pipeline). Example wallpapers in `site/static/examples/` are painted locally wit
   `flatpak/` (OSTree repo), `AutoPaper.flatpakref`, `autopaper.flatpakrepo`, `windows/*.msixbundle`, `AutoPaper.appinstaller`.
   Caddy lines (marker `AutoPaper app-updates`, backups `msitarzewski.com.caddy.bak.*`) set no-cache for feeds/indexes and the MIME types.
   Set up once by `scripts/pipx-app-updates.sh` following `~/Clean/pipx/DEPLOYING.md` (only this site's slice; `caddy-apply`).
-- **Signing**: macOS Developer ID team 7JQGQ7CRH8 + notarytool credentials in `~/.config/brew-browser/signing.env` + Sparkle EdDSA key
-  (login Keychain, account "AutoPaper"; public key in `apps/macos/project.yml`). Windows: Azure Artifact Signing (see activeContext) via SignTool +
+- **Signing**: macOS Developer ID team 7JQGQ7CRH8 + the stored notarytool profile selected by `APPLE_NOTARY_PROFILE`
+  (`scripts/release.sh:32`) + Sparkle EdDSA key (login Keychain, account "AutoPaper"; public key in
+  `apps/macos/project.yml`). Windows: Azure Artifact Signing (see activeContext) via SignTool +
   dlib (x64 .NET 8 runtime needed; the ARM64 VM runs it under emulation); VM has Azure CLI 2.91. Linux: GPG key in
-  `~/.config/autopaper/flatpak-gnupg` (RSA 4096, no passphrase) — public key `packaging/flatpak/autopaper-repo.gpg`.
+  `~/.config/autopaper/flatpak-gnupg`, protected by a random passphrase held in the login Keychain; public key
+  `packaging/flatpak/autopaper-repo.gpg`. The old unprotected key was retired. No expiry is deliberate to preserve
+  client updates; same-user Keychain access remains a documented limitation in the
+  [security follow-up](../docs/security-review-2026-10.md#follow-up-fixes-and-re-review-2026-10-10).
 - **Scripts**: `release.sh`/`appcast.py` (Mac), `windows-release.ps1`/`publish-windows.sh`, `linux-release.sh` (bundles, AppStream screenshot check),
   `publish-flatpak.sh`/`flatpak-repo-key.sh`/`packaging/flatpak/publish.Dockerfile`, `pipx-app-updates.sh`, `third_party_notices.py`.
 - **Gotchas**: `$([[ … ]] && echo …)` exits under `set -e`; `CARGO_TERM_COLOR=always` adds an escape code after rustc's native-static-libs
   note (strip it); Xcode 26.6 crashes on method-reference `Binding(set:)` and times out on one-expression closures (use closures/typed steps);
   App Installer needs a Microsoft-chain signature (Artifact Signing) and Windows reports `SignatureKind=Developer` for any non-Store signature;
   Azure's portal blades are cross-origin iframes (the page snapshot can't click inside them; use `az`); identity validations are not in the ARM API.
+
+### Release verification lessons from 0.2.0
+
+- Build both Windows core DLLs in **one** `scripts/build-core-windows.ps1 -Arch all` invocation.
+  Installing generated output replaces `Generated` (`scripts/build-core-windows.ps1:175`); separate ARM64 and
+  x64 invocations discard the first DLL. The script can warn and skip x64, so verify that both DLLs exist before
+  native builds or packaging. Check both packaged DLL hashes against the tested outputs and all six embedded
+  model files against `scripts/fetch-model.sh`'s pinned hashes, then verify timestamped production signatures on
+  both MSIX packages and the bundle. A development certificate is not release evidence.
+- The ARM64 test VM lacked the x64 .NET 10 runtime. The real x64 CoreSmoke passed using a temporary self-contained
+  publish of `apps/windows/CoreSmoke/CoreSmoke.csproj` (`-r win-x64 --self-contained true -p:RestoreLockedMode=true`).
+  This needs no global runtime installation or source change; keep its output separate from release artifacts.
+- Record source hashes before and after packaging. The 0.2.0 test-only correction did not change runtime source
+  or tag provenance. Reuse the release scripts and stored notary profile; generate a new versioned winget folder
+  without changing prior releases. Manifest generation is separate from submission to the winget registry.
+- Long foreground `prlctl exec` calls obstructed guest access during this QA run, and attaching CUA to Parallels
+  hung. Keep guest builds detached, host wrappers bounded and logs in the exchange; coordinate short dispatcher
+  windows across VMs. Use `prlctl capture` and guest accessibility tools when needed. Cancel only identified
+  stuck host wrappers, preserve guest jobs and user work, and restore each VM's original state and profile.

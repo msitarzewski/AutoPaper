@@ -46,7 +46,7 @@ The core is exported to Swift and C# with UniFFI, pinned at `=0.31.2` because `u
 
 ## Adding a provider
 
-Each provider is one file in `core/src/providers/`, registered in `core/src/providers/registry.rs`.
+Each provider lives in `core/src/providers/`, registered in `core/src/providers/registry.rs`.
 
 - **All requests go through `core/src/net.rs`.** Its rules (hosted providers only at their API host, plain `http` only to local addresses, same-host redirects, time and size limits) apply to every provider; don't open your own client.
 - **Keys go through the `SecretStore`**, in a header, and only to their own service.
@@ -78,11 +78,11 @@ AutoPaper follows WCAG 2.2 AA through [WCAG2ICT](https://www.w3.org/TR/wcag2ict-
 
 All three platforms release together, at one version (`version` in `Cargo.toml`, `MARKETING_VERSION` in `apps/macos/project.yml`, the Windows package manifest, and the AppStream metainfo's release notes):
 
-1. **macOS:** `scripts/release.sh` archives a Release build, exports it with the Developer ID certificate, notarizes and staples the app and the `.dmg`, and signs the Sparkle update `.zip` with the EdDSA key in the maintainer's Keychain (`generate_keys --account AutoPaper`). `scripts/appcast.py` adds it to `site/static/appcast.xml`.
+1. **macOS:** `scripts/release.sh` archives a Release build, exports it with the Developer ID certificate, notarizes and staples the app and the `.dmg`, and signs the Sparkle update `.zip` with the EdDSA key in the maintainer's Keychain (`generate_keys --account AutoPaper`). `scripts/appcast.py` adds it to `site/static/appcast.xml`, then the release script signs and verifies the feed itself. Do not edit the feed after signing.
 2. **Windows** (in Windows): `scripts/windows-release.ps1` builds one x64 + ARM64 `.msixbundle`, signs it with Azure Artifact Signing, and writes the App Installer file (which points at msitarzewski.com) and the winget manifests (`packaging/winget/`, which point at the copy attached to the GitHub release).
-3. **Linux:** `scripts/linux-release.sh` builds the release into AutoPaper's GPG-signed Flatpak repository, and a `.flatpak` bundle that points at the same repository, checked with `flatpak-builder-lint`.
-4. **GitHub release:** publish it with every file (the `.dmg` and Sparkle `.zip`, the `.msixbundle`, the `.flatpak`, and their checksums).
-5. **msitarzewski.com** (`/app-updates/autopaper/`, set up once with `scripts/pipx-app-updates.sh`): upload the `.msixbundle` into `windows/` and the repository into `flatpak/`, then `AutoPaper.appinstaller` and `AutoPaper.flatpakref` last, since they point at what's already there.
+3. **Linux:** `scripts/linux-release.sh --lint` builds unsigned Flatpak bundles for x86_64 and aarch64 on their Linux runners and checks them with `flatpak-builder-lint`. On the Mac, `scripts/publish-flatpak.sh --tag <tag>` verifies the CI build attestations, imports the bundles into AutoPaper's GPG-signed repository, publishes it, and makes signed `.flatpak` downloads that point at that repository.
+4. **GitHub release:** publish it with every file (the `.dmg` and Sparkle `.zip`, the `.msixbundle`, both architecture-specific `.flatpak` files, and their checksums).
+5. **msitarzewski.com** (`/app-updates/autopaper/`, set up once with `scripts/pipx-app-updates.sh`): upload the `.msixbundle` into `windows/`, then `AutoPaper.appinstaller` last, since it points at what's already there. The Linux publishing script handles the same ordering for `flatpak/` and `AutoPaper.flatpakref`.
 6. **The Mac feed:** push `site/static/appcast.xml` only after the GitHub release is published, since it points at the release's `.zip`. The website deploys itself on push to `main`.
 7. **winget:** a pull request to [winget-pkgs](https://github.com/microsoft/winget-pkgs) for `msitarzewski.AutoPaper`.
 
